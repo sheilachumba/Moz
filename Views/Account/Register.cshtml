@@ -1,0 +1,499 @@
+﻿@model ClientPortal.Models.RegisterVm
+@{
+    ViewData["Title"] = "Register";
+    Layout = "_Layout";
+}
+<style>
+    :root {
+        --brand-blue: #153e75;
+        --brand-light: #2563eb;
+        --text: #1f2937;
+        --panel: #ffffff;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        --radius: 16px;
+    }
+
+    /* Full page wrapper that overrides everything */
+    .register-page {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        background: url('/images/register-bg.jpg') no-repeat center center fixed;
+        background-size: cover;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 999;
+    }
+
+        /* Decorative background elements */
+        .register-page::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .register-page::after {
+            content: '';
+            position: fixed;
+            bottom: -30%;
+            left: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+    /* Centered container */
+    .auth-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 24px;
+        position: relative;
+        z-index: 1;
+    }
+
+    article {
+        width: 100%;
+        max-width: 650px;
+        padding: 48px 44px;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+        font-family: sans-serif;
+        position: relative;
+        animation: slideUp 0.6s ease-out;
+    }
+
+    @@keyframes slideUp {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    .logo-wrap {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 20px;
+        display: grid;
+        place-items: center;
+    }
+
+        .logo-wrap img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            background: #fff;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            object-fit: contain;
+        }
+
+    h1 {
+        color: var(--brand-blue);
+        text-align: center;
+        margin: 0 0 10px;
+        font-weight: 800;
+        font-size: 2.25rem;
+        letter-spacing: -0.02em;
+    }
+
+    h2 {
+        color: var(--muted);
+        text-align: center;
+        margin: 0 0 36px;
+        font-weight: 500;
+        font-size: 1.125rem;
+    }
+
+    label {
+        display: block;
+        margin: 0 0 24px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    /* Enhanced inputs with MORE SPACE */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    select {
+        display: block;
+        width: 100%;
+        height: 52px;
+        padding: 14px 16px;
+        font-size: 1.05rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        background: #f9fafb;
+        color: var(--text);
+        margin-top: 8px;
+        transition: all 0.2s ease;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+
+    select {
+        background: #f9fafb;
+        cursor: pointer;
+    }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--brand-blue);
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(21, 62, 117, 0.1);
+        }
+
+        input:hover:not(:focus),
+        select:hover:not(:focus) {
+            border-color: #d1d5db;
+        }
+
+    ::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+        font-size: 0.975rem;
+    }
+
+    input:-webkit-autofill {
+        -webkit-box-shadow: 0 0 0px 1000px #fff inset;
+        -webkit-text-fill-color: var(--text);
+        transition: background-color 5000s ease-in-out 0s;
+    }
+
+    /* THREE COLUMN grid layout with MORE SPACE */
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 4px;
+    }
+
+        .grid label {
+            margin-bottom: 0;
+        }
+
+    /* Email gets FULL WIDTH on its own row */
+    .email-row {
+        margin-bottom: 4px;
+    }
+
+        .email-row label {
+            margin-bottom: 0;
+        }
+
+    .phone-row {
+        margin-bottom: 4px;
+    }
+
+        .phone-row label {
+            margin-bottom: 0;
+        }
+
+    /* Enhanced button */
+    .primary {
+        width: 100%;
+        background: linear-gradient(135deg, var(--brand-blue) 0%, #0c2d5e 100%);
+        color: #fff;
+        padding: 16px 0;
+        margin: 24px 0 0 0;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1.1rem;
+        font-weight: 700;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 14px rgba(21, 62, 117, 0.3);
+    }
+
+        .primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(21, 62, 117, 0.4);
+        }
+
+        .primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #9ca3af;
+            box-shadow: none;
+        }
+
+    #pwdMeter {
+        width: 100%;
+        height: 8px;
+        margin-top: 10px;
+        accent-color: var(--brand-blue);
+        border-radius: 4px;
+        background: #e5e7eb;
+        display: block;
+    }
+
+    #meterText {
+        color: var(--text);
+        display: block;
+        margin: 8px 0 0 2px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .text-danger {
+        color: #dc2626;
+        font-size: 0.925rem;
+        margin-top: 12px;
+        padding: 10px 12px;
+        background: #fef2f2;
+        border-radius: 8px;
+        border-left: 3px solid #dc2626;
+    }
+
+    .password-requirements {
+        color: var(--text);
+        font-size: 0.9rem;
+        background: #f0f9ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-top: 10px;
+    }
+
+        .password-requirements ul {
+            margin: 6px 0 0 0;
+            padding-left: 22px;
+        }
+
+        .password-requirements li {
+            margin: 5px 0;
+        }
+
+    @@media (max-width: 680px) {
+        article
+
+    {
+        padding: 36px 28px;
+        max-width: 100%;
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    h1 {
+        font-size: 1.875rem;
+    }
+
+    h2 {
+        font-size: 1rem;
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .auth-wrap
+
+    {
+        padding: 30px 16px;
+    }
+
+    article {
+        padding: 32px 24px;
+    }
+
+    }
+</style>
+
+<div class="register-page">
+    <div class="auth-wrap">
+        <article>
+            <div class="logo-wrap">
+                <img src="/images/logo.png" alt="Standard Bank Insurance" />
+            </div>
+            <h1>Standard Bank Insurance</h1>
+            <h2>Create your account</h2>
+
+            <form asp-action="Register" method="post" id="regForm" novalidate>
+                @Html.AntiForgeryToken()
+
+                <label>
+                    Account Type
+                    <select asp-for="AccountType" id="acctType" aria-label="Account Type">
+                        <option value="">Select type…</option>
+                        <option value="1">Individual</option>
+                        <option value="2">Company</option>
+                        <option value="3">Sole Proprietor</option>
+                        <option value="4">Association</option>
+                    </select>
+                </label>
+
+                <div id="indFields" style="display:none">
+                    <div class="grid">
+                        <label>
+                            First Name
+                            <input asp-for="FirstName" placeholder="Alice" autocomplete="given-name" />
+                        </label>
+                        <label>
+                            Middle Name
+                            <input asp-for="MiddleName" placeholder="Optional" autocomplete="additional-name" />
+                        </label>
+                        <label>
+                            Last Name
+                            <input asp-for="LastName" placeholder="Johnson" autocomplete="family-name" />
+                        </label>
+                    </div>
+                </div>
+
+                <div id="coFields" style="display:none">
+                    <label>
+                        Company Name
+                        <input asp-for="CompanyName" placeholder="Contoso Ltd." autocomplete="organization" />
+                    </label>
+                </div>
+
+                <div id="soleFields" style="display:none">
+                    <label>
+                        Full Name
+                        <input asp-for="SoleProprietorName" placeholder="Alex M. Kimani" autocomplete="name" />
+                    </label>
+                </div>
+
+                <div id="assocFields" style="display:none">
+                    <label>
+                        Association Name
+                        <input asp-for="AssociationName" placeholder="Teachers Welfare Association" />
+                    </label>
+                </div>
+
+                <div class="email-row">
+                    <label>
+                        Email Address
+                        <input asp-for="Email"
+                               type="email"
+                               inputmode="email"
+                               autocomplete="email"
+                               placeholder="yourname@example.com" />
+                    </label>
+                </div>
+
+                <div class="phone-row">
+                    <label>
+                        Phone Number
+                        <input asp-for="Phone"
+                               type="tel"
+                               inputmode="tel"
+                               autocomplete="tel"
+                               placeholder="+258 84 123 4567" />
+                    </label>
+                </div>
+
+                <label>
+                    Password
+                    <input asp-for="Password" id="pwd" type="password" autocomplete="new-password" placeholder="Enter a strong password" />
+                    <small id="meterText">Strength: —</small>
+                    <progress id="pwdMeter" value="0" max="4"></progress>
+                </label>
+
+                <label>
+                    Confirm Password
+                    <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" placeholder="Re-enter your password" />
+                </label>
+
+                <div class="password-requirements">
+                    <strong>Password requirements:</strong>
+                    <ul>
+                        <li>At least 12 characters recommended</li>
+                        <li>Include uppercase, lowercase, number, and symbol</li>
+                        <li>Avoid common or personal information</li>
+                        <li>Consider using a passphrase (e.g., three random words)</li>
+                    </ul>
+                </div>
+
+                <div asp-validation-summary="All" class="text-danger"></div>
+                <button class="primary" id="btnSubmit" disabled>Create Account</button>
+            </form>
+        </article>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Toggle blocks based on account type
+        const acct = document.getElementById('acctType');
+        const ind = document.getElementById('indFields');
+        const cof = document.getElementById('coFields');
+        const sole = document.getElementById('soleFields');
+        const assoc = document.getElementById('assocFields');
+
+        function toggleFields() {
+            const v = acct.value;
+            ind.style.display   = (v === '1') ? '' : 'none';
+            cof.style.display   = (v === '2') ? '' : 'none';
+            sole.style.display  = (v === '3') ? '' : 'none';
+            assoc.style.display = (v === '4') ? '' : 'none';
+        }
+        acct.addEventListener('change', toggleFields);
+        toggleFields();
+
+        // Password meter
+        const pwd = document.getElementById('pwd');
+        const meter = document.getElementById('pwdMeter');
+        const meterText = document.getElementById('meterText');
+        const btn = document.getElementById('btnSubmit');
+
+        function scorePassword(p) {
+            let s = 0;
+            if (p.length >= 12) s++;
+            if (/[a-z]/.test(p)) s++;
+            if (/[A-Z]/.test(p)) s++;
+            if (/[0-9]/.test(p)) s++;
+            if (/[^A-Za-z0-9]/.test(p)) s++;
+            return s;
+        }
+        function updateMeter() {
+            const s = scorePassword(pwd.value);
+            meter.value = Math.min(s, 4);
+            let label = 'Weak';
+            if (s <= 2) label = 'Weak';
+            else if (s === 3) label = 'Medium';
+            else if (s >= 4 && pwd.value.length >= 12) label = 'Strong';
+            meterText.textContent = `Strength: ${label}`;
+            btn.disabled = !(label === 'Strong');
+        }
+        pwd.addEventListener('input', updateMeter);
+        updateMeter();
+    </script>
+}

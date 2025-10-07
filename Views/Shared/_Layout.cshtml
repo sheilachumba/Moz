@@ -1,0 +1,189 @@
+﻿@using System
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ClientPortal.Models.ApplicationUser> SignInManager
+@inject UserManager<ClientPortal.Models.ApplicationUser> UserManager
+@{
+    // Hide chrome if needed per-page: ViewBag.HideChrome = true;
+    var hideChrome = ViewBag.HideChrome as bool? ?? false;
+
+    var controller = (ViewContext.RouteData.Values["controller"]?.ToString() ?? "");
+    var action = (ViewContext.RouteData.Values["action"]?.ToString() ?? "");
+
+    bool isAuthPage =
+        controller.Equals("Account", StringComparison.OrdinalIgnoreCase) &&
+        (action.Equals("Login", StringComparison.OrdinalIgnoreCase)
+       || action.Equals("Register", StringComparison.OrdinalIgnoreCase)
+       || action.Equals("ForgotPassword", StringComparison.OrdinalIgnoreCase)
+       || action.Equals("ResetPassword", StringComparison.OrdinalIgnoreCase));
+
+    string userEmail = User.Identity?.Name;
+    if (SignInManager.IsSignedIn(User))
+    {
+        var u = await UserManager.GetUserAsync(User);
+        if (!string.IsNullOrWhiteSpace(u?.Email)) userEmail = u.Email;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - Client Portal</title>
+
+    <!-- (Optional) icons for logout button -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <style>
+        :root {
+            --topbar-h: 64px;
+            --blue: #1a2555;
+            --blue-accent: #3655ff;
+            --border: #e5e7eb;
+        }
+
+        /* Keep header at the very top; prevent overlap by padding body */
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            padding-top: var(--topbar-h);
+            background: #fff;
+        }
+
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--topbar-h);
+            z-index: 1000;
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .topbar__inner {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .topbar__brand {
+            text-decoration: none;
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+
+        .topbar__brand-primary {
+            color: var(--blue);
+            font-weight: 900;
+            letter-spacing: .2px;
+        }
+
+        .topbar__brand-sub {
+            color: #111;
+            font-weight: 800;
+        }
+
+        .topbar__actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .topbar__email {
+            color: var(--blue);
+            font-weight: 700;
+        }
+
+        .topbar__logout-form {
+            margin: 0;
+        }
+
+        .topbar__logout-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            color: var(--blue);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 800;
+            transition: background .15s ease, transform .15s ease;
+            text-decoration: none;
+        }
+
+            .topbar__logout-btn:hover {
+                background: #f3f6ff;
+                transform: translateY(-1px);
+            }
+
+        /* If you have a sticky left sidebar on some pages, these helpers keep it below the topbar */
+        .side-menu {
+            top: var(--topbar-h);
+            height: calc(100vh - var(--topbar-h));
+        }
+        /* If a page uses a fixed wrapper (e.g., .dashboard-page { position:fixed; inset:0; }) then offset it:
+                   .dashboard-page { top: var(--topbar-h); height: calc(100vh - var(--topbar-h)); } */
+    </style>
+
+    @RenderSection("Head", required: false)
+</head>
+<body>
+    @if (!hideChrome)
+    {
+        <header class="topbar" role="banner" aria-label="Top navigation">
+            <div class="topbar__inner">
+                <a asp-controller="Home" asp-action="Index" class="topbar__brand">
+                    <span class="topbar__brand-primary">Standard Insurance</span>
+                    <span class="topbar__brand-sub">Client Portal</span>
+                </a>
+
+                <div class="topbar__actions">
+                    @if (SignInManager.IsSignedIn(User))
+                    {
+                        <span class="topbar__email">@userEmail</span>
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="topbar__logout-form">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="topbar__logout-btn">
+                                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                                <span>Logout</span>
+                            </button>
+                        </form>
+                    }
+                    else if (!isAuthPage)
+                    {
+                        <!-- Only show these on non-auth pages -->
+                        <a asp-controller="Account" asp-action="Login" class="topbar__logout-btn">Login</a>
+                        <a asp-controller="Account" asp-action="Register"
+                           class="topbar__logout-btn"
+                           style="background:var(--blue-accent); color:#fff; border-color:var(--blue-accent);">
+                            Create account
+                        </a>
+                    }
+                    <!-- On Login/Register pages, nothing is rendered here to avoid duplicates -->
+                </div>
+            </div>
+        </header>
+    }
+
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

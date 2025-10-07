@@ -1,0 +1,56 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<Quotation>
+@{
+    ViewData["Title"] = "Quotations";
+    var q = ViewBag.Query as string;
+    var s = ViewBag.Status as string;
+    int pageNumber = (int)(ViewBag.Page ?? 1);
+    int pageSize = (int)(ViewBag.PageSize ?? 10);
+    int total = (int)(ViewBag.Total ?? 0);
+    int lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+}
+<h2>Quotations</h2>
+<form method="get" style="display:flex;gap:8px;margin:10px 0;align-items:center;">
+    <input type="text" name="q" value="@q" placeholder="Search reference" />
+    <select name="status">
+        <option value="">All</option>
+        @foreach (var opt in new[] { "Draft", "Sent", "Accepted", "Declined" })
+        {
+            <option value="@opt" selected="@(s == opt)">@opt</option>
+        }
+    </select>
+    <button class="btn btn-primary">Filter</button>
+</form>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No quotations found.</div>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead><tr><th>Reference</th><th>Status</th><th>Amount</th><th>Updated</th></tr></thead>
+        <tbody>
+            @foreach (var qtn in Model)
+            {
+                <tr>
+                    <td>@qtn.Reference</td>
+                    <td>@qtn.Status</td>
+                    <td>@(qtn.Amount?.ToString("N2") ?? "-")</td>
+                    <td>@qtn.UpdatedAt.ToString("dd MMM yyyy")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <nav aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item @(pageNumber <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-q="@q" asp-route-status="@s" asp-route-page="@(pageNumber - 1)" asp-route-pageSize="@pageSize">Prev</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @pageNumber of @lastPage</span></li>
+            <li class="page-item @(pageNumber >= lastPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-q="@q" asp-route-status="@s" asp-route-page="@(pageNumber + 1)" asp-route-pageSize="@pageSize">Next</a>
+            </li>
+        </ul>
+    </nav>
+}

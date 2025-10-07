@@ -1,0 +1,606 @@
+﻿@model ClientPortal.Models.CompanyKyc
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "Company KYC (Mozambique)";
+    var reqs = (IEnumerable<ClientPortal.Models.ChecklistRequirement>)ViewBag.Requirements;
+    bool canSubmit = (bool)(ViewBag.CanSubmit ?? false);
+}
+
+<style>
+    :root {
+        --brand: #1a2555;
+        --ink: #0f172a;
+        --muted: #64748b;
+        --bg: #f6f7fb;
+        --card: #fff;
+        --border: #e5e7eb;
+        --accent: #0ea5e9;
+        --danger: #dc2626;
+        --ok: #0f766e;
+        --locked: #f9fafb;
+        --radius: 16px;
+        --shadow: 0 10px 24px rgba(16,24,40,.07);
+    }
+
+    .wrap {
+        background: var(--bg);
+        padding: 22px 0 48px;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 16px;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .title {
+        font-size: clamp(20px,2.6vw,30px);
+        font-weight: 800;
+        color: var(--brand);
+    }
+
+    .sub {
+        background: #f7f9ff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin: 10px 0 18px;
+        color: #000000;
+        font-size: .96rem;
+        line-height: 1.6;
+    }
+
+
+    .card {
+        position: relative;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 22px;
+        margin: 14px 0;
+    }
+
+        .card h3 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+    .is-locked {
+        background: var(--locked);
+        filter: saturate(.7);
+    }
+
+        .is-locked::after {
+            content: "Locked";
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            font-size: 12px;
+            color: #6b7280;
+            background: #eef2ff;
+            border: 1px solid var(--border);
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+
+    .grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(12,1fr);
+    }
+
+    .col-12 {
+        grid-column: span 12;
+    }
+
+    .col-8 {
+        grid-column: span 8;
+    }
+
+    .col-6 {
+        grid-column: span 6;
+    }
+
+    .col-4 {
+        grid-column: span 4;
+    }
+
+    .col-3 {
+        grid-column: span 3;
+    }
+    @@media (max-width: 900px) {
+        .col-8,.col-6,.col-4,.col-3
+
+    {
+        grid-column: span 12;
+    }
+
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 6px;
+    }
+
+    .form-control, select, input[type="file"], textarea {
+        width: 100%;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        font-size: 14px;
+        color: var(--ink);
+        transition: box-shadow .15s, border-color .15s;
+    }
+
+        .form-control:focus, select:focus, textarea:focus, input[type="file"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(14,165,233,.15);
+        }
+
+    .inline {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .chip {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        border: 1px solid var(--border);
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #fff;
+    }
+
+        .chip input {
+            accent-color: var(--brand);
+        }
+
+    .req {
+        color: var(--danger);
+        margin-left: 4px;
+    }
+
+    .hint {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    .table-like {
+        display: grid;
+        grid-template-columns: 4fr 2fr 50px;
+        gap: 10px;
+        align-items: center;
+    }
+
+        .table-like .remove {
+            border: 1px solid var(--border);
+            background: #fff;
+            border-radius: 10px;
+            padding: 8px;
+            cursor: pointer;
+        }
+
+    .action-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 10;
+        margin-top: 18px;
+        background: linear-gradient(180deg, rgba(246,247,251,.35), #fff 40%);
+        border-top: 1px solid var(--border);
+        padding: 12px 0 6px;
+    }
+
+    .btn {
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+        .btn + .btn {
+            margin-left: 8px;
+        }
+
+    .btn-ghost {
+        background: #fff;
+        border: 1px solid var(--border);
+    }
+
+    .btn-success {
+        background: var(--ok);
+        color: #fff;
+    }
+
+    .alert {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin: 10px 0;
+    }
+
+    .alert-ok {
+        background: #f0fdf4;
+        color: #14532d;
+    }
+
+    .alert-err {
+        background: #fef2f2;
+        color: #7f1d1d;
+    }
+</style>
+
+<div class="wrap">
+    <div class="container">
+        <div style="margin-bottom:10px;">
+            <div class="title">Customer File – KYC (Legal Entities)</div>
+            <div class="sub">
+                <p>
+                    The Law establishing the Legal Framework and Measures to Prevent and Combat Money Laundering and
+                    Terrorism Financing, Law No. 14/2023, of August 28, 2023, was approved, the legal framework and
+                    measures to prevent and combat the use of the financial system and non-financial entities for the
+                    purposes of money laundering, terrorist financing and financing the proliferation of weapons of mass
+                    destruction.
+                </p>
+                <p>
+                    Within the scope of Know Your Customer (KYC) measures, it is necessary to implement the duty to identify,
+                    verify, and perform due diligence measures as described in the same Law. Therefore, and in order to
+                    ensure regulatory requirements, Standard Insurance requests your cooperation in providing the following
+                    information:
+                </p>
+            </div>
+
+        </div>
+
+        @if (TempData["Ok"] != null)
+        {
+            <div class="alert alert-ok">@TempData["Ok"]</div>
+        }
+        @if (TempData["Err"] != null)
+        {
+            <div class="alert alert-err">@TempData["Err"]</div>
+        }
+
+        <form asp-controller="Kyc" asp-action="Company" method="post" enctype="multipart/form-data" id="companyKycForm">
+            @Html.AntiForgeryToken()
+
+            <!-- IDENTIFICATION (from template: Name, Doc Type, Doc Number, Company reg no., Country of reg, Address, Activity Desc, Field of Activity, NUIT, Contact numbers, E-mail) -->
+            <fieldset class="card" id="secIdentification">
+                <h3>1) Identification</h3>
+                <div class="grid">
+                    <div class="col-8">
+                        <label asp-for="CompanyName">Name <span class="req">*</span></label>
+                        <input asp-for="CompanyName" class="form-control" />
+                        <span asp-validation-for="CompanyName" class="text-danger"></span>
+                    </div>
+                    <div class="col-4">
+                        <label asp-for="CountryOfReg">Country of registration <span class="req">*</span></label>
+                        <input asp-for="CountryOfReg" class="form-control" />
+                        <span asp-validation-for="CountryOfReg" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-4">
+                        <label asp-for="DocType">Document type <span class="req">*</span></label>
+                        <select asp-for="DocType" class="form-control" id="DocType">
+                            <option value="">Select document type</option>
+                            <option>Certificate of Incorporation</option>
+                            <option>Articles of Association</option>
+                            <option>Commercial License (Alvará)</option>
+                            <option>Other</option>
+                        </select>
+                        <span asp-validation-for="DocType" class="text-danger"></span>
+                    </div>
+                    <div class="col-4">
+                        <label asp-for="DocNumber">Document number <span class="req">*</span></label>
+                        <input asp-for="DocNumber" class="form-control" id="DocNumber" />
+                        <span asp-validation-for="DocNumber" class="text-danger"></span>
+                    </div>
+                    <div class="col-4">
+                        <label for="CompanyIdFile">Attach identification document <span class="req">*</span></label>
+                        <input type="file" id="CompanyIdFile" name="CompanyIdFile" class="form-control" required />
+                        <div class="hint">Upload to unlock remaining Identification fields.</div>
+                    </div>
+
+                    <!-- Locked until CompanyIdFile is attached -->
+                    <div id="idRest" class="col-12 is-locked" aria-disabled="true">
+                        <div class="grid">
+                            <div class="col-4">
+                                <label asp-for="RegistrationNo">Company registration number <span class="req">*</span></label>
+                                <input asp-for="RegistrationNo" class="form-control" />
+                                <span asp-validation-for="RegistrationNo" class="text-danger"></span>
+                            </div>
+                            <div class="col-8">
+                                <label asp-for="RegisteredAddress">Address <span class="req">*</span></label>
+                                <input asp-for="RegisteredAddress" class="form-control" />
+                                <span asp-validation-for="RegisteredAddress" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-8">
+                                <label asp-for="ActivityDesc">Description of the Entity's activity <span class="req">*</span></label>
+                                <input asp-for="ActivityDesc" class="form-control" />
+                                <span asp-validation-for="ActivityDesc" class="text-danger"></span>
+                            </div>
+                            <div class="col-4">
+                                <label asp-for="FieldOfActivity">Field of Activity <span class="req">*</span></label>
+                                <input asp-for="FieldOfActivity" class="form-control" />
+                                <span asp-validation-for="FieldOfActivity" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-4">
+                                <label asp-for="NUIT">NUIT <span class="req">*</span></label>
+                                <input asp-for="NUIT" class="form-control" id="NUIT" />
+                                <span asp-validation-for="NUIT" class="text-danger"></span>
+                            </div>
+                            <div class="col-4">
+                                <label for="NuitFile">Attach NUIT document <span class="req">*</span></label>
+                                <input type="file" id="NuitFile" name="NuitFile" class="form-control" required />
+                                <div class="hint">Upload to unlock Shareholder Structure.</div>
+                            </div>
+                            <div class="col-4">
+                                <label asp-for="ContactPhone">Contact numbers <span class="req">*</span></label>
+                                <input asp-for="ContactPhone" class="form-control" />
+                                <span asp-validation-for="ContactPhone" class="text-danger"></span>
+                            </div>
+                            <div class="col-4">
+                                <label asp-for="ContactEmail">E-mail <span class="req">*</span></label>
+                                <input asp-for="ContactEmail" class="form-control" />
+                                <span asp-validation-for="ContactEmail" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- SHAREHOLDER STRUCTURE (explicit "Attach the document" in template) -->
+            <fieldset class="card is-locked" id="secShareholders" aria-disabled="true">
+                <h3>2) Shareholder Structure</h3>
+                <div class="grid">
+                    <div class="col-8">
+                        <label for="ShareholderDoc">Attach shareholder structure document <span class="req">*</span></label>
+                        <input type="file" id="ShareholderDoc" name="ShareholderDoc" class="form-control" required />
+                        <div class="hint">Upload to unlock Beneficial Owners & following sections.</div>
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- BENEFICIAL OWNERS / LEGAL REPRESENTATIVE (Name, Percentage) -->
+            <fieldset class="card is-locked" id="secBeneficial" aria-disabled="true">
+                <h3>3) Beneficial Owners / Legal Representative</h3>
+                <div class="hint">List partners with a shareholding ≥ 10% (or the entity’s representative, per the template).</div>
+                <div id="boRows" class="table-like" style="margin-top:10px;">
+                    <input class="form-control" name="BO[0].Name" placeholder="Name" />
+                    <input class="form-control" name="BO[0].Percentage" placeholder="Percentage %" type="number" min="0" max="100" step="0.01" />
+                    <button type="button" class="remove" aria-label="Remove row" onclick="this.parentElement.remove()">×</button>
+
+                    <input class="form-control" name="BO[1].Name" placeholder="Name" />
+                    <input class="form-control" name="BO[1].Percentage" placeholder="Percentage %" type="number" min="0" max="100" step="0.01" />
+                    <button type="button" class="remove" aria-label="Remove row" onclick="this.parentElement.remove()">×</button>
+                </div>
+                <div style="margin-top:10px;">
+                    <button type="button" class="btn btn-ghost" id="addBo">+ Add Owner</button>
+                </div>
+            </fieldset>
+
+            <!-- PPE (PEP) -->
+            <fieldset class="card is-locked" id="secPep" aria-disabled="true">
+                <h3>4) Politically Exposed Person (PPE)</h3>
+                <p class="hint">Complete if there are PPE in the entity’s management team (past 2 years), incl. associates.</p>
+                <div id="pepRows" class="table-like">
+                    <input class="form-control" name="PPE[0].Name" placeholder="Name" />
+                    <input class="form-control" name="PPE[0].PublicOffice" placeholder="Public Office" />
+                    <button type="button" class="remove" aria-label="Remove row" onclick="this.parentElement.remove()">×</button>
+                </div>
+                <div style="margin-top:10px;">
+                    <button type="button" class="btn btn-ghost" id="addPep">+ Add PPE</button>
+                </div>
+            </fieldset>
+
+            <!-- OTHER DATA -->
+            <fieldset class="card is-locked" id="secOther" aria-disabled="true">
+                <h3>5) Other Data</h3>
+                <div class="grid">
+                    <div class="col-12">
+                        <label>Does the entity hold a stake in any company/entity?</label>
+                        <div class="inline">
+                            <label class="chip"><input type="radio" name="HasStake" value="No" checked /> No</label>
+                            <label class="chip"><input type="radio" name="HasStake" value="Yes" /> Yes</label>
+                        </div>
+                    </div>
+                    <div class="col-8">
+                        <label for="StakeEntity">If yes, name of the entity</label>
+                        <input type="text" id="StakeEntity" name="StakeEntity" class="form-control" />
+                    </div>
+                    <div class="col-4">
+                        <label for="StakePercent">Percentage (%)</label>
+                        <input type="number" id="StakePercent" name="StakePercent" class="form-control" min="0" max="100" step="0.01" />
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- SERVICES – TYPE OF INSURANCE -->
+            <fieldset class="card is-locked" id="secServices" aria-disabled="true">
+                <h3>6) Services – Type of Insurance</h3>
+                <div class="grid">
+                    <div class="col-6">
+                        <label for="ServiceType">Type of Insurance <span class="req">*</span></label>
+                        <select id="ServiceType" name="ServiceType" class="form-control" required>
+                            <option value="">Select type</option>
+                            <option>Property</option>
+                            <option>Motor</option>
+                            <option>Health</option>
+                            <option>Liability</option>
+                            <option>Marine</option>
+                            <option>Travel</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label for="ServiceNotes">Notes (optional)</label>
+                        <input id="ServiceNotes" name="ServiceNotes" class="form-control" />
+                    </div>
+                </div>
+            </fieldset>
+
+            <!-- SIGNATURES -->
+            <fieldset class="card is-locked" id="secSignatures" aria-disabled="true">
+                <h3>7) Signatures</h3>
+                <div class="grid">
+                    <div class="col-12">
+                        <label class="inline" style="gap:10px;">
+                            <input type="checkbox" name="ConsentAccuracy" value="true" required />
+                            <span>I declare that all information provided is true.</span>
+                        </label>
+                    </div>
+
+                    <div class="col-6">
+                        <label for="CustomerSignatureName">Customer – Name (as on identification document)</label>
+                        <input type="text" id="CustomerSignatureName" name="CustomerSignatureName" class="form-control" />
+                    </div>
+                    <div class="col-3">
+                        <label for="CustomerSignatureDate">Date</label>
+                        <input type="date" id="CustomerSignatureDate" name="CustomerSignatureDate" class="form-control" />
+                    </div>
+                    <div class="col-3">
+                        <label for="CompanyStamp">Company Stamp (optional)</label>
+                        <input type="file" id="CompanyStamp" name="CompanyStamp" class="form-control" />
+                    </div>
+
+                    @* <div class="col-6">
+                        <label for="OfficerName">Standard Insurance – Name</label>
+                        <input type="text" id="OfficerName" name="OfficerName" class="form-control" />
+                    </div>
+                    <div class="col-3">
+                        <label for="OfficerDate">Date</label>
+                        <input type="date" id="OfficerDate" name="OfficerDate" class="form-control" />
+                    </div>
+                    <div class="col-3">
+                        <label for="EmployeeNumber">Employee number</label>
+                        <input type="text" id="EmployeeNumber" name="EmployeeNumber" class="form-control" />
+                    </div> *@
+                </div>
+            </fieldset>
+
+            <!-- Actions -->
+            <div class="action-bar">
+                <div class="container" style="display:flex; justify-content:flex-end;">
+                    <button name="action" value="save" class="btn btn-ghost" type="submit">Save Draft</button>
+                    <button name="action" value="submit" class="btn btn-success" type="submit" id="btnCompanySubmit">
+                        Submit for Screening
+                    </button>
+
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function(){
+      // Section gating
+      const idRest = document.getElementById('idRest');
+      const secShareholders = document.getElementById('secShareholders');
+      const secBeneficial = document.getElementById('secBeneficial');
+      const secPep = document.getElementById('secPep');
+      const secOther = document.getElementById('secOther');
+      const secServices = document.getElementById('secServices');
+      const secSignatures = document.getElementById('secSignatures');
+
+      function lock(el, yes){
+        if(!el) return;
+        if(yes){ el.classList.add('is-locked'); el.setAttribute('aria-disabled','true'); }
+        else   { el.classList.remove('is-locked'); el.removeAttribute('aria-disabled'); }
+        // also disable interactive controls
+        el.querySelectorAll('input,select,textarea,button').forEach(c => c.disabled = !!yes);
+      }
+
+      // Start with locks on:
+      lock(idRest, true);
+      [secShareholders, secBeneficial, secPep, secOther, secServices, secSignatures].forEach(s => lock(s, true));
+
+      // File handles
+      const companyIdFile = document.getElementById('CompanyIdFile');
+      const nuitFile = document.getElementById('NuitFile');
+      const shareholderDoc = document.getElementById('ShareholderDoc');
+
+      // Unlock rest of Identification once Company ID file is present
+      function afterCompanyId(){
+        if(companyIdFile?.files?.length > 0){ lock(idRest, false); }
+        else { lock(idRest, true); lock(secShareholders, true); lock(secBeneficial, true); lock(secPep, true); lock(secOther, true); lock(secServices, true); lock(secSignatures, true); }
+      }
+      companyIdFile?.addEventListener('change', afterCompanyId);
+      afterCompanyId();
+
+      // Unlock Shareholder Structure after NUIT file present
+      function afterNuit(){
+        if(nuitFile?.files?.length > 0){ lock(secShareholders, false); }
+        else { lock(secShareholders, true); lock(secBeneficial, true); lock(secPep, true); lock(secOther, true); lock(secServices, true); lock(secSignatures, true); }
+      }
+      nuitFile?.addEventListener('change', afterNuit);
+
+      // Unlock all remaining sections after Shareholder Structure doc present
+      function afterShareholders(){
+        const ok = shareholderDoc?.files?.length > 0;
+        [secBeneficial, secPep, secOther, secServices, secSignatures].forEach(s => lock(s, !ok));
+      }
+      shareholderDoc?.addEventListener('change', afterShareholders);
+
+      // Initialize (in case of draft reload)
+      afterNuit();
+      afterShareholders();
+
+      // Add/remove dynamic rows
+      const bo = document.getElementById('boRows');
+      const pep = document.getElementById('pepRows');
+      const addBo = document.getElementById('addBo');
+      const addPep = document.getElementById('addPep');
+
+      function addBoRow(){
+        const idx = bo.querySelectorAll('input[name^="BO["]').length/2;
+        const wrap = document.createElement('div'); wrap.className='table-like';
+        wrap.innerHTML = `
+          <input class="form-control" name="BO[${idx}].Name" placeholder="Name" />
+          <input class="form-control" name="BO[${idx}].Percentage" placeholder="Percentage %" type="number" min="0" max="100" step="0.01" />
+          <button type="button" class="remove" aria-label="Remove row">×</button>`;
+        wrap.querySelector('.remove').addEventListener('click', () => wrap.remove());
+        bo.appendChild(wrap);
+      }
+      function addPepRow(){
+        const idx = pep.querySelectorAll('input[name^="PPE["]').length/2;
+        const wrap = document.createElement('div'); wrap.className='table-like';
+        wrap.innerHTML = `
+          <input class="form-control" name="PPE[${idx}].Name" placeholder="Name" />
+          <input class="form-control" name="PPE[${idx}].PublicOffice" placeholder="Public Office" />
+          <button type="button" class="remove" aria-label="Remove row">×</button>`;
+        wrap.querySelector('.remove').addEventListener('click', () => wrap.remove());
+        pep.appendChild(wrap);
+      }
+      addBo?.addEventListener('click', addBoRow);
+      addPep?.addEventListener('click', addPepRow);
+
+      // Final guard (keep during development; server also validates)
+      const form = document.getElementById('companyKycForm');
+      form.addEventListener('submit', function(e){
+        if(!(companyIdFile && companyIdFile.files.length)){
+          e.preventDefault(); alert("Please attach the Company Identification Document first."); return;
+        }
+        if(!(nuitFile && nuitFile.files.length)){
+          e.preventDefault(); alert("Please attach the NUIT Document to continue."); return;
+        }
+        if(!(shareholderDoc && shareholderDoc.files.length)){
+          e.preventDefault(); alert("Please attach the Shareholder Structure Document to continue."); return;
+        }
+      });
+    })();
+</script>

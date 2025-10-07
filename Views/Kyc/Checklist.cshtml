@@ -1,0 +1,470 @@
+﻿@model ClientPortal.Models.ChecklistVm
+@using ClientPortal.Models
+@{
+    ViewData["Title"] = "KYC Checklist & Terms";
+    Layout = "_Layout";
+
+    // Helper: is this an Individual/Sole Proprietor flow?
+    var isIndividualFlow = Model.Type == KycType.Individual || Model.Type == KycType.SoleProprietor;
+}
+
+<style>
+    /* =================== KYC PAGE (scoped) =================== */
+    .kyc-page {
+        --blue: #1a2555;
+        --blue-accent: #3655ff;
+        --text: #0b0f1a;
+        --muted: #6b7280;
+        --card: #ffffff;
+        --border: #e5e7eb;
+        --ring: rgba(54,85,255,.12);
+        --shadow: 0 10px 24px rgba(0,0,0,.06);
+        --shadow-lg: 0 18px 40px rgba(0,0,0,.08);
+        --radius: 18px;
+        --radius-sm: 12px;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+
+        .kyc-page .kyc-container {
+            max-width: 920px;
+            margin: 24px auto 48px;
+            padding: 28px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* Headings */
+        .kyc-page h1, .kyc-page h2, .kyc-page h3, .kyc-page h4 {
+            color: var(--blue);
+            margin: 0 0 10px;
+            font-weight: 800;
+        }
+
+        .kyc-page h2 {
+            font-size: clamp(1.3rem, 1.1rem + .6vw, 1.6rem);
+        }
+
+        .kyc-page p.muted {
+            color: var(--muted);
+            font-size: .98rem;
+            margin: 0 0 14px;
+        }
+
+        /* Alerts / statuses */
+        .kyc-page .alert {
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid;
+            margin: 16px 0;
+            display: block;
+            background: #f9fafb;
+        }
+
+        .kyc-page .alert-info {
+            background: #d9f2ff;
+            color: #0b3d4a;
+            border-color: #bfe8ff;
+        }
+
+        .kyc-page .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-color: #ffeaa7;
+        }
+
+        .kyc-page .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: .88rem;
+            font-weight: 800;
+        }
+
+        .kyc-page .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .kyc-page .status-approved {
+            background: #d1edf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .kyc-page .status-rejected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Buttons */
+        .kyc-page .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            border: 1px solid transparent;
+            transition: transform .15s ease, box-shadow .15s ease, filter .15s ease, background .15s ease;
+        }
+
+        .kyc-page .primary {
+            background: linear-gradient(135deg, var(--blue-accent) 0%, #1f46ff 100%);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 10px 20px rgba(54,85,255,.25);
+        }
+
+            .kyc-page .primary:hover {
+                transform: translateY(-2px);
+                filter: brightness(1.03);
+            }
+
+            .kyc-page .primary:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+                box-shadow: none;
+            }
+
+        .kyc-page .btn-secondary {
+            background: #fff;
+            color: var(--blue);
+            border: 1px solid var(--border);
+        }
+
+            .kyc-page .btn-secondary:hover {
+                background: #f7f9ff;
+            }
+
+        /* Spinner */
+        .kyc-page .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--blue-accent);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: kycspin 1s linear infinite;
+            display: inline-block;
+        }
+
+    @@keyframes kycspin {
+        from {
+            transform: rotate(0)
+        }
+
+        to {
+            transform: rotate(360deg)
+        }
+    }
+
+    /* Details (requirements) */
+    .kyc-page details {
+        background: #f7f9ff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin: 18px 0;
+    }
+
+    .kyc-page summary {
+        font-weight: 800;
+        color: var(--blue);
+        font-size: 1.05rem;
+        cursor: pointer;
+        list-style: none;
+        outline: none;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+        .kyc-page summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .kyc-page summary:before {
+            content: '▸';
+            display: inline-block;
+            transform: translateY(-1px);
+            transition: transform .15s ease;
+        }
+
+    .kyc-page details[open] summary:before {
+        transform: rotate(90deg) translateX(-1px);
+    }
+
+    .kyc-page ul {
+        margin: 10px 0 0;
+        padding-left: 1.1rem;
+    }
+
+    .kyc-page li {
+        margin: 8px 0;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e6e8ef;
+        color: var(--text);
+    }
+
+        .kyc-page li:last-child {
+            border-bottom: none;
+        }
+
+    /* Form */
+    .kyc-page form {
+        margin: 20px 0;
+    }
+
+    .kyc-page label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        cursor: pointer;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .kyc-page input[type="checkbox"] {
+        margin-top: .2rem;
+        transform: scale(1.2);
+        accent-color: var(--blue-accent);
+    }
+
+    /* Card */
+    .kyc-page .card {
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 16px 18px;
+        margin-top: 20px;
+        box-shadow: var(--shadow);
+    }
+
+    /* Responsive */
+    @@media (max-width: 560px) {
+        .kyc-page .kyc-container {
+            padding: 20px;
+        }
+
+        .kyc-page .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<div class="kyc-page">
+    <article class="kyc-container">
+        <h2>Know Your Customer (KYC) Checklist &amp; Terms (@Model.Type)</h2>
+        <p class="muted">Please read the requirements below before completing your KYC form. You'll upload documents inside the KYC page before submitting.</p>
+
+        <!-- KYC Status Display -->
+        @if (Model.CurrentKycStatus == "Submitted")
+        {
+            <div class="alert alert-info">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <strong>✓ KYC Submitted for Screening</strong><br />
+                        <small>Your application is currently under review. We'll notify you once the screening is complete.</small>
+                    </div>
+                    <span class="status-badge status-pending">
+                        <span class="spinner" style="width:12px;height:12px;border-width:1px;"></span>
+                        Under Review
+                    </span>
+                </div>
+            </div>
+        }
+        else if (Model.CurrentKycStatus == "Verified")
+        {
+            <div class="alert alert-info">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <strong>✅ KYC Approved</strong><br />
+                        <small>Your KYC verification has been completed successfully.</small>
+                    </div>
+                    <span class="status-badge status-approved">✓ Approved</span>
+                </div>
+            </div>
+        }
+        else if (Model.CurrentKycStatus == "Rejected")
+        {
+            <div class="alert alert-warning">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <strong>⚠️ KYC Requires Updates</strong><br />
+                        <small>Please review the feedback and update your KYC information.</small>
+                    </div>
+                    <span class="status-badge status-rejected">✗ Needs Update</span>
+                </div>
+            </div>
+        }
+
+        <!-- Requirements -->
+        <details open>
+            <summary><strong>Requirements</strong></summary>
+            <ul>
+                @foreach (var r in Model.Requirements)
+                {
+                    <li>
+                        <strong>@r.DisplayName</strong>
+                        @if (r.Required)
+                        {
+                            <span style="color:#c32127"> (Required)</span>
+                        }
+                        else
+                        {
+                            <span> (Optional)</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(r.Note))
+                        {
+                            <div class="muted">@r.Note</div>
+                        }
+                    </li>
+                }
+            </ul>
+        </details>
+
+        <!-- Main KYC Acknowledgement -->
+        <!-- OPTION A: Post to Checklist (POST) -->
+        <form method="post" id="kycForm" asp-controller="Kyc" asp-action="Checklist">
+            @Html.AntiForgeryToken()
+            <label>
+                <input type="checkbox" name="acknowledged" value="true" required id="acknowledgeCheckbox" />
+                I have read and understood the requirements and terms.
+            </label>
+
+            <div style="margin-top:1rem; display:flex; gap:12px; flex-wrap:wrap;">
+                <button type="submit" class="btn primary" id="continueBtn">
+                    Continue to Know Your Customer Form
+                </button>
+
+                @if (Model.CurrentKycStatus == "Rejected")
+                {
+                    <a class="btn btn-secondary" href="@(isIndividualFlow ? "/Kyc/Individual" : "/Kyc/Company")">
+                        Update KYC Application
+                    </a>
+                }
+
+                <a class="btn btn-secondary" href="@(isIndividualFlow ? "/Dashboard/Individual" : "/Dashboard/Company")">
+                    Back to Dashboard
+                </a>
+            </div>
+        </form>
+
+        <!-- Ready to Submit (only when completed & not yet submitted/verified) -->
+        @if (Model.IsKycCompleted && Model.CurrentKycStatus != "Submitted" && Model.CurrentKycStatus != "Verified")
+        {
+            <div class="card">
+                <h3 style="margin:0 0 10px;">Ready to Submit for Screening</h3>
+
+                <div style="background:#f7f9ff;border:1px solid var(--border);padding:12px;border-radius:10px;margin-bottom:12px;">
+                    <p class="muted" style="margin:0;">
+                        <strong>Before submitting:</strong> Ensure all required documents are uploaded and information is accurate.
+                        Once submitted, your application will be sent for screening and cannot be edited.
+                    </p>
+                </div>
+
+                <form asp-controller="Kyc" asp-action="SubmitForScreening" method="post" id="screeningForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="companyId" value="@Model.CompanyId" />
+
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                        <button type="submit" class="btn primary" id="submitScreeningBtn">
+                            Submit for Screening
+                        </button>
+                        <a class="btn btn-secondary" href="@(isIndividualFlow ? "/Kyc/Individual" : "/Kyc/Company")">
+                            Review Application
+                        </a>
+                    </div>
+                </form>
+            </div>
+        }
+
+        <!-- Progress (when submitted) -->
+        @if (Model.CurrentKycStatus == "Submitted")
+        {
+            <div class="card">
+                <h4 style="margin:0 0 12px;">Screening Progress</h4>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                    <div>
+                        <small class="muted">Submitted Date</small>
+                        <div><strong>@Model.SubmittedDate?.ToString("MMM dd, yyyy")</strong></div>
+                    </div>
+                    <div>
+                        <small class="muted">Reference ID</small>
+                        <div><strong>@Model.ScreeningReference</strong></div>
+                    </div>
+                    <div>
+                        <small class="muted">Estimated Completion</small>
+                        <div><strong>@DateTime.Now.AddDays(3).ToString("MMM dd, yyyy")</strong></div>
+                    </div>
+                </div>
+            </div>
+        }
+    </article>
+</div>
+
+@section Scripts {
+    <script>
+        // Enable/disable "Continue" based on acknowledgement
+        (function(){
+            const checkbox = document.getElementById('acknowledgeCheckbox');
+            const btn = document.getElementById('continueBtn');
+            if (!checkbox || !btn) return;
+
+            const sync = ()=> btn.disabled = !checkbox.checked;
+            checkbox.addEventListener('change', sync);
+            sync();
+
+            // Graceful loading state on submit
+            document.getElementById('kycForm')?.addEventListener('submit', function(e){
+                if(!checkbox.checked){ e.preventDefault(); return; }
+                btn.innerHTML = '<span class="spinner"></span> Continuing...';
+                btn.disabled = true;
+            });
+        })();
+
+        // AJAX submit for screening
+        (function(){
+            const form = document.getElementById('screeningForm');
+            if(!form) return;
+            const btn = document.getElementById('submitScreeningBtn');
+
+            form.addEventListener('submit', async function(e){
+                e.preventDefault();
+                const original = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner"></span> Submitting for Screening...';
+                btn.disabled = true;
+
+                try{
+                    const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value;
+                    const res = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'Accept': 'application/json', 'RequestVerificationToken': token || '' }
+                    });
+                    if(!res.ok) throw new Error('Network error');
+                    const data = await res.json();
+                    if(data?.success){
+                        alert('KYC submitted successfully for screening!');
+                        window.location.href = @(isIndividualFlow ? "'/Dashboard/Individual'" : "'/Dashboard/Company'");
+                    }else{
+                        alert('Error: ' + (data?.message || 'Failed to submit KYC for screening'));
+                        btn.innerHTML = original; btn.disabled = false;
+                    }
+                }catch(err){
+                    console.error(err);
+                    alert('An error occurred while submitting for screening. Please try again.');
+                    btn.innerHTML = original; btn.disabled = false;
+                }
+            });
+        })();
+    </script>
+}

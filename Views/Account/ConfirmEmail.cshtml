@@ -1,0 +1,15 @@
+﻿@{
+	ViewData["Title"] = "Email Verification";
+	Layout = "_Layout";
+}
+<article>
+	@if ((bool)(ViewBag.Success ?? false))
+	{
+		<p>Your email has been verified.</p>
+		<a class="primary" asp-controller="Account" asp-action="Login">Go to Login</a>
+	}
+	else
+	{
+		<p>Verification failed.</p>
+	}
+</article>

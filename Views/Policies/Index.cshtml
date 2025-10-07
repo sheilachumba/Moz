@@ -1,0 +1,90 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<Policy>
+@{
+    ViewData["Title"] = "Policies";
+    var q = ViewBag.Query as string;
+    int pageNumber = (int)(ViewBag.Page ?? 1);
+    int pageSize = (int)(ViewBag.PageSize ?? 10);
+    int total = (int)(ViewBag.Total ?? 0);
+    int lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+}
+
+
+<h2 class="mb-3">Policies</h2>
+
+<form method="get" class="mb-3" style="display:flex; gap:8px; align-items:center;">
+    <input type="text" name="q" value="@q" placeholder="Search by number or type" class="form-control" style="max-width:320px;" />
+    <button class="btn btn-primary" type="submit">Search</button>
+</form>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No policies found.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Policy #</th>
+                    <th>Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Status</th>
+                    <th class="text-end">Premium</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var p in Model)
+            {
+                <tr>
+                    <td>@p.PolicyNumber</td>
+                    <td>@p.PolicyType</td>
+                    <td>@p.StartDate.ToString("dd MMM yyyy")</td>
+                    <td>@p.EndDate.ToString("dd MMM yyyy")</td>
+                    <td>@p.Status</td>
+                    <td class="text-end">@p.Premium.ToString("N2")</td>
+                    <td class="text-end">
+                        <a asp-action="Renew" asp-route-id="@p.Id" class="btn btn-outline-primary btn-sm">Renew</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item (<=1?"disabled":"")">
+                <a class="page-link"
+                   asp-action="Index"
+                   asp-route-q="@q"
+                   asp-route-page="@(pageNumber - 1)"
+                   asp-route-pageSize="@pageSize">Prev</a>
+
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">Page of @lastPage</span>
+            </li>
+            <li class="page-item (>=lastPage?"disabled":"")">
+                <a class="page-link"
+                   asp-action="Index"
+                   asp-route-q="@q"
+                   asp-route-page="@(pageNumber + 1)"
+                   asp-route-pageSize="@pageSize">Next</a>
+
+            </li>
+        </ul>
+    </nav>
+}
+
+@if (TempData["Ok"] != null)
+{
+    <div class="alert alert-success mt-3">@TempData["Ok"]</div>
+}
+@if (TempData["Err"] != null)
+{
+    <div class="alert alert-danger mt-3">@TempData["Err"]</div>
+}

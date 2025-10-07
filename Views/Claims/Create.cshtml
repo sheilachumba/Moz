@@ -1,0 +1,311 @@
+﻿@using Microsoft.AspNetCore.Mvc.Rendering
+@using ClientPortal.Models
+@model ClientPortal.Models.ClaimCreateVm
+@{
+    ViewData["Title"] = "New Claim";
+}
+
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    .claim-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .claim-header {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        padding: 3rem 2.5rem;
+        border-radius: 16px;
+        margin-bottom: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    }
+
+        .claim-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30%, -30%);
+        }
+
+        .claim-header h2 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            position: relative;
+            z-index: 1;
+        }
+
+    .btn-back {
+        background-color: #ffffff;
+        border: none;
+        color: #1a1a1a;
+        padding: 0.75rem 1.75rem;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        position: relative;
+        z-index: 1;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+        .btn-back:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            color: #1a1a1a;
+        }
+
+    .claim-card {
+        border: none;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+
+        .claim-card .card-body {
+            padding: 3rem;
+            background-color: #ffffff;
+        }
+
+    .section-divider {
+        height: 2px;
+        background: linear-gradient(90deg, #3b82f6 0%, transparent 100%);
+        margin: 2rem 0;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.875rem 1.25rem;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        background-color: #ffffff;
+        color: #1a1a1a;
+    }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+            outline: none;
+            background-color: #ffffff;
+        }
+
+        .form-control::placeholder {
+            color: #9ca3af;
+        }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 120px;
+        line-height: 1.6;
+    }
+
+    .claim-card .card-footer {
+        background: linear-gradient(180deg, #f9fafb 0%, #f3f4f6 100%);
+        border-top: 1px solid #e5e7eb;
+        padding: 2rem 3rem;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        padding: 0.875rem 2.5rem;
+        font-weight: 600;
+        font-size: 1.05rem;
+        border-radius: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        color: #ffffff;
+    }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+    .btn-outline-secondary {
+        border: 2px solid #e5e7eb;
+        color: #1a1a1a;
+        background-color: #ffffff;
+        padding: 0.875rem 2rem;
+        font-weight: 600;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-outline-secondary:hover {
+            background-color: #f9fafb;
+            border-color: #d1d5db;
+            color: #1a1a1a;
+            transform: translateY(-2px);
+        }
+
+    .text-danger {
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        display: block;
+        font-weight: 500;
+    }
+
+    .form-group-highlight {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(59, 130, 246, 0.01) 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid rgba(59, 130, 246, 0.1);
+    }
+
+    select.form-select option {
+        padding: 0.5rem;
+    }
+
+    @@media (max-width: 768px) {
+        .claim-header
+
+    {
+        padding: 2rem 1.5rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .claim-header h2 {
+        font-size: 2rem;
+    }
+
+    .claim-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .claim-card .card-footer {
+        padding: 1.5rem;
+        flex-direction: column;
+    }
+
+        .claim-card .card-footer .btn {
+            width: 100%;
+        }
+
+    }
+
+    @@media (min-width: 769px) {
+        .claim-header
+
+    {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    }
+</style>
+
+<div class="claim-container">
+    <div class="claim-header">
+        <h2>New Claim</h2>
+        <a class="btn-back" asp-action="Index">← Back to List</a>
+    </div>
+
+    <form method="post">
+        <div class="card claim-card mb-3">
+            <div class="card-body">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label asp-for="PolicyNumber" class="form-label"></label>
+                        <select asp-for="PolicyNumber" class="form-select"
+                                asp-items="@(new SelectList(Model.PolicyNumbers ?? new List<string>()))">
+                            <option value="">Select Policy Number</option>
+                        </select>
+                        <span asp-validation-for="PolicyNumber" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="LossType" class="form-label"></label>
+                        <select asp-for="LossType" class="form-select">
+                            <option value="">Select Loss Type</option>
+                            <option>Motor</option>
+                            <option>Fire</option>
+                            <option>Theft</option>
+                            <option>Medical</option>
+                            <option>Travel</option>
+                            <option>Other</option>
+                        </select>
+                        <span asp-validation-for="LossType" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="LossTypeDescription" class="form-label"></label>
+                        <input asp-for="LossTypeDescription" class="form-control" placeholder="Brief description" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="section-divider"></div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="DateOfOccurrence" class="form-label"></label>
+                        <input asp-for="DateOfOccurrence" class="form-control" type="date" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Amount" class="form-label"></label>
+                        <input asp-for="Amount" class="form-control" placeholder="Enter claim amount" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="BranchName" class="form-label"></label>
+                        <input asp-for="BranchName" class="form-control" placeholder="Branch location" />
+                    </div>
+
+                    <div class="col-12">
+                        <div class="section-divider"></div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-group-highlight">
+                            <label asp-for="RiskDescription" class="form-label"></label>
+                            <input asp-for="RiskDescription" class="form-control" placeholder="Describe the insured risk" />
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group-highlight">
+                            <label asp-for="LossDescription" class="form-label"></label>
+                            <textarea asp-for="LossDescription" rows="5" class="form-control" placeholder="Provide a detailed description of what happened, including date, time, location, and circumstances..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer d-flex gap-3">
+                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">Submit Claim →</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

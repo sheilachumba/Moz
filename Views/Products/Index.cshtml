@@ -1,0 +1,122 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<ClientPortal.Models.ProductGroupVm>
+
+@{
+    ViewData["Title"] = "Products & Services";
+    var q = ViewBag.Query as string;
+    string[] classes = ViewBag.Classes as string[] ?? Array.Empty<string>();
+}
+
+
+<h2>Products & Services</h2>
+
+<form method="get" style="display:flex;gap:10px;align-items:center;margin:12px 0 18px;">
+    <input type="text" name="q" value="@q" placeholder="Search products…" class="form-control" style="max-width:260px;" />
+    <select name="classFilter" class="form-select" style="max-width:240px;">
+        @foreach (var c in classes)
+        {
+            <option value="@c">@c</option>
+        }
+    </select>
+    <button class="btn btn-primary">Apply</button>
+</form>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="alert alert-info">No products available.</div>
+}
+else
+{
+    <style>
+        .p-grid {
+            display: grid;
+            gap: 18px;
+            font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .p-group {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+            .p-group h3 {
+                margin: 0 0 6px;
+            }
+
+        .p-sub {
+            margin-top: 10px;
+        }
+
+        .p-cards {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(auto-fill,minmax(220px,1fr));
+        }
+
+        .p-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff
+        }
+
+        .p-img {
+            height: 120px;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+            .p-img img {
+                max-height: 100%;
+                max-width: 100%;
+                object-fit: cover
+            }
+
+        .p-body {
+            padding: 10px 12px
+        }
+
+        .p-name {
+            font-weight: 700
+        }
+
+        .p-subtle {
+            color: #64748b;
+            font-size: 13px
+        }
+    </style>
+
+    <div class="p-grid">
+        @foreach (var g in Model)
+        {
+            <section class="p-group">
+                <h3>@g.MainClass</h3>
+                @foreach (var sg in g.SubGroups)
+                {
+                    <div class="p-sub">
+                        <div class="p-subtle" style="margin:6px 0 8px;">@sg.SubClass</div>
+                        <div class="p-cards">
+                            @foreach (var p in sg.Items)
+                            {
+                                var imgPath = $"/images/products/{p.ImageSlug}.jpg"; // you add images here
+                                                                                     <article class="p-card">
+                                                                                         <div class="p-img">
+                                                                                             <img src="@imgPath" alt="@p.Name" onerror="this.src='/images/products/_placeholder.jpg'">
+                                                                                         </div>
+                                                                                         <div class="p-body">
+                                                                                             <div class="p-name">@p.Name</div>
+                                                                                             <div class="p-subtle">@p.Class</div>
+                                                                                         </div>
+                                                                                     </article>
+                            }
+                        </div>
+                    </div>
+                }
+            </section>
+        }
+    </div>
+}
+

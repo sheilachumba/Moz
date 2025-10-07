@@ -1,0 +1,81 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<ClientPortal.Models.Claim>
+@{
+    ViewData["Title"] = "Claims";
+    var q = ViewBag.Query as string;
+    var s = ViewBag.Status as string;
+    int pageNumber = (int)(ViewBag.Page ?? 1);
+    int pageSize = (int)(ViewBag.PageSize ?? 10);
+    int total = (int)(ViewBag.Total ?? 0);
+    int lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+}
+
+<h2 class="d-flex align-items-center justify-content-between">
+    <span>Claims</span>
+    <a class="btn btn-primary" asp-action="Create">New Claim</a>
+</h2>
+
+<form method="get" class="d-flex gap-2 align-items-center mb-3">
+    <input type="text" name="q" value="@q" class="form-control" placeholder="Search claim #, policy #, description" />
+    <select name="status" class="form-select" style="max-width: 220px;">
+        <option value="">All</option>
+        @foreach (var opt in new[] { "Pending", "Approved", "Rejected" })
+        {
+            <option value="@opt" selected="@(s == opt)">@opt</option>
+        }
+    </select>
+    <button class="btn btn-outline-primary">Filter</button>
+</form>
+
+@if (!(Model?.Any() ?? false))
+{
+    <div class="alert alert-info">No claims found.</div>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead>
+            <tr>
+                <th>Claim #</th>
+                <th>Policy #</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="text-end">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var c in Model)
+            {
+                <tr>
+                    <td>@c.ClaimNumber</td>
+                    <td>@c.PolicyNumber</td>
+                    <td>@c.ClaimDate.ToString("dd MMM yyyy")</td>
+                    <td>@c.Status</td>
+                    <td class="text-end">@c.Amount.ToString("N2")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item @(pageNumber <= 1 ? "disabled" : "")">
+                <a class="page-link"
+                   asp-action="Index"
+                   asp-route-q="@q"
+                   asp-route-status="@s"
+                   asp-route-page="@(pageNumber - 1)"
+                   asp-route-pageSize="@pageSize">Prev</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @pageNumber of @lastPage</span></li>
+            <li class="page-item @(pageNumber >= lastPage ? "disabled" : "")">
+                <a class="page-link"
+                   asp-action="Index"
+                   asp-route-q="@q"
+                   asp-route-status="@s"
+                   asp-route-page="@(pageNumber + 1)"
+                   asp-route-pageSize="@pageSize">Next</a>
+            </li>
+        </ul>
+    </nav>
+}

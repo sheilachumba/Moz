@@ -1,0 +1,50 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<Interaction>
+@{
+    ViewData["Title"] = "Interactions";
+    int pageNumber = (int)(ViewBag.Page ?? 1);
+    int pageSize = (int)(ViewBag.PageSize ?? 10);
+    int total = (int)(ViewBag.Total ?? 0);
+    int lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+}
+<h2>Interactions</h2>
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No interactions yet.</div>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead><tr><th>Date</th><th>Type</th><th>Subject</th><th>Notes</th></tr></thead>
+        <tbody>
+            @foreach (var i in Model)
+            {
+                <tr>
+                    <td>@i.InteractionDate.ToString("dd MMM yyyy HH:mm")</td>
+                    <td>@i.Type</td>
+                    <td>@i.Subject</td>
+                    <td>@i.Notes</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <nav aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item @(pageNumber <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-page="@(pageNumber - 1)" asp-route-pageSize="@pageSize">Prev</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @pageNumber of @lastPage</span></li>
+            <li class="page-item @(pageNumber >= lastPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-page="@(pageNumber + 1)" asp-route-pageSize="@pageSize">Next</a>
+            </li>
+        </ul>
+    </nav>
+}
+@if (TempData["Ok"] != null)
+{
+    <div class="alert alert-success">@TempData["Ok"]</div>
+}
+@if (TempData["Err"] != null)
+{
+    <div class="alert alert-danger">@TempData["Err"]</div>
+}

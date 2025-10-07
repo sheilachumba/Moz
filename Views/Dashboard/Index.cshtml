@@ -1,0 +1,647 @@
+﻿@model ClientPortal.Models.ApplicationUser
+@{
+    ViewData["Title"] = "Index";
+    Layout = "_Layout";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+
+<style>
+    /* ================= INDEPENDENT DASHBOARD WRAPPER ================= */
+    .dashboard-page {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100vh;
+        top: var(--topbar-h);
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 999;
+        /* Local design tokens (scoped like your .register-page) */
+        --blue: #1a2555;
+        --blue-accent: #3655ff;
+        --text: #0b0f1a;
+        --muted: #6b7280;
+        --bg: #ffffff;
+        --card: #ffffff;
+        --border: #e5e7eb;
+        --ring: rgba(54,85,255,.12);
+        --shadow: 0 10px 24px rgba(0,0,0,.06);
+        --shadow-lg: 0 18px 40px rgba(0,0,0,.08);
+        --radius: 18px;
+        --radius-sm: 12px;
+        --content-max: 1200px;
+        font-family: sans-serif;
+        background: var(--bg);
+        scroll-behavior: smooth;
+    }
+
+        /* Optional decorative glows (matching your Register vibe) */
+        .dashboard-page::before,
+        .dashboard-page::after {
+            content: '';
+            position: fixed;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+
+        .dashboard-page::before {
+            top: -45%;
+            right: -12%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(54,85,255,0.10) 0%, transparent 70%);
+        }
+
+        .dashboard-page::after {
+            bottom: -30%;
+            left: -12%;
+            width: 480px;
+            height: 480px;
+            background: radial-gradient(circle, rgba(54,85,255,0.08) 0%, transparent 70%);
+        }
+
+        /* ================= APP SHELL ================= */
+        .dashboard-page .app-shell {
+            display: grid;
+            grid-template-columns: 280px minmax(0,1fr); /* sidebar flush left */
+            min-height: 100%;
+        }
+
+        /* Sidebar (far left, full height inside this scroll container) */
+        .dashboard-page .side-menu {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            padding: 14px 0;
+        }
+
+            .dashboard-page .side-menu a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 18px;
+                text-decoration: none;
+                color: var(--blue);
+                font-weight: 800;
+                border-left: 4px solid transparent;
+                transition: background .25s ease, transform .2s ease, color .2s ease, border-color .2s ease;
+            }
+
+                .dashboard-page .side-menu a:hover,
+                .dashboard-page .side-menu a.active {
+                    background: #f3f6ff;
+                    color: var(--blue-accent);
+                    border-left-color: var(--blue-accent);
+                    transform: translateX(3px);
+                }
+
+                .dashboard-page .side-menu a:focus-visible {
+                    outline: none;
+                    box-shadow: 0 0 0 4px var(--ring);
+                    border-left-color: var(--blue-accent);
+                }
+
+                .dashboard-page .side-menu a i {
+                    width: 22px;
+                    text-align: center;
+                    font-size: 1.05rem;
+                }
+
+        /* Main */
+        .dashboard-page .main-area {
+            padding: 28px;
+        }
+
+        .dashboard-page .main-inner {
+            width: 100%;
+            max-width: var(--content-max);
+            margin: 0 auto;
+        }
+
+        /* Success toast (TempData) */
+        .dashboard-page .toast-success {
+            width: 100%;
+            max-width: var(--content-max);
+            margin: 0 auto 18px auto;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #e8f5e9;
+            color: #0f5132;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid #c6e9ce;
+            box-shadow: 0 6px 18px rgba(16,185,129,.12);
+        }
+
+            .dashboard-page .toast-success i {
+                font-size: 1.1rem;
+                color: #10b981;
+            }
+
+        /* ================= HERO CTA ================= */
+        .dashboard-page .hero-cta {
+            position: relative;
+            width: 100%;
+            min-height: 360px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            isolation: isolate;
+        }
+
+            .dashboard-page .hero-cta .hero-bg {
+                position: absolute;
+                inset: 0;
+                background: url('/images/portal-hero.jpg') center / cover no-repeat; /* PUT YOUR IMAGE */
+                z-index: 0;
+                transform: scale(1.03);
+            }
+
+            .dashboard-page .hero-cta::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                z-index: 1;
+                background: linear-gradient(120deg, rgba(0,0,0,.50), rgba(0,0,0,.15) 55%, rgba(0,0,0,.55));
+            }
+
+        .dashboard-page .hero-content {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 34px 36px;
+            color: #fff;
+            max-width: 760px;
+        }
+
+        .dashboard-page .hero-title {
+            margin: 0;
+            font-weight: 900;
+            line-height: 1.15;
+            font-size: clamp(1.6rem, 1.1rem + 1.6vw, 2.6rem);
+            letter-spacing: .2px;
+        }
+
+        .dashboard-page .hero-subtitle {
+            margin: 0;
+            opacity: .96;
+            line-height: 1.7;
+            font-size: 1.02rem;
+            max-width: 70ch;
+        }
+
+        .dashboard-page .btn-apply {
+            align-self: flex-start;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--blue-accent);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 800;
+            text-decoration: none;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(54,85,255,.30);
+            transition: transform .18s ease, box-shadow .18s ease;
+        }
+
+            .dashboard-page .btn-apply:hover {
+                transform: translateY(-2px);
+            }
+
+        /* KYC complete pill */
+        .dashboard-page .kyc-complete {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: #10b981;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-weight: 800;
+            box-shadow: 0 8px 16px rgba(16,185,129,.25);
+        }
+
+        /* ================= SECTION CARDS ================= */
+        .dashboard-page .section-card {
+            margin-top: 24px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+        }
+
+            .dashboard-page .section-card h2 {
+                margin: 0 0 8px;
+                color: var(--blue);
+                font-size: 1.4rem;
+                font-weight: 800;
+            }
+
+        .dashboard-page .section-desc {
+            margin: 0 0 18px;
+            color: #111;
+            font-size: .98rem;
+        }
+
+        /* ================= PRODUCTS (containers + Explore button) ================= */
+        .dashboard-page .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            margin-top: 6px;
+        }
+
+        .dashboard-page .product-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f7f9ff;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px;
+            transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+        }
+
+            .dashboard-page .product-card:hover {
+                transform: translateY(-2px);
+                background: #eef3ff;
+                box-shadow: 0 10px 22px rgba(54,85,255,.10);
+            }
+
+        .dashboard-page .product-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .dashboard-page .product-head i {
+                color: var(--blue-accent);
+                font-size: 1.2rem;
+            }
+
+        .dashboard-page .product-title {
+            margin: 0;
+            font-weight: 800;
+            color: var(--blue);
+        }
+
+        .dashboard-page .product-desc {
+            margin: 2px 0 10px 32px;
+            color: #111;
+            font-size: .96rem;
+            line-height: 1.55;
+        }
+
+        .dashboard-page .product-actions {
+            display: flex;
+            gap: 10px;
+            margin: 2px 0 0 32px;
+        }
+
+        .dashboard-page .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #fff;
+            color: var(--blue);
+            border: 2px solid var(--blue);
+            border-radius: 10px;
+            padding: 10px 14px;
+            text-decoration: none;
+            font-weight: 800;
+            transition: background .15s ease, color .15s ease, transform .15s ease;
+        }
+
+            .dashboard-page .btn-outline:hover {
+                background: var(--blue);
+                color: #fff;
+                transform: translateY(-1px);
+            }
+
+        /* ================= FORMS ================= */
+        .dashboard-page .interactions-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px 18px;
+            margin-top: 8px;
+        }
+
+        .dashboard-page .form-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+            .dashboard-page .form-field.full {
+                grid-column: 1 / -1;
+            }
+
+            .dashboard-page .form-field label {
+                font-size: .92rem;
+                font-weight: 800;
+                color: var(--blue);
+                margin-bottom: 6px;
+            }
+
+            .dashboard-page .form-field input,
+            .dashboard-page .form-field select,
+            .dashboard-page .form-field textarea {
+                width: 100%;
+                padding: 12px 14px;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                background: #fff;
+                color: #111;
+                font-size: 1rem;
+                transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+            }
+
+            .dashboard-page .form-field textarea {
+                min-height: 140px;
+                resize: vertical;
+            }
+
+                .dashboard-page .form-field input:focus,
+                .dashboard-page .form-field select:focus,
+                .dashboard-page .form-field textarea:focus {
+                    outline: none;
+                    border-color: var(--blue-accent);
+                    box-shadow: 0 0 0 4px var(--ring);
+                    background: #fff;
+                }
+
+        .dashboard-page .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-start;
+            grid-column: 1 / -1;
+            margin-top: 4px;
+        }
+
+        .dashboard-page .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            font-weight: 800;
+            border: 1px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+        }
+
+        .dashboard-page .btn-primary {
+            background: var(--blue-accent);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(54,85,255,.22);
+        }
+
+            .dashboard-page .btn-primary:hover {
+                transform: translateY(-2px);
+            }
+
+        .dashboard-page .btn-ghost {
+            background: #fff;
+            color: var(--blue);
+            border-color: var(--border);
+        }
+
+            .dashboard-page .btn-ghost:hover {
+                transform: translateY(-2px);
+            }
+
+    /* ================= RESPONSIVE ================= */
+    @@media (max-width: 980px) {
+        .dashboard-page .app-shell
+
+    {
+        grid-template-columns: 82px 1fr;
+    }
+    /* compact sidebar */
+    .dashboard-page .side-menu a span {
+        display: none;
+    }
+    /* labels hidden, icons stay */
+    .dashboard-page .side-menu a i {
+        margin-right: 0;
+    }
+
+    .dashboard-page .hero-content {
+        max-width: 100%;
+    }
+
+    .dashboard-page .interactions-form {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-page .actions .btn {
+        width: 100%;
+    }
+
+    }
+</style>
+
+<div class="dashboard-page">
+    <div class="app-shell">
+        <!-- SIDE MENU (far left) -->
+        <nav class="side-menu" aria-label="Portal sections">
+            <a href="#overview" class="active"><i class="bi bi-house-door"></i> <span>Home</span></a>
+            <a href="#products"><i class="bi bi-briefcase"></i> <span>Products & Services</span></a>
+            <a href="#interactions"><i class="bi bi-chat-dots"></i> <span>Interactions</span></a>
+        </nav>
+
+        <!-- MAIN -->
+        <main class="main-area">
+            <div class="main-inner">
+                @if (TempData["InteractionSubmitted"] != null)
+                {
+                    <div class="toast-success" role="alert" aria-live="polite" aria-atomic="true">
+                        <i class="bi bi-check2-circle"></i>
+                        <span>Thank you for your message. We have received your submission.</span>
+                    </div>
+                }
+
+                <!-- HERO CTA (full-cover image with CTA inside) -->
+                <section id="overview" class="hero-cta" aria-label="Welcome">
+                    <div class="hero-bg"></div>
+                    <div class="hero-content">
+                        <h1 class="hero-title">Welcome, @Model.UserName</h1>
+                        <p class="hero-subtitle">
+                            Manage your insurance in one place track policies, view claims, and access documents. Start by completing your application.
+                        </p>
+
+                        @if (!Model.KycCompleted)
+                        {
+                            <a asp-controller="Kyc" asp-action="Checklist" class="btn-apply">
+                                <i class="bi bi-shield-check"></i> Apply for Cover
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="kyc-complete">
+                                <i class="bi bi-check-circle-fill"></i> Your KYC is complete. Thank you!
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <!-- PRODUCTS & SERVICES (containers + Explore options button) -->
+                <section id="products" class="section-card" aria-labelledby="products-heading">
+                    <h2 id="products-heading">Our Products & Services</h2>
+                    <p class="section-desc">Explore the covers available to you.</p>
+
+                    <div class="products-grid">
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-heart-pulse"></i>
+                                <h3 class="product-title">Comprehensive Health Insurance</h3>
+                            </div>
+                            <p class="product-desc">Hospitalization, outpatient, maternity, and chronic care options tailored to your needs.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-car-front"></i>
+                                <h3 class="product-title">Car &amp; Motor Insurance</h3>
+                            </div>
+                            <p class="product-desc">Third-party, comprehensive, and add-ons like windscreen, theft, and roadside assistance.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-building"></i>
+                                <h3 class="product-title">Business &amp; Property Coverage</h3>
+                            </div>
+                            <p class="product-desc">Protect your premises, assets, and operations with customizable business cover.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-airplane"></i>
+                                <h3 class="product-title">Life, Travel &amp; Accident</h3>
+                            </div>
+                            <p class="product-desc">Peace of mind for you and your family when at home or on the move.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-gear"></i>
+                                <h3 class="product-title">Institutional Solutions</h3>
+                            </div>
+                            <p class="product-desc">Custom plans for schools, NGOs, and enterprises with flexible group benefits.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+
+                        <article class="product-card">
+                            <div class="product-head">
+                                <i class="bi bi-headset"></i>
+                                <h3 class="product-title">Account Management &amp; Support</h3>
+                            </div>
+                            <p class="product-desc">Dedicated assistance for claims, renewals, and policy updates.</p>
+                            <div class="product-actions">
+                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <!-- INTERACTIONS -->
+                <section id="interactions" class="section-card" aria-labelledby="interactions-heading">
+                    <h2 id="interactions-heading">Contact &amp; Interactions</h2>
+                    <p class="section-desc">Send us a request, complaint, feedback, or inquiry.</p>
+
+                    <form class="interactions-form" method="post" asp-controller="Dashboard" asp-action="SubmitSupport">
+                        @Html.AntiForgeryToken()
+
+                        <div class="form-field">
+                            <label for="interactionType">Type</label>
+                            <select id="interactionType" name="interactionType" required>
+                                <option value="">Select an option</option>
+                                <option value="Request">General Request</option>
+                                <option value="Complaint">Complaint</option>
+                                <option value="Feedback">Feedback</option>
+                                <option value="Inquiry">Inquiry</option>
+                            </select>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="fullName">Full Name</label>
+                            <input type="text" id="fullName" name="fullName" placeholder="Your name" required />
+                        </div>
+
+                        <div class="form-field">
+                            <label for="email">Email (optional)</label>
+                            <input type="email" id="email" name="email" placeholder="your@email.com" />
+                        </div>
+
+                        <div class="form-field full">
+                            <label for="details">Details</label>
+                            <textarea id="details" name="details" rows="5" placeholder="Type your message or request here..." required></textarea>
+                        </div>
+
+                        <div class="actions">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Submit</button>
+                            <a href="#overview" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Cancel</a>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        </main>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Active link highlight (scoped to this page)
+        (function(){
+            const root = document.querySelector('.dashboard-page');
+            if(!root) return;
+            const menuLinks = root.querySelectorAll('.side-menu a');
+            function setActiveByHash(){
+                const hash = window.location.hash || '#overview';
+                menuLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === hash));
+            }
+            function setActiveOnScroll(){
+                const sections = [...root.querySelectorAll('main section')];
+                const scrollY = root.scrollTop + 120; // account for internal scroll container
+                let current = sections[0]?.id || 'overview';
+                for(const sec of sections){
+                    const top = sec.offsetTop;
+                    if(scrollY >= top) current = sec.id;
+                }
+                menuLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+            }
+            root.addEventListener('scroll', setActiveOnScroll);
+            window.addEventListener('hashchange', setActiveByHash);
+            setActiveByHash(); setActiveOnScroll();
+        })();
+    </script>
+}

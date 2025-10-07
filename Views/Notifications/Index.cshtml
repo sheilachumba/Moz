@@ -1,0 +1,29 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<Notification>
+@{
+    ViewData["Title"] = "Notifications";
+}
+<h2>Notifications</h2>
+@if (!Model.Any())
+{
+    <div class="alert alert-info">All caught up!</div>
+}
+else
+{
+    <ul class="list-group">
+        @foreach (var n in Model)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="fw-bold">@n.Title</div>
+                    <div class="text-muted" style="font-size:0.9em;">@n.CreatedDate.ToString("dd MMM yyyy HH:mm") — @n.Type</div>
+                    <div>@n.Message</div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(n.LinkUrl))
+                {
+                    <a class="btn btn-sm btn-outline-primary" href="@n.LinkUrl">Open</a>
+                }
+            </li>
+        }
+    </ul>
+}

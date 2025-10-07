@@ -1,0 +1,88 @@
+﻿@{
+    ViewData["Title"] = "Welcome";
+    Layout = "_Layout";
+}
+
+<style>
+    .welcome-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .welcome-card {
+        background: white;
+        border-radius: 20px;
+        padding: 3rem;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        max-width: 500px;
+        width: 90%;
+    }
+
+    .welcome-image {
+        width: 100%;
+        max-width: 300px;
+        height: auto;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+
+    .welcome-title {
+        color: #1a2555;
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .welcome-subtitle {
+        color: #64748b;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .btn-apply {
+        background: linear-gradient(180deg, #3655ff, #1f46ff);
+        color: white;
+        padding: 12px 30px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 8px 16px rgba(31,70,255,.25);
+        transition: transform 0.2s;
+    }
+
+        .btn-apply:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+</style>
+
+<div class="welcome-container">
+    <div class="welcome-card">
+        <!-- You can replace this with your actual nice picture -->
+        <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+             alt="Welcome" class="welcome-image">
+
+        <h1 class="welcome-title">Welcome to Your Portal</h1>
+
+        <p class="welcome-subtitle">
+            Get started by applying for insurance cover.
+            Complete your application to access your personalized dashboard
+            with policies, claims, and documents.
+        </p>
+
+        <a asp-controller="Kyc" asp-action="Checklist" asp-route-type="Individual"
+           class="btn-apply">
+            <i class="bi bi-shield-check"></i>
+            Apply for Cover
+        </a>
+    </div>
+</div>

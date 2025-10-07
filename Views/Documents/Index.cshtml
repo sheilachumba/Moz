@@ -1,0 +1,48 @@
+﻿@using ClientPortal.Models
+@model IEnumerable<Document>
+@{
+    ViewData["Title"] = "Documents";
+    var q = ViewBag.Query as string;
+    int pageNumber = (int)(ViewBag.Page ?? 1);
+    int pageSize = (int)(ViewBag.PageSize ?? 12);
+    int total = (int)(ViewBag.Total ?? 0);
+    int lastPage = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
+}
+<h2>Documents</h2>
+<form method="get" style="display:flex;gap:8px;margin:10px 0;">
+    <input type="text" name="q" value="@q" placeholder="Search filename or type" />
+    <button class="btn btn-primary">Search</button>
+</form>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No documents found.</div>
+}
+else
+{
+    <table class="table table-sm table-striped">
+        <thead><tr><th>File</th><th>Type</th><th>Uploaded</th><th>Expires</th></tr></thead>
+        <tbody>
+            @foreach (var d in Model)
+            {
+                <tr>
+                    <td>@d.FileName</td>
+                    <td>@d.DocumentType</td>
+                    <td>@d.UploadDate.ToString("dd MMM yyyy")</td>
+                    <td>@(d.ExpiryDate?.ToString("dd MMM yyyy") ?? "-")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <nav aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item @(pageNumber <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-q="@q" asp-route-page="@(pageNumber - 1)" asp-route-pageSize="@pageSize">Prev</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @pageNumber of @lastPage</span></li>
+            <li class="page-item @(pageNumber >= lastPage ? "disabled" : "")">
+                <a class="page-link" asp-action="Index" asp-route-q="@q" asp-route-page="@(pageNumber + 1)" asp-route-pageSize="@pageSize">Next</a>
+            </li>
+        </ul>
+    </nav>
+}

@@ -1,0 +1,34 @@
+﻿@{
+    Layout = "_Layout";
+    var title = ViewData["Title"] as string;
+    var desc = ViewBag.Description as string;
+}
+<section class="dash">
+    <div class="wrap">
+        <div class="shell">
+            <main style="grid-column: 1 / -1;">
+                <div class="hdr">
+                    <div>
+                        @if (!string.IsNullOrWhiteSpace(title))
+                        {
+                            <h1>@title</h1>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(desc))
+                        {
+                            <div class="sub">@desc</div>
+                        }
+                    </div>
+                </div>
+
+                @* TODO: add real content per section when you have data *@
+
+                @if (TempData["Ok"] != null)
+                {
+                    <div class="alert alert-ok" style="margin:12px 0; padding:10px; border:1px solid #e5e7eb; border-radius:12px; background:#f0fdf4; color:#14532d;">
+                        @TempData["Ok"]
+                    </div>
+                }
+            </main>
+        </div>
+    </div>
+</section>
