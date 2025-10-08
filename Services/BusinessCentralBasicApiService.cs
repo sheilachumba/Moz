@@ -19,7 +19,7 @@ public class BusinessCentralBasicApiService
     // Configure the HttpClient with Basic Auth headers
     private void SetBasicAuthHeader()
     {
-        var username = _config["BcApi:Administartor"];
+        var username = _config["BcApi:Administrator"];
         var password = _config["BcApi:Insurance@2030#"]; // Or use Web Service Access Key
         var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);

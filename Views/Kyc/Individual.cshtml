@@ -1,6 +1,4 @@
-﻿
-
-@model ClientPortal.Models.IndividualKyc
+﻿@model ClientPortal.Models.IndividualKyc
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Individual KYC (Mozambique)";
@@ -562,7 +560,7 @@
             </fieldset>
 
             <!-- 3) PERSONAL ADDRESS -->
-            <fieldset class="section locked" id="secAddress" disabled>
+            <fieldset class="section locked" id="secAddress">
                 <h3 class="section-title">3) Personal Address</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
@@ -574,7 +572,7 @@
             </fieldset>
 
             <!-- 4) PROFESSIONAL DATA -->
-            <fieldset class="section locked" id="secProfessional" disabled>
+            <fieldset class="section locked" id="secProfessional">
                 <h3 class="section-title">4) Professional Data</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
@@ -589,7 +587,7 @@
             </fieldset>
 
             <!-- 5) PEP -->
-            <fieldset class="section locked" id="secPep" disabled>
+            <fieldset class="section locked" id="secPep">
                 <h3 class="section-title">5) Politically Exposed Person (PEP)</h3>
                 <p class="section-helper">PEP includes holders of prominent public functions (last 2 years), first-degree relatives, and close associates.</p>
                 <div class="grid">
@@ -608,7 +606,7 @@
             </fieldset>
 
             <!-- 6) PRODUCTS & SERVICES -->
-            <fieldset class="section locked" id="secProducts" disabled>
+            <fieldset class="section locked" id="secProducts">
                 <h3 class="section-title">6) Products & Services</h3>
 
                 <div class="grid">
@@ -635,7 +633,7 @@
                     </div>
                 </div>
 
-                <!-- Service-specific sections (same as before, but with new styling) -->
+                <!-- Service-specific sections -->
                 <div class="service-section" id="svc-Motor">
                     <div class="document-title">Motor Insurance Details</div>
                     <div class="grid">
@@ -665,24 +663,25 @@
                         </div>
                     </div>
                 </div>
-                <!-- WORKMEN COMPENSATION -->
-                <div class="col-12 svc" id="svc-WorkmenCompensation" style="display:none;">
+
+                <!-- Other service sections (simplified for brevity) -->
+                <div class="service-section" id="svc-WorkmenCompensation" style="display:none;">
+                    <div class="document-title">Workmen Compensation Details</div>
                     <div class="grid">
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="EmployeeCount">Employee Count</label>
                             <input type="number" min="1" name="EmployeeCount" id="EmployeeCount" class="form-control" />
                         </div>
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="AnnualPayroll">Annual Payroll (MZN)</label>
                             <input type="number" min="0" step="0.01" name="AnnualPayroll" id="AnnualPayroll" class="form-control" />
                         </div>
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="OccupationRisk">Occupation Risk Class</label>
                             <input type="text" name="OccupationRisk" id="OccupationRisk" class="form-control" placeholder="e.g., Low / Medium / High" />
                         </div>
                     </div>
                 </div>
-
                 <!-- PERSONAL ACCIDENTS -->
                 <div class="col-12 svc" id="svc-PersonalAccidents" style="display:none;">
                     <div class="grid">
@@ -787,10 +786,8 @@
                 </div>
             </fieldset>
 
-            </fieldset>
-
             <!-- 7) OTHER DATA -->
-            <fieldset class="section locked" id="secOther" disabled>
+            <fieldset class="section locked" id="secOther">
                 <h3 class="section-title">7) Other Data</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
@@ -812,7 +809,7 @@
             </fieldset>
 
             <!-- 8) PROOF OF ADDRESS -->
-            <fieldset class="section locked" id="secProofAddress" disabled>
+            <fieldset class="section locked" id="secProofAddress">
                 <h3 class="section-title">8) Proof of Address</h3>
                 <div class="grid">
                     <div class="col-8 form-group">
@@ -828,7 +825,7 @@
             </fieldset>
 
             <!-- 9) SOURCE OF INCOME -->
-            <fieldset class="section locked" id="secIncome" disabled>
+            <fieldset class="section locked" id="secIncome">
                 <h3 class="section-title">9) Source of Income</h3>
                 <div class="grid">
                     <div class="col-8 form-group">
@@ -844,7 +841,7 @@
             </fieldset>
 
             <!-- 10) SIGNATURES & DECLARATION -->
-            <fieldset class="section locked" id="secSignatures" disabled>
+            <fieldset class="section locked" id="secSignatures">
                 <h3 class="section-title">10) Signatures & Declaration</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
@@ -878,175 +875,236 @@
                     <button name="action" value="submit" class="btn btn-success" type="submit">Submit Application</button>
                 </div>
             </div>
+            <input type="hidden" asp-for="No" value="INSU000" />
         </form>
     </div>
 </section>
+
 <script>
+
     (function () {
-      // ---------- sections to lock/unlock (after Personal Data) ----------
-      const secIds = [
-        'secAddress','secProfessional','secPep',
-        'secProducts','secOther','secProofAddress','secIncome','secSignatures'
-      ];
-      const sections = Object.fromEntries(secIds.map(id => [id, document.getElementById(id)]));
+        // ---------- sections to lock/unlock (after Personal Data) ----------
+        const secIds = [
+            'secAddress', 'secProfessional', 'secPep',
+            'secProducts', 'secOther', 'secProofAddress', 'secIncome', 'secSignatures'
+        ];
+        const sections = Object.fromEntries(secIds.map(id => [id, document.getElementById(id)]));
 
-      function setLocked(el, locked){
-        if(!el) return;
-        el.disabled = !!locked;
-        el.classList.toggle('is-locked', !!locked);
-      }
-      function lockAllAfterPersonal(){ Object.values(sections).forEach(s => setLocked(s, true)); }
-      function unlockAllAfterPersonal(){ Object.values(sections).forEach(s => setLocked(s, false)); }
+        function setLocked(el, locked) {
+            if (!el) return;
+            if (locked) {
+                el.classList.add('locked');
+                // Disable all form elements within the section
+                el.querySelectorAll('input, select, textarea, button').forEach(input => {
+                    input.disabled = true;
+                });
+            } else {
+                el.classList.remove('locked');
+                // Enable all form elements within the section
+                el.querySelectorAll('input, select, textarea, button').forEach(input => {
+                    input.disabled = false;
+                });
+            }
+        }
 
-      // ---------- multiple identity documents (dynamic fields) ----------
-      const idContainer = document.getElementById('IdDocsFields');  // where groups are inserted
-      const idChecks    = document.querySelectorAll('.id-type');    // checkboxes from ViewBag.IdentityTypes
+        function lockAllAfterPersonal() {
+            Object.values(sections).forEach(s => setLocked(s, true));
+        }
 
-      function addIdGroup(value, label){
-        if(!idContainer || idContainer.querySelector(`.id-doc[data-type="${value}"]`)) return;
-        const html = `
-          <div class="kyc-card id-doc" data-type="${value}" style="padding:16px; margin-top:10px;">
-            <input type="hidden" name="IdentityDocs.Index" value="${value}">
-            <input type="hidden" name="IdentityDocs[${value}].Type" value="${value}">
-            <div class="grid">
-              <div class="col-6">
-                <label>${label} Number <span class="req">*</span></label>
-                <input type="text" class="form-control" name="IdentityDocs[${value}].Number" required>
-              </div>
-              <div class="col-6">
-                <label>Attach ${label} <span class="req">*</span></label>
-                <input type="file" class="form-control" name="IdentityDocs[${value}].File" required>
-              </div>
-            </div>
-          </div>`;
-        idContainer.insertAdjacentHTML('beforeend', html);
-        updateGate();
-      }
-      function removeIdGroup(value){
-        if(!idContainer) return;
-        const el = idContainer.querySelector(`.id-doc[data-type="${value}"]`);
-        if(el) el.remove();
-        updateGate();
-      }
-      idChecks.forEach(cb => {
-        cb.addEventListener('change', () => {
-          const label = cb.dataset.label || cb.value;
-          cb.checked ? addIdGroup(cb.value, label) : removeIdGroup(cb.value);
+        function unlockAllAfterPersonal() {
+            Object.values(sections).forEach(s => setLocked(s, false));
+        }
+
+        // ---------- multiple identity documents (dynamic fields) ----------
+        const idContainer = document.getElementById('IdDocsFields');
+        const idChecks = document.querySelectorAll('.id-type');
+
+        function addIdGroup(value, label) {
+            if (!idContainer || idContainer.querySelector(`.id-doc[data-type="${value}"]`)) return;
+            const html = `
+                <div class="document-group id-doc" data-type="${value}">
+                    <div class="document-title">${label}</div>
+                    <input type="hidden" name="IdentityDocs.Index" value="${value}">
+                    <input type="hidden" name="IdentityDocs[${value}].Type" value="${value}">
+                    <div class="grid">
+                        <div class="col-6 form-group">
+                            <label>${label} Number <span class="required">*</span></label>
+                            <input type="text" class="form-control" name="IdentityDocs[${value}].Number" required>
+                        </div>
+                        <div class="col-6 form-group">
+                            <label>Attach ${label} <span class="required">*</span></label>
+                            <input type="file" class="form-control" name="IdentityDocs[${value}].File" required>
+                        </div>
+                    </div>
+                </div>`;
+            idContainer.insertAdjacentHTML('beforeend', html);
+            updateGate();
+        }
+
+        function removeIdGroup(value) {
+            if (!idContainer) return;
+            const el = idContainer.querySelector(`.id-doc[data-type="${value}"]`);
+            if (el) el.remove();
+            updateGate();
+        }
+
+        idChecks.forEach(cb => {
+            cb.addEventListener('change', () => {
+                const label = cb.dataset.label || cb.value;
+                cb.checked ? addIdGroup(cb.value, label) : removeIdGroup(cb.value);
+            });
         });
-      });
-      // If some were prechecked (e.g., draft), render them:
-      idChecks.forEach(cb => { if (cb.checked) addIdGroup(cb.value, cb.dataset.label || cb.value); });
 
-      function identityReady(){
-        if(!idContainer) return false;
-        const groups = idContainer.querySelectorAll('.id-doc');
-        if(!groups.length) return false;
-        for(const g of groups){
-          const num  = g.querySelector('input[type="text"]');
-          const file = g.querySelector('input[type="file"]');
-          if(!num || !num.value.trim()) return false;
-          if(!file || !(file.files && file.files.length)) return false;
-        }
-        return true;
-      }
-
-      // ---------- NUIT (exactly 9 digits) ----------
-      const nuit     = document.getElementById('NUIT');
-      const nuitFile = document.getElementById('NuitFile');
-
-      nuit?.addEventListener('input', function(){
-        this.value = this.value.replace(/\D/g,'').slice(0,9);
-        if(this.value.length === 9){ this.setCustomValidity(''); }
-        else { this.setCustomValidity('NUIT must be exactly 9 digits.'); }
-      });
-
-      // ---------- gate: unlock rest after personal-docs + nuit complete ----------
-      function updateGate(){
-        const okId   = identityReady();
-        const okNuit = !!(nuit && nuit.value.length === 9);
-        const okNf   = !!(nuitFile && nuitFile.files && nuitFile.files.length);
-        (okId && okNuit && okNf) ? unlockAllAfterPersonal() : lockAllAfterPersonal();
-      }
-      idContainer?.addEventListener('input',  updateGate);
-      idContainer?.addEventListener('change', updateGate);
-      nuit?.addEventListener('input',         updateGate);
-      nuitFile?.addEventListener('change',    updateGate);
-      updateGate(); // init
-
-         (function () {
-      const cls = document.getElementById('ProductClass');
-      const sub = document.getElementById('ProductSubClass');
-      const sections = Array.from(document.querySelectorAll('#secProducts .svc'));
-
-      const subclasses = {
-        "Motor": [["ThirdParty", "Third Party"], ["Comprehensive", "Comprehensive"]],
-        "WorkmenCompensation": [["Statutory", "Statutory"], ["EmployerLiability", "Employer’s Liability"]],
-        "PersonalAccidents": [["Individual", "Individual"], ["Group", "Group"]],
-        "Engineering": [["CAR", "Contractors All Risk"], ["EAR", "Erection All Risk"]],
-        "Specialized": [["Cyber", "Cyber"], ["Aviation", "Aviation"], ["Marine", "Marine"]],
-        "Multimark": [["General", "General Multimark"]],
-        "HealthLife": [["Health", "Health"], ["Life", "Life"]],
-        "Funeral": [["Individual", "Individual"], ["Family", "Family"], ["Group", "Group"]]
-      };
-
-      function setSubclasses(forClass) {
-        sub.innerHTML = '<option value="">Select subclass (optional)</option>';
-        (subclasses[forClass] || []).forEach(([v, t]) => {
-          const opt = document.createElement('option');
-          opt.value = v; opt.textContent = t;
-          sub.appendChild(opt);
+        // If some were prechecked (e.g., draft), render them:
+        idChecks.forEach(cb => {
+            if (cb.checked) addIdGroup(cb.value, cb.dataset.label || cb.value);
         });
-      }
 
-      function showSection(forClass) {
-        sections.forEach(s => s.style.display = 'none');
-        const el = document.getElementById('svc-' + forClass);
-        if (el) el.style.display = '';
-      }
-
-      cls?.addEventListener('change', () => {
-        const val = cls.value || '';
-        setSubclasses(val);
-        showSection(val);
-      });
-
-      if (cls && cls.value) {
-        setSubclasses(cls.value);
-        showSection(cls.value);
-      }
-    })();
-
-      // ---------- final submit guard ----------
-      const form = document.getElementById('kycForm');
-      const addressProofFile = document.getElementById('AddressProofFile');
-      const incomeProofFile  = document.getElementById('IncomeProofFile');
-
-      form?.addEventListener('submit', function(e){
-        if(!identityReady()){
-          e.preventDefault(); alert('Please add at least one identification document with its number and file.'); return;
-        }
-        if(!(nuit && nuit.value.length === 9)){
-          e.preventDefault(); alert('NUIT must be exactly 9 digits.'); return;
-        }
-        if(!(nuitFile && nuitFile.files.length)){
-          e.preventDefault(); alert('Please attach the NUIT document.'); return;
-        }
-        if(!(addressProofFile && addressProofFile.files.length)){
-          e.preventDefault(); alert('Please attach the Proof of Address before submitting.'); return;
-        }
-        if(!(incomeProofFile && incomeProofFile.files.length)){
-          e.preventDefault(); alert('Please attach the Proof of Income before submitting.'); return;
+        function identityReady() {
+            if (!idContainer) return false;
+            const groups = idContainer.querySelectorAll('.id-doc');
+            if (!groups.length) return false;
+            for (const g of groups) {
+                const num = g.querySelector('input[type="text"]');
+                const file = g.querySelector('input[type="file"]');
+                if (!num || !num.value.trim()) return false;
+                if (!file || !(file.files && file.files.length)) return false;
+            }
+            return true;
         }
 
-        const grp = classToGroup(productClass?.value || '');
-        if(grp === 'Motor'){
-          if(!(dlNum && dlNum.value.trim())){
-            e.preventDefault(); alert("Please provide the Driver's License Number for Motor insurance."); return;
-          }
-          if(!(dlFile && dlFile.files.length)){
-            e.preventDefault(); alert("Please attach the Driver's License for Motor insurance."); return;
-          }
+        // ---------- NUIT (exactly 9 digits) ----------
+        const nuit = document.getElementById('NUIT');
+        const nuitFile = document.getElementById('NuitFile');
+
+        nuit?.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 9);
+            if (this.value.length === 9) {
+                this.setCustomValidity('');
+            } else {
+                this.setCustomValidity('NUIT must be exactly 9 digits.');
+            }
+            updateGate();
+        });
+
+        // ---------- gate: unlock rest after personal-docs + nuit complete ----------
+        function updateGate() {
+            const okId = identityReady();
+            const okNuit = !!(nuit && nuit.value.length === 9);
+            const okNf = !!(nuitFile && nuitFile.files && nuitFile.files.length);
+
+            console.log('Gate check:', { okId, okNuit, okNf }); // Debug log
+
+            if (okId && okNuit && okNf) {
+                unlockAllAfterPersonal();
+            } else {
+                lockAllAfterPersonal();
+            }
         }
-      });
+
+        // Add event listeners for all relevant inputs
+        idContainer?.addEventListener('input', updateGate);
+        idContainer?.addEventListener('change', updateGate);
+        nuit?.addEventListener('input', updateGate);
+        nuitFile?.addEventListener('change', updateGate);
+
+        // Initialize
+        lockAllAfterPersonal();
+        updateGate();
+
+        // ---------- Product Class and Subclass handling ----------
+        (function () {
+            const cls = document.getElementById('ProductClass');
+            const sub = document.getElementById('ProductSubClass');
+            const serviceSections = Array.from(document.querySelectorAll('.service-section'));
+
+            const subclasses = {
+                "Motor": [["ThirdParty", "Third Party"], ["Comprehensive", "Comprehensive"]],
+                "WorkmenCompensation": [["Statutory", "Statutory"], ["EmployerLiability", "Employer's Liability"]],
+                "PersonalAccidents": [["Individual", "Individual"], ["Group", "Group"]],
+                "Engineering": [["CAR", "Contractors All Risk"], ["EAR", "Erection All Risk"]],
+                "Specialized": [["Cyber", "Cyber"], ["Aviation", "Aviation"], ["Marine", "Marine"]],
+                "Multimark": [["General", "General Multimark"]],
+                "HealthLife": [["Health", "Health"], ["Life", "Life"]],
+                "Funeral": [["Individual", "Individual"], ["Family", "Family"], ["Group", "Group"]]
+            };
+
+            function setSubclasses(forClass) {
+                sub.innerHTML = '<option value="">Select subclass (optional)</option>';
+                (subclasses[forClass] || []).forEach(([v, t]) => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.textContent = t;
+                    sub.appendChild(opt);
+                });
+            }
+
+            function showSection(forClass) {
+                serviceSections.forEach(s => s.style.display = 'none');
+                const el = document.getElementById('svc-' + forClass);
+                if (el) el.style.display = 'block';
+            }
+
+            cls?.addEventListener('change', () => {
+                const val = cls.value || '';
+                setSubclasses(val);
+                showSection(val);
+            });
+
+            if (cls && cls.value) {
+                setSubclasses(cls.value);
+                showSection(cls.value);
+            }
+        })();
+
+        // ---------- final submit guard ----------
+        const form = document.getElementById('kycForm');
+        const addressProofFile = document.getElementById('AddressProofFile');
+        const incomeProofFile = document.getElementById('IncomeProofFile');
+
+        form?.addEventListener('submit', function (e) {
+            if (!identityReady()) {
+                e.preventDefault();
+                alert('Please add at least one identification document with its number and file.');
+                return;
+            }
+            if (!(nuit && nuit.value.length === 9)) {
+                e.preventDefault();
+                alert('NUIT must be exactly 9 digits.');
+                return;
+            }
+            if (!(nuitFile && nuitFile.files.length)) {
+                e.preventDefault();
+                alert('Please attach the NUIT document.');
+                return;
+            }
+            if (!(addressProofFile && addressProofFile.files.length)) {
+                e.preventDefault();
+                alert('Please attach the Proof of Address before submitting.');
+                return;
+            }
+            if (!(incomeProofFile && incomeProofFile.files.length)) {
+                e.preventDefault();
+                alert('Please attach the Proof of Income before submitting.');
+                return;
+            }
+
+            // Check motor insurance requirements
+            const productClass = document.getElementById('ProductClass');
+            if (productClass && productClass.value === 'Motor') {
+                const dlNum = document.getElementById('DriversLicenseNumber');
+                const dlFile = document.getElementById('DriversLicenseFile');
+                if (!(dlNum && dlNum.value.trim())) {
+                    e.preventDefault();
+                    alert("Please provide the Driver's License Number for Motor insurance.");
+                    return;
+                }
+                if (!(dlFile && dlFile.files.length)) {
+                    e.preventDefault();
+                    alert("Please attach the Driver's License for Motor insurance.");
+                    return;
+                }
+            }
+        });
     })();
 </script>

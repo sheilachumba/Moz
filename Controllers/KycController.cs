@@ -21,10 +21,12 @@ public class KycController : Controller
     private readonly UserManager<ApplicationUser> _users;
     private readonly AppDbContext _db;
     private readonly IChecklistProvider _checklist;
+    private readonly KycSubmissionService _kycSubmissionService;
 
-    public KycController(UserManager<ApplicationUser> users, AppDbContext db, IChecklistProvider checklist)
+
+    public KycController(UserManager<ApplicationUser> users, AppDbContext db, IChecklistProvider checklist, KycSubmissionService kycSubmissionService)
     {
-        _users = users; _db = db; _checklist = checklist;
+        _users = users; _db = db; _checklist = checklist; _kycSubmissionService = kycSubmissionService;
     }
 
     // ------------------- CHECKLIST -------------------
@@ -182,33 +184,59 @@ public class KycController : Controller
             // If complete & valid -> Submitted; else keep as draft but still redirect to dashboard
             if (await HasAllRequiredDocs(user.Id, KycType.Individual) && ModelState.IsValid)
             {
-                // persist status on the tracked entity (existing or vm if newly added)
-                var row = existing ?? vm;
-                row.Status = KycStatus.Submitted;
-                row.SubmittedAt = DateTime.UtcNow;
+                try
+                {
+                    // Submit KYC data to BC
+                    bool success = await _kycSubmissionService.SubmitIndividualKycAsync(vm);
 
-                user.KycStatus = KycStatus.Submitted;
-                await _users.UpdateAsync(user);
-                await _db.SaveChangesAsync();
+                    if (!success)
+                    {
+                        TempData["Err"] = "Failed to submit KYC data to Business Central.";
+                        return RedirectToAction("Individual", "Dashboard");
+                    }
 
-                TempData["Ok"] = "KYC submitted for screening.";
+
+
+                    // Upload documents one by one (example for one document)
+                    // Repeat for all required docs
+                    var insuredCardNo = "INSU000"; // Replace with actual insured card number from BC response if available
+                    var uploadSuccess = await _kycSubmissionService.UploadKycDocumentAsync(insuredCardNo, IdentityFile.FileName, IdentityFile.FileName);
+                    if (!uploadSuccess)
+                    {
+                        TempData["Err"] = "KYC data submitted but failed to upload some documents.";
+                        return RedirectToAction("Individual", "Dashboard");
+                    }
+
+                    // Update status locally
+                    var row = existing ?? vm;
+                    row.Status = KycStatus.Submitted;
+                    row.SubmittedAt = DateTime.UtcNow;
+                    user.KycStatus = KycStatus.Submitted;
+                    await _users.UpdateAsync(user);
+                    await _db.SaveChangesAsync();
+
+                    TempData["Ok"] = "KYC submitted successfully for screening.";
+                }
+                catch (Exception ex)
+                {
+                    // Log exception (add your logging here)
+                    TempData["Err"] = $"An error occurred during submission: {ex.Message}";
+                }
             }
             else
             {
                 TempData["Err"] = "Some required details/documents are missing. Your draft was saved—complete it from your dashboard.";
             }
-
-            // ✅ Always go to personalised dashboard
             return RedirectToAction("Individual", "Dashboard");
         }
 
         if (isSave)
         {
-            TempData["Ok"] = "Draft saved. You can now access your dashboard.";
+            TempData["Ok"] = "Draft saved.";
             return RedirectToAction("Individual", "Dashboard");
         }
 
-        // Fallback: back to form (rare)
+        // Fallback
         ViewBag.Requirements = _checklist.Get(KycType.Individual);
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Individual);
         return View(vm);
@@ -289,15 +317,41 @@ public class KycController : Controller
         {
             if (await HasAllRequiredDocs(user.Id, KycType.Company) && ModelState.IsValid)
             {
-                var row = existing ?? vm;
-                row.Status = KycStatus.Submitted;
-                row.SubmittedAt = DateTime.UtcNow;
+                try
+                {
+                    // Submit KYC data to BC
+                    var success = await _kycSubmissionService.SubmitCompanyKycAsync(vm);
+                    if (!success)
+                    {
+                        TempData["Err"] = "Failed to submit KYC data to Business Central. Please try again later.";
+                        return RedirectToAction("Company", "Dashboard");
+                    }
 
-                user.KycStatus = KycStatus.Submitted;
-                await _users.UpdateAsync(user);
-                await _db.SaveChangesAsync();
+                    // Upload documents one by one (example for one document)
+                    // Repeat for all required docs
+                    var insuredCardNo = "INSU000"; // Replace with actual insured card number from BC response if available
+                    var uploadSuccess = await _kycSubmissionService.UploadKycDocumentAsync(insuredCardNo, IncCertFile.FileName, IncCertFile.FileName);
+                    if (!uploadSuccess)
+                    {
+                        TempData["Err"] = "KYC data submitted but failed to upload some documents.";
+                        return RedirectToAction("Company", "Dashboard");
+                    }
 
-                TempData["Ok"] = "KYC submitted for screening.";
+                    // Update status locally
+                    var row = existing ?? vm;
+                    row.Status = KycStatus.Submitted;
+                    row.SubmittedAt = DateTime.UtcNow;
+                    user.KycStatus = KycStatus.Submitted;
+                    await _users.UpdateAsync(user);
+                    await _db.SaveChangesAsync();
+
+                    TempData["Ok"] = "KYC submitted successfully for screening.";
+                }
+                catch (Exception ex)
+                {
+                    // Log exception (add your logging here)
+                    TempData["Err"] = $"An error occurred during submission: {ex.Message}";
+                }
             }
             else
             {
@@ -317,7 +371,6 @@ public class KycController : Controller
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Company);
         return View(vm);
     }
-
     // ------------------- UPLOAD (AJAX helper; still available) -------------------
 
     [HttpPost]

@@ -40,6 +40,8 @@ builder.Services.AddTransient<IBank_interface, Bankservice>();
 builder.Services.AddTransient<IInsuranceProductService, InsuranceProductService>();
 builder.Services.AddTransient<BusinessCentralBasicApiService>();
 builder.Services.AddTransient<KycSubmissionService>();
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // Auto-migrate on startup (dev-friendly)
