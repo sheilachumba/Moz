@@ -31,7 +31,7 @@
         --radius: 18px;
         --radius-sm: 12px;
         --content-max: 1200px;
-        font-family: sans-serif;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
         background: var(--bg);
         scroll-behavior: smooth;
     }
@@ -505,73 +505,31 @@
                     <p class="section-desc">Explore the covers available to you.</p>
 
                     <div class="products-grid">
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-heart-pulse"></i>
-                                <h3 class="product-title">Comprehensive Health Insurance</h3>
-                            </div>
-                            <p class="product-desc">Hospitalization, outpatient, maternity, and chronic care options tailored to your needs.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
-
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-car-front"></i>
-                                <h3 class="product-title">Car &amp; Motor Insurance</h3>
-                            </div>
-                            <p class="product-desc">Third-party, comprehensive, and add-ons like windscreen, theft, and roadside assistance.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
-
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-building"></i>
-                                <h3 class="product-title">Business &amp; Property Coverage</h3>
-                            </div>
-                            <p class="product-desc">Protect your premises, assets, and operations with customizable business cover.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
-
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-airplane"></i>
-                                <h3 class="product-title">Life, Travel &amp; Accident</h3>
-                            </div>
-                            <p class="product-desc">Peace of mind for you and your family when at home or on the move.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
-
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-gear"></i>
-                                <h3 class="product-title">Institutional Solutions</h3>
-                            </div>
-                            <p class="product-desc">Custom plans for schools, NGOs, and enterprises with flexible group benefits.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
-
-                        <article class="product-card">
-                            <div class="product-head">
-                                <i class="bi bi-headset"></i>
-                                <h3 class="product-title">Account Management &amp; Support</h3>
-                            </div>
-                            <p class="product-desc">Dedicated assistance for claims, renewals, and policy updates.</p>
-                            <div class="product-actions">
-                                <a class="btn-outline" href="#!"><i class="bi bi-box-arrow-up-right"></i> Explore options</a>
-                            </div>
-                        </article>
+                        @if (ViewBag.LiveProducts != null && ((List<Product>)ViewBag.LiveProducts).Any())
+                        {
+                            foreach (var product in (List<Product>)ViewBag.LiveProducts)
+                            {
+                                <article class="product-card">
+                                    <div class="product-head">
+                                        <i class="bi bi-briefcase"></i> <!-- Optionally map icon by product type -->
+                                        <h3 class="product-title">@product.Name</h3>
+                                    </div>
+                                    <p class="product-desc">@product.Description</p>
+                                    <div class="product-actions">
+                                        <a class="btn-outline" href="@Url.Action("Details", "Products", new { id = product.Id })">
+                                            <i class="bi bi-box-arrow-up-right"></i> Explore options
+                                        </a>
+                                    </div>
+                                </article>
+                            }
+                        }
+                        else
+                        {
+                            <p>No products available at this time.</p>
+                        }
                     </div>
                 </section>
+
 
                 <!-- INTERACTIONS -->
                 <section id="interactions" class="section-card" aria-labelledby="interactions-heading">

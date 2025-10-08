@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moz.Services;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -16,22 +18,23 @@ namespace ClientPortal.Controllers
         private readonly UserManager<ApplicationUser> _users;
         private readonly AppDbContext _db;
 
-        public DashboardController(UserManager<ApplicationUser> users, AppDbContext db)
+        public DashboardController(
+     UserManager<ApplicationUser> users,
+     AppDbContext db,
+     IInsuranceProductService insuranceProductService)
         {
             _users = users;
             _db = db;
+            _insuranceProductService = insuranceProductService;
         }
 
-        // ---------------------------------------------------------
-        // GENERAL DASHBOARD (landing after login if nothing decided)
-        // ---------------------------------------------------------
+
         [HttpGet]
         public async Task<IActionResult> Index()
         {
             var user = await _users.GetUserAsync(User);
             if (user == null) return RedirectToAction("Login", "Account");
 
-            // If KYC already submitted/verified/completed -> go to the right dashboard
             if (IsSubmittedOrVerified(user))
             {
                 if (user.KycType is KycType.Individual or KycType.SoleProprietor)
@@ -40,24 +43,19 @@ namespace ClientPortal.Controllers
                     return RedirectToAction(nameof(Company));
             }
 
-            // Otherwise show general dashboard (you can keep any general widgets here)
+            await PopulateDashboardDataAsync(user);
             return View(user);
         }
 
-        // ---------------------------------------------------------
-        // INDIVIDUAL / SOLE PROPRIETOR DASHBOARD
-        // ---------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> Individual()
         {
             var user = await _users.GetUserAsync(User);
             if (user == null) return RedirectToAction("Login", "Account");
 
-            // Ensure correct audience
             if (user.KycType is not (KycType.Individual or KycType.SoleProprietor))
                 return RedirectToAction(nameof(Index));
 
-            // Allow entry if submitted/verified/completed OR there is a draft
             if (!IsSubmittedOrVerified(user))
             {
                 var hasDraft =
@@ -70,28 +68,19 @@ namespace ClientPortal.Controllers
 
             await PopulateDashboardDataAsync(user);
             ViewBag.KycStatus = user.KycStatus;
-
-            // Optional cover image; leave null to hide the cover block
-            // ViewBag.CoverUrl = Url.Content("~/images/covers/individual.jpg");
             ViewBag.CoverUrl = null;
-
             return View(user);
         }
 
-        // ---------------------------------------------------------
-        // COMPANY / ASSOCIATION DASHBOARD
-        // ---------------------------------------------------------
         [HttpGet]
         public async Task<IActionResult> Company()
         {
             var user = await _users.GetUserAsync(User);
             if (user == null) return RedirectToAction("Login", "Account");
 
-            // Ensure correct audience
             if (user.KycType is not (KycType.Company or KycType.Association))
                 return RedirectToAction(nameof(Index));
 
-            // Allow entry if submitted/verified/completed OR there is a draft
             if (!IsSubmittedOrVerified(user))
             {
                 var hasDraft =
@@ -104,31 +93,19 @@ namespace ClientPortal.Controllers
 
             await PopulateDashboardDataAsync(user);
             ViewBag.KycStatus = user.KycStatus;
-
-            // Optional cover image; leave null to hide the cover block
-            // ViewBag.CoverUrl = Url.Content("~/images/covers/company.jpg");
             ViewBag.CoverUrl = null;
-
             return View(user);
         }
-
-        // ---------------------------------------------------------
-        // Helpers
-        // ---------------------------------------------------------
+        private readonly IInsuranceProductService _insuranceProductService;
 
         private static bool IsSubmittedOrVerified(ApplicationUser user) =>
             user.KycStatus is KycStatus.Submitted or KycStatus.Verified || user.KycCompleted;
 
-        /// <summary>
-        /// Queries EF for all dashboard metrics and assigns them to the in-memory user instance (NOT saved),
-        /// and fills ViewBag lists for tables. Works for both Individual and Company dashboards.
-        /// </summary>
         private async Task PopulateDashboardDataAsync(ApplicationUser user)
         {
             var now = DateTime.UtcNow;
             var monthStart = new DateTime(now.Year, now.Month, 1);
 
-            // -------- Policies --------
             user.ActivePoliciesCount = await _db.Policies.CountAsync(p =>
                 p.UserId == user.Id &&
                 p.Status == "Active" &&
@@ -143,12 +120,10 @@ namespace ClientPortal.Controllers
                 p.UserId == user.Id &&
                 p.StartDate >= monthStart);
 
-            // -------- Renewals --------
             user.ActiveRenewalsCount = await _db.Renewals.CountAsync(r =>
                 r.UserId == user.Id &&
                 (r.Status == "Pending" || r.Status == "InProgress"));
 
-            // -------- Claims --------
             user.PendingClaimsCount = await _db.Claims.CountAsync(c =>
                 c.UserId == user.Id &&
                 (c.Status == "Pending" || c.Status == "Submitted" || c.Status == "InReview"));
@@ -162,7 +137,6 @@ namespace ClientPortal.Controllers
                 ? (int)Math.Round(claimDurations.Average())
                 : 0;
 
-            // -------- Products/Services --------
             user.TotalProductsCount = await _db.Products.CountAsync(p => p.Active);
 
             user.SubscribedServicesCount = await _db.Policies
@@ -171,15 +145,23 @@ namespace ClientPortal.Controllers
                 .Distinct()
                 .CountAsync();
 
-            // -------- Notifications (unread) --------
+            // LIVE PRODUCT LIST
+            var apiProducts = await _insuranceProductService.GetInsuranceProducts();
+            var products = apiProducts.Select(p => new Product
+            {
+                Id = 0, // or map if you have an Id
+                Name = p.Name,
+                Class = p.Class_Group,
+                Active = true // or map accordingly
+            }).ToList();
+
+            user.TotalProductsCount = products.Count;
+            ViewBag.LiveProducts = products;
+
+
             user.UnreadNotificationsCount = await _db.Notifications.CountAsync(n =>
                 n.UserId == user.Id && !n.IsRead);
 
-            // -------- Account balance (optional) --------
-            // If you have ledger logic elsewhere, you can compute it here. For now, keep whatever is stored.
-            // user.AccountBalance = user.AccountBalance; // unchanged
-
-            // -------- Recent Claims & Quotations (merged & sorted) --------
             var recentClaims = await _db.Claims
                 .Where(c => c.UserId == user.Id)
                 .OrderByDescending(c => c.UpdatedAt)
@@ -219,7 +201,6 @@ namespace ClientPortal.Controllers
 
             ViewBag.RecentClaimsQuotations = recentMerged.Count > 0 ? recentMerged : null;
 
-            // -------- Expiring Documents (soonest first) --------
             var expiringDocs = await _db.Documents
                 .Where(d => d.UserId == user.Id && d.ExpiryDate != null && d.ExpiryDate >= now)
                 .OrderBy(d => d.ExpiryDate)

@@ -113,7 +113,7 @@ namespace ClientPortal.Models
         public string Name { get; set; } = "";
         public string Class { get; set; } = "";     // Subclass from DB (e.g., LIFE, HEALTH, MOTOR, PROPERTY, LIABILITY, TRANSPORT, TRAVEL)
         public string MainClass { get; set; } = ""; // Derived: "Life & Health" | "Motor" | "Property" | "Liability"
-
+        //public string Description { get; set; } = "";
         // For image path: /images/products/{slug}.jpg
         public string ImageSlug
         {

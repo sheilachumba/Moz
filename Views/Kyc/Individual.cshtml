@@ -1,4 +1,6 @@
-﻿@model ClientPortal.Models.IndividualKyc
+﻿
+
+@model ClientPortal.Models.IndividualKyc
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Individual KYC (Mozambique)";
@@ -7,394 +9,496 @@
     var addressTypes = ViewBag.AddressTypes as List<SelectListItem> ?? new();
     var incomeProofTypes = ViewBag.IncomeProofTypes as List<SelectListItem> ?? new();
 }
-<style>
-    :root {
-        --brand: #1a2555;
-        --ink: #0f172a;
-        --muted: #64748b;
-        --bg: #f6f7fb;
-        --card: #ffffff;
-        --border: #e5e7eb;
-        --accent: #0ea5e9;
-        --radius: 16px;
-        --shadow: 0 10px 24px rgba(16,24,40,.07);
-        --danger: #dc2626;
-        --success: #0f766e;
-        --locked: #f9fafb;
-    }
 
-    /* Global size & rhythm */
-    html {
-        font-size: 18px;
+<style>
+    /* ===== KYC Theme ===== */
+    .kyc-page {
+        --brand: #1a2555;
+        --brand-2: #2d3b8b;
+        --brand-light: #4f63c1;
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --text-muted: #334155;
+        --muted: #64748b;
+        --muted-light: #cbd5e1;
+        --border: #e2e8f0;
+        --accent: #3b82f6;
+        --danger: #dc2626;
+        --success: #059669;
+        --warning: #d97706;
+        --radius: 12px;
+        --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+        --locked: #f8fafc;
         font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
     }
 
-    body {
-        line-height: 1.6;
+        .kyc-page .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px 16px 60px;
+            background: var(--bg);
+        }
+
+        /* ===== Header ===== */
+        .kyc-page .header {
+            margin-bottom: 24px;
+        }
+
+        .kyc-page .title {
+            color: var(--brand);
+            font-weight: 800;
+            font-size: 32px;
+            margin: 0 0 8px 0;
+        }
+
+        .kyc-page .subtitle {
+            color: var(--muted);
+            font-size: 16px;
+            margin: 0;
+        }
+
+        /* ===== Legal Notice ===== */
+        .kyc-page .legal-notice {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin: 20px 0 30px 0;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--brand);
+        }
+
+        .kyc-page .legal-title {
+            color: var(--brand);
+            font-weight: 700;
+            font-size: 18px;
+            margin: 0 0 12px 0;
+        }
+
+        .kyc-page .legal-text {
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin: 0 0 16px 0;
+        }
+
+        .kyc-page .legal-note {
+            color: var(--muted);
+            font-size: 14px;
+            font-style: italic;
+            margin: 16px 0 0 0;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .kyc-page .required {
+            color: var(--danger);
+            font-weight: 700;
+        }
+
+        /* ===== Cards/Sections ===== */
+        .kyc-page .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 28px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+            .kyc-page .section:hover {
+                box-shadow: var(--shadow-lg);
+            }
+
+            .kyc-page .section.locked {
+                background: var(--locked);
+                opacity: 0.7;
+                pointer-events: none;
+            }
+
+                .kyc-page .section.locked::after {
+                    content: "Locked - Complete previous sections";
+                    position: absolute;
+                    top: 16px;
+                    right: 16px;
+                    background: var(--muted-light);
+                    color: var(--muted);
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+
+        .kyc-page .section-title {
+            color: var(--brand);
+            font-weight: 700;
+            font-size: 20px;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--brand-light);
+        }
+
+        .kyc-page .section-helper {
+            color: var(--muted);
+            font-size: 14px;
+            margin: -12px 0 20px 0;
+            line-height: 1.5;
+        }
+
+        /* ===== Grid System ===== */
+        .kyc-page .grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: repeat(12, 1fr);
+        }
+
+        .kyc-page .col-12 {
+            grid-column: span 12;
+        }
+
+        .kyc-page .col-9 {
+            grid-column: span 9;
+        }
+
+        .kyc-page .col-8 {
+            grid-column: span 8;
+        }
+
+        .kyc-page .col-6 {
+            grid-column: span 6;
+        }
+
+        .kyc-page .col-4 {
+            grid-column: span 4;
+        }
+
+        .kyc-page .col-3 {
+            grid-column: span 3;
+        }
+
+    @@media (max-width: 1024px) {
+        .kyc-page .col-9,
+        .kyc-page .col-8,
+        .kyc-page .col-6,
+        .kyc-page .col-4,
+        .kyc-page .col-3 {
+            grid-column: span 12;
+        }
     }
 
-    /* Page shell */
-    .kyc-wrap {
-        background: var(--bg);
-        padding: 24px 0 56px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        color: var(--ink);
+    /* ===== Form Elements ===== */
+    .kyc-page .form-group {
+        margin-bottom: 16px;
     }
 
-    .kyc-container {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 0 20px;
+    .kyc-page label {
+        display: block;
+        color: var(--text);
+        font-weight: 600;
+        font-size: 14px;
+        margin-bottom: 6px;
     }
 
-    /* Header */
-    .kyc-header {
-        margin-bottom: 18px;
-    }
-
-    .kyc-title {
-        font-size: clamp(26px, 2.8vw, 36px);
-        font-weight: 800;
-        color: var(--brand);
-    }
-
-    .kyc-sub {
-        color: var(--muted);
-        font-size: 1rem;
-        margin-top: 6px;
-    }
-
-    /* Legal box (replaces your subtext) */
-    .kyc-legal {
-        background: #f7f9ff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 16px 18px;
-        margin: 12px 0 20px;
-        color: #374151;
-        font-size: 1.05rem;
-    }
-
-    .kyc-legal-title {
-        color: var(--brand);
-        font-weight: 800;
-        margin-bottom: 8px;
-        font-size: 1.05rem;
-    }
-
-    .kyc-legal-note {
-        margin-top: 10px;
-        color: #6b7280; /* fixed typo */
-        font-size: .98rem;
-    }
-
-    .kyc-sub .req {
-        color: #c32127;
-        font-weight: 700;
-    }
-
-    /* Cards / sections */
-    fieldset.kyc-card,
-    .kyc-card {
-        position: relative;
+    .kyc-page .form-control,
+    .kyc-page select,
+    .kyc-page textarea,
+    .kyc-page input[type="file"] {
+        width: 100%;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        padding: 26px;
-        margin-bottom: 18px;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 14px;
+        color: var(--text);
+        transition: all 0.2s ease;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
     }
 
-        .kyc-card h3 {
-            margin: 0 0 16px;
-            font-size: 1.3rem; /* ~23px */
-            font-weight: 800;
-            color: var(--ink);
-        }
-
-    .helper {
-        margin: -4px 0 14px;
-        color: var(--muted);
-        font-size: 1rem;
-    }
-
-    /* Locked state */
-    .is-locked {
-        background: var(--locked);
-        filter: saturate(.65);
-    }
-
-        .is-locked::after {
-            content: "Locked";
-            position: absolute;
-            top: 12px;
-            right: 14px;
-            font-size: .8rem;
-            color: #6b7280;
-            background: #eef2ff;
-            border: 1px solid #e5e7eb;
-            padding: 3px 10px;
-            border-radius: 999px;
-        }
-
-    /* Grid */
-    .grid {
-        display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(12, 1fr);
-    }
-
-    .col-12 {
-        grid-column: span 12;
-    }
-
-    .col-9 {
-        grid-column: span 9;
-    }
-
-    .col-8 {
-        grid-column: span 8;
-    }
-
-    .col-6 {
-        grid-column: span 6;
-    }
-
-    .col-4 {
-        grid-column: span 4;
-    }
-
-    .col-3 {
-        grid-column: span 3;
-    }
-    @@media (max-width: 900px) {
-        .col-9, .col-8, .col-6, .col-4, .col-3
-
-    {
-        grid-column: span 12;
-    }
-
-    }
-
-    /* Labels & inputs */
-    label {
-        display: block;
-        font-size: 1rem;
-        color: var(--muted);
-        margin-bottom: 8px;
-        font-weight: 700;
-    }
-
-    .form-control,
-    select,
-    textarea,
-    input[type="file"] {
-        width: 100%;
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 14px 14px;
-        font-size: 1rem;
-        color: var(--ink);
-        transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
-    }
-
-        .form-control:focus,
-        select:focus,
-        textarea:focus,
-        input[type="file"]:focus {
+        .kyc-page .form-control:focus,
+        .kyc-page select:focus,
+        .kyc-page textarea:focus,
+        .kyc-page input[type="file"]:focus {
             outline: none;
             border-color: var(--accent);
-            box-shadow: 0 0 0 4px rgba(14,165,233,.15);
-            background: #fff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
-    /* Inline options */
-    .inline {
+    .kyc-page textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    /* ===== Chip/Radio Styles ===== */
+    .kyc-page .chip-group {
         display: flex;
         gap: 12px;
-        align-items: center;
         flex-wrap: wrap;
+        margin: 8px 0 16px 0;
     }
 
-    .chip {
+    .kyc-page .chip {
         display: inline-flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        background: var(--card);
         border: 1px solid var(--border);
-        padding: 10px 14px;
-        border-radius: 999px;
-        background: #fff;
+        border-radius: 20px;
+        padding: 10px 16px;
         cursor: pointer;
-        font-weight: 700;
-        color: var(--ink);
+        transition: all 0.2s ease;
+        font-weight: 500;
+        font-size: 14px;
     }
 
-        .chip input {
-            accent-color: var(--brand);
+        .kyc-page .chip:hover {
+            border-color: var(--brand-light);
+            background: #f8faff;
         }
 
-    /* Misc text */
-    .req {
+        .kyc-page .chip input[type="checkbox"],
+        .kyc-page .chip input[type="radio"] {
+            accent-color: var(--brand);
+            margin: 0;
+        }
+
+    /* ===== Dynamic Document Fields ===== */
+    .kyc-page .document-group {
+        background: #f8faff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin: 12px 0;
+    }
+
+    .kyc-page .document-title {
+        color: var(--brand);
+        font-weight: 600;
+        font-size: 15px;
+        margin: 0 0 12px 0;
+    }
+
+    /* ===== Product Service Sections ===== */
+    .kyc-page .service-section {
+        background: #f8faff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin: 16px 0;
+        display: none;
+    }
+
+        .kyc-page .service-section.active {
+            display: block;
+        }
+
+    /* ===== Validation Styles ===== */
+    .kyc-page .validation-summary-errors {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: var(--radius);
+        padding: 16px 20px;
+        margin-bottom: 20px;
         color: var(--danger);
-        margin-left: 4px;
     }
 
-    .row-hint, .disclaimer {
-        font-size: .95rem;
-        color: var(--muted);
-        margin-top: 6px;
+        .kyc-page .validation-summary-errors ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+    .kyc-page .field-validation-error {
+        color: var(--danger);
+        font-size: 12px;
+        margin-top: 4px;
+        display: block;
     }
 
-    /* Pair layout */
-    .pair {
-        display: grid;
-        grid-template-columns: 1fr minmax(220px, 28%);
-        gap: 12px;
-    }
-    @@media (max-width: 900px) {
-        .pair
-
-    {
-        grid-template-columns: 1fr;
-    }
-
-    }
-
-    /* Action bar */
-    .action-bar {
+    /* ===== Action Bar ===== */
+    .kyc-page .action-bar {
         position: sticky;
         bottom: 0;
-        z-index: 10;
-        margin-top: 20px;
-        background: linear-gradient(180deg, rgba(246,247,251,.35), #fff 40%);
-        padding: 14px 0 8px;
+        background: var(--card);
+        border-top: 1px solid var(--border);
+        padding: 20px 0;
+        margin-top: 30px;
+        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .kyc-page .action-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    /* ===== Buttons ===== */
+    .kyc-page .btn {
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    .kyc-page .btn-ghost {
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+        .kyc-page .btn-ghost:hover {
+            background: #f8fafc;
+            border-color: var(--brand-light);
+            transform: translateY(-1px);
+        }
+
+    .kyc-page .btn-success {
+        background: var(--success);
+        color: white;
+        box-shadow: var(--shadow);
+    }
+
+        .kyc-page .btn-success:hover {
+            background: #047857;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+    /* ===== Helper Text ===== */
+    .kyc-page .helper-text {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+        line-height: 1.4;
+    }
+
+    .kyc-page .disclaimer {
+        color: var(--muted);
+        font-size: 13px;
+        font-style: italic;
+        margin-top: 16px;
+        padding-top: 16px;
         border-top: 1px solid var(--border);
     }
 
-    /* Buttons */
-    .btn {
-        border: 0;
-        border-radius: 12px;
-        padding: 14px 18px;
-        font-weight: 800;
-        cursor: pointer;
-        font-size: 1rem;
-        transition: transform .15s ease, box-shadow .15s ease, filter .15s ease, background .15s ease;
-    }
-
-        .btn + .btn {
-            margin-left: 10px;
+    /* ===== Responsive Design ===== */
+    @@media (max-width: 768px) {
+        .kyc-page .wrap {
+            padding: 16px 12px 40px;
         }
 
-    .btn-ghost {
-        background: #fff;
-        color: var(--ink);
-        border: 1px solid var(--border);
-    }
-
-        .btn-ghost:hover {
-            transform: translateY(-1px);
-            background: #f7f9ff;
+        .kyc-page .section {
+            padding: 20px 16px;
         }
 
-    .btn-success {
-        background: var(--success);
-        color: #fff;
-        box-shadow: 0 10px 20px rgba(15,118,110,.22);
-    }
-
-        .btn-success:hover {
-            transform: translateY(-1px);
-            filter: brightness(1.03);
+        .kyc-page .title {
+            font-size: 24px;
         }
 
-    /* Validation summary tweaks */
-    .text-danger.validation-summary-errors ul {
-        margin: 0 0 12px 18px;
+        .kyc-page .action-buttons {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .kyc-page .btn {
+            width: 100%;
+        }
+
+        .kyc-page .chip-group {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .kyc-page .chip {
+            width: 100%;
+            justify-content: flex-start;
+        }
     }
 </style>
 
+<section class="kyc-page">
+    <div class="wrap">
+        <div class="header">
+            <h1 class="title">Customer File – KYC (Individuals & Sole Traders)</h1>
+            <p class="subtitle">Complete your Know Your Customer information as required by Mozambique Law No. 14/2023</p>
+        </div>
 
-<div class="kyc-wrap">
-    <div class="kyc-container">
-        <div class="kyc-header">
-            <div class="kyc-title">Customer File – KYC (Individuals & Sole Traders)</div>
-            <div class="kyc-sub kyc-legal">
-                <div class="kyc-legal-title">Legal basis — Mozambique Law No. 14/2023</div>
-
-                <p>
-                    The Law establishing the Legal Framework and Measures to Prevent and Combat Money Laundering and
-                    Terrorism Financing, Law No. 14/2023, of August 28, 2023, was approved, the legal framework and
-                    measures to prevent and combat the use of the financial system and non-financial entities for the
-                    purposes of money laundering, terrorist financing and financing the proliferation of weapons of mass
-                    destruction.
-                </p>
-
-                <p>
-                    Within the scope of Know Your Customer (KYC) measures, it is necessary to implement the duty to
-                    identify, verify, and perform due diligence measures as described in the same Law. Therefore, and in
-                    order to ensure regulatory requirements, Standard Insurance requests your cooperation in providing the
-                    following information:
-                </p>
-
-                <p class="kyc-legal-note">
-                    <span class="req">*</span> Fields are required. Uploads are required inline before continuing.
-                </p>
-            </div>
-
+        <div class="legal-notice">
+            <div class="legal-title">Legal basis — Mozambique Law No. 14/2023</div>
+            <p class="legal-text">
+                The Law establishing the Legal Framework and Measures to Prevent and Combat Money Laundering and
+                Terrorism Financing, Law No. 14/2023, of August 28, 2023, was approved, the legal framework and
+                measures to prevent and combat the use of the financial system and non-financial entities for the
+                purposes of money laundering, terrorist financing and financing the proliferation of weapons of mass
+                destruction.
+            </p>
+            <p class="legal-text">
+                Within the scope of Know Your Customer (KYC) measures, it is necessary to implement the duty to
+                identify, verify, and perform due diligence measures as described in the same Law. Therefore, and in
+                order to ensure regulatory requirements, Standard Insurance requests your cooperation in providing the
+                following information:
+            </p>
+            <p class="legal-note">
+                <span class="required">*</span> Required fields must be completed. Uploads are required before continuing.
+            </p>
         </div>
 
         <form asp-controller="Kyc" asp-action="Individual" method="post" enctype="multipart/form-data" id="kycForm">
             @Html.AntiForgeryToken()
-            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
+
             <!-- 1) PERSONAL DATA -->
-            <fieldset class="kyc-card" id="secPersonal">
-                <h3>1) Personal Data</h3>
+            <fieldset class="section" id="secPersonal">
+                <h3 class="section-title">1) Personal Data</h3>
 
                 <div class="grid">
-                    <div class="col-4">
-                        <label asp-for="FirstName">First Name <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="FirstName">First Name <span class="required">*</span></label>
                         <input asp-for="FirstName" class="form-control" />
-                        <span asp-validation-for="FirstName" class="text-danger"></span>
+                        <span asp-validation-for="FirstName" class="field-validation-error"></span>
                     </div>
 
-                    <div class="col-4">
+                    <div class="col-4 form-group">
                         <label asp-for="MiddleName">Middle Name</label>
                         <input asp-for="MiddleName" class="form-control" />
-                        <span asp-validation-for="MiddleName" class="text-danger"></span>
+                        <span asp-validation-for="MiddleName" class="field-validation-error"></span>
                     </div>
 
-                    <div class="col-4">
-                        <label asp-for="LastName">Last Name <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="LastName">Last Name <span class="required">*</span></label>
                         <input asp-for="LastName" class="form-control" />
-                        <span asp-validation-for="LastName" class="text-danger"></span>
+                        <span asp-validation-for="LastName" class="field-validation-error"></span>
                     </div>
 
-                    <div class="col-4">
-                        <label asp-for="DateOfBirth">Date of Birth <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="DateOfBirth">Date of Birth <span class="required">*</span></label>
                         <input asp-for="DateOfBirth" type="date" class="form-control" />
-                        <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+                        <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
                     </div>
 
-                    <!-- Nationality: free text (BC will pick it up) -->
-                    <div class="col-4">
-                        <label for="Nationality">Nationality <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label for="Nationality">Nationality <span class="required">*</span></label>
                         <input type="text" name="Nationality" id="Nationality" class="form-control" />
                     </div>
 
-                    <div class="col-4">
-                        <label asp-for="Gender">Gender <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="Gender">Gender <span class="required">*</span></label>
                         <select asp-for="Gender" class="form-control">
                             <option value="">Select gender</option>
                             <option>Female</option>
                             <option>Male</option>
                             <option>Other</option>
                         </select>
-                        <span asp-validation-for="Gender" class="text-danger"></span>
+                        <span asp-validation-for="Gender" class="field-validation-error"></span>
                     </div>
 
-                    <div class="col-4">
+                    <div class="col-4 form-group">
                         <label asp-for="MaritalStatus">Marital Status</label>
                         <select asp-for="MaritalStatus" class="form-control">
                             <option value="">Select marital status</option>
@@ -403,16 +507,13 @@
                             <option>Divorced</option>
                             <option>Widowed</option>
                         </select>
-                        <span asp-validation-for="MaritalStatus" class="text-danger"></span>
+                        <span asp-validation-for="MaritalStatus" class="field-validation-error"></span>
                     </div>
 
-                    <!-- Identity proof (multiple) -->
-                    <div class="col-12">
-                        <label>Identification Documents <span class="req">*</span></label>
-
-                        <!-- Choice chips built from controller-supplied list -->
-                        <div class="inline">
-                            @foreach (var item in (IEnumerable<SelectListItem>)ViewBag.IdentityTypes)
+                    <div class="col-12 form-group">
+                        <label>Identification Documents <span class="required">*</span></label>
+                        <div class="chip-group">
+                            @foreach (var item in identityTypes)
                             {
                                 <label class="chip">
                                     <input type="checkbox"
@@ -423,98 +524,64 @@
                                 </label>
                             }
                         </div>
-                        <div class="row-hint">Select all that apply. Each selection will require a number and a file.</div>
+                        <div class="helper-text">Select all that apply. Each selection will require a number and a file.</div>
                     </div>
 
-                    <!-- Dynamic fields appear here for each selected document -->
                     <div id="IdDocsFields" class="col-12"></div>
 
-                    <div class="col-4">
-                        <label asp-for="Phone">Contact Number <span class="req">*</span></label>
-                        <input asp-for="Phone" class="form-control" />
-                        <span asp-validation-for="Phone" class="text-danger"></span>
-                    </div>
-                    <div class="col-4">
-                        <label asp-for="Email">E-mail</label>
-                        <input asp-for="Email" class="form-control" />
-                        <span asp-validation-for="Email" class="text-danger"></span>
-                    </div>
-
-                    <!-- NUIT lives in Personal Data now -->
-                    <div class="col-4">
-                        <label asp-for="NUIT">NUIT (9 digits) <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="NUIT">NUIT (9 digits) <span class="required">*</span></label>
                         <input asp-for="NUIT"
                                id="NUIT"
                                class="form-control"
                                inputmode="numeric"
                                pattern="\d{9}"
                                minlength="9"
-                               maxlength="9 />
-                        <span class="row-hint">Exactly 9 digits (no spaces).</span>
-                        <span asp-validation-for="NUIT" class="text-danger"></span>
+                               maxlength="9" />
+                        <div class="helper-text">Exactly 9 digits (no spaces).</div>
+                        <span asp-validation-for="NUIT" class="field-validation-error"></span>
                     </div>
-                    <div class="col-4">
-                        <label for="NuitFile">Attach NUIT Document <span class="req">*</span></label>
+
+                    <div class="col-4 form-group">
+                        <label for="NuitFile">Attach NUIT Document <span class="required">*</span></label>
                         <input type="file" name="NuitFile" id="NuitFile" class="form-control" />
                     </div>
 
-                    <div class="col-4">
-                        <label asp-for="Phone">Contact Number <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label asp-for="Phone">Contact Number <span class="required">*</span></label>
                         <input asp-for="Phone" class="form-control" />
-                        <span asp-validation-for="Phone" class="text-danger"></span>
+                        <span asp-validation-for="Phone" class="field-validation-error"></span>
                     </div>
 
-                    <div class="col-4">
+                    <div class="col-4 form-group">
                         <label asp-for="Email">E-mail</label>
                         <input asp-for="Email" class="form-control" />
-                        <span asp-validation-for="Email" class="text-danger"></span>
+                        <span asp-validation-for="Email" class="field-validation-error"></span>
                     </div>
                 </div>
             </fieldset>
-          
 
             <!-- 3) PERSONAL ADDRESS -->
-            <fieldset class="kyc-card is-locked" id="secAddress" disabled>
-                <h3>3) Personal Address</h3>
+            <fieldset class="section locked" id="secAddress" disabled>
+                <h3 class="section-title">3) Personal Address</h3>
                 <div class="grid">
-                    <div class="col-12">
-                        <label asp-for="AddressLine">Physical Address <span class="req">*</span></label>
+                    <div class="col-12 form-group">
+                        <label asp-for="AddressLine">Physical Address <span class="required">*</span></label>
                         <input asp-for="AddressLine" class="form-control" placeholder="House / Street / City / Province" />
-                        <span asp-validation-for="AddressLine" class="text-danger"></span>
+                        <span asp-validation-for="AddressLine" class="field-validation-error"></span>
                     </div>
-                    @* <div class="col-6">
-                        <label asp-for="Country">Country</label>
-                        <input asp-for="Country" class="form-control" />
-                        <span asp-validation-for="Country" class="text-danger"></span>
-                    </div>
-                    <div class="col-6">
-                        <label for="Province">Province</label>
-                        <input type="text" name="Province" id="Province" class="form-control" />
-                    </div>
-                    <div class="col-12">
-                        <label for="StreetNeighborhood">Street / Neighborhood</label>
-                        <input type="text" name="StreetNeighborhood" id="StreetNeighborhood" class="form-control" />
-                    </div> *@
                 </div>
             </fieldset>
 
             <!-- 4) PROFESSIONAL DATA -->
-            <fieldset class="kyc-card is-locked" id="secProfessional" disabled>
-                <h3>4) Professional Data</h3>
+            <fieldset class="section locked" id="secProfessional" disabled>
+                <h3 class="section-title">4) Professional Data</h3>
                 <div class="grid">
-                    <div class="col-12">
+                    <div class="col-12 form-group">
                         <label for="EmployerAddress">Physical Address of Employer</label>
                         <input type="text" name="EmployerAddress" id="EmployerAddress" class="form-control" />
                     </div>
-                    @* <div class="col-6">
-                        <label for="EmployerCountry">Country</label>
-                        <input type="text" name="EmployerCountry" id="EmployerCountry" class="form-control" />
-                    </div>
-                    <div class="col-6">
-                        <label for="EmployerProvince">Province</label>
-                        <input type="text" name="EmployerProvince" id="EmployerProvince" class="form-control" />
-                    </div> *@
-                    <div class="col-6">
+                    <div class="col-6 form-group">
                         <label for="ProfessionFunction">Profession / Function</label>
                         <input type="text" name="ProfessionFunction" id="ProfessionFunction" class="form-control" />
                     </div>
@@ -522,31 +589,31 @@
             </fieldset>
 
             <!-- 5) PEP -->
-            <fieldset class="kyc-card is-locked" id="secPep" disabled>
-                <h3>5) Politically Exposed Person (PEP)</h3>
-                <p class="helper">PEP includes holders of prominent public functions (last 2 years), first-degree relatives, and close associates.</p>
+            <fieldset class="section locked" id="secPep" disabled>
+                <h3 class="section-title">5) Politically Exposed Person (PEP)</h3>
+                <p class="section-helper">PEP includes holders of prominent public functions (last 2 years), first-degree relatives, and close associates.</p>
                 <div class="grid">
-                    <div class="col-12">
-                        <div class="inline" role="group" aria-label="PEP status">
+                    <div class="col-12 form-group">
+                        <div class="chip-group" role="group" aria-label="PEP status">
                             <label class="chip"><input type="radio" name="PepStatus" value="Not PEP" checked /> I'm not PEP</label>
                             <label class="chip"><input type="radio" name="PepStatus" value="PEP-Direct" /> PEP – Direct</label>
                             <label class="chip"><input type="radio" name="PepStatus" value="PEP-Associate" /> PEP – Associate</label>
                         </div>
                     </div>
-                    <div class="col-12">
+                    <div class="col-12 form-group">
                         <label for="PepDetails">If PEP, specify role/office, institution & period</label>
                         <input type="text" name="PepDetails" id="PepDetails" class="form-control" />
                     </div>
                 </div>
             </fieldset>
-            <!-- 5) PRODUCTS & SERVICES -->
-            <fieldset class="kyc-card" id="secProducts">
-                <h3>5) Products &amp; Services</h3>
+
+            <!-- 6) PRODUCTS & SERVICES -->
+            <fieldset class="section locked" id="secProducts" disabled>
+                <h3 class="section-title">6) Products & Services</h3>
 
                 <div class="grid">
-                    <!-- PRODUCT CLASS -->
-                    <div class="col-6">
-                        <label for="ProductClass">Product Class <span class="req">*</span></label>
+                    <div class="col-6 form-group">
+                        <label for="ProductClass">Product Class <span class="required">*</span></label>
                         <select id="ProductClass" name="ProductClass" class="form-control" required>
                             <option value="">Select product class</option>
                             <option value="Motor">Motor</option>
@@ -555,13 +622,12 @@
                             <option value="Engineering">Engineering</option>
                             <option value="Specialized">Specialized</option>
                             <option value="Multimark">Multimark</option>
-                            <option value="HealthLife">Health &amp; Life</option>
+                            <option value="HealthLife">Health & Life</option>
                             <option value="Funeral">Funeral</option>
                         </select>
                     </div>
 
-                    <!-- PRODUCT SUBCLASS -->
-                    <div class="col-6">
+                    <div class="col-6 form-group">
                         <label for="ProductSubClass">Product Subclass</label>
                         <select id="ProductSubClass" name="ProductSubClass" class="form-control">
                             <option value="">Select subclass (optional)</option>
@@ -569,37 +635,36 @@
                     </div>
                 </div>
 
-                <!-- ================== REQUIREMENT BLOCKS ================== -->
-                <!-- MOTOR -->
-                <div class="col-12 svc" id="svc-Motor" style="display:none;">
+                <!-- Service-specific sections (same as before, but with new styling) -->
+                <div class="service-section" id="svc-Motor">
+                    <div class="document-title">Motor Insurance Details</div>
                     <div class="grid">
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="VehicleMake">Vehicle Make</label>
                             <input type="text" name="VehicleMake" id="VehicleMake" class="form-control" />
                         </div>
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="VehicleModel">Vehicle Model</label>
                             <input type="text" name="VehicleModel" id="VehicleModel" class="form-control" />
                         </div>
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="VehicleYear">Year</label>
                             <input type="number" name="VehicleYear" id="VehicleYear" class="form-control" min="1900" max="2100" />
                         </div>
-                        <div class="col-4">
+                        <div class="col-4 form-group">
                             <label for="RegistrationNumber">Registration Number</label>
                             <input type="text" name="RegistrationNumber" id="RegistrationNumber" class="form-control" />
                         </div>
-                        <div class="col-4">
-                            <label for="DriversLicenseNumber">Driver's License Number <span class="req">*</span></label>
+                        <div class="col-4 form-group">
+                            <label for="DriversLicenseNumber">Driver's License Number <span class="required">*</span></label>
                             <input type="text" name="DriversLicenseNumber" id="DriversLicenseNumber" class="form-control" />
                         </div>
-                        <div class="col-4">
-                            <label for="DriversLicenseFile">Attach Driver’s License <span class="req">*</span></label>
+                        <div class="col-4 form-group">
+                            <label for="DriversLicenseFile">Attach Driver's License <span class="required">*</span></label>
                             <input type="file" name="DriversLicenseFile" id="DriversLicenseFile" class="form-control" />
                         </div>
                     </div>
                 </div>
-
                 <!-- WORKMEN COMPENSATION -->
                 <div class="col-12 svc" id="svc-WorkmenCompensation" style="display:none;">
                     <div class="grid">
@@ -721,22 +786,25 @@
                     </div>
                 </div>
             </fieldset>
+
+            </fieldset>
+
             <!-- 7) OTHER DATA -->
-            <fieldset class="kyc-card is-locked" id="secOther" disabled>
-                <h3>7) Other Data</h3>
+            <fieldset class="section locked" id="secOther" disabled>
+                <h3 class="section-title">7) Other Data</h3>
                 <div class="grid">
-                    <div class="col-12">
+                    <div class="col-12 form-group">
                         <label>Do you hold a stake in any company/entity?</label>
-                        <div class="inline">
+                        <div class="chip-group">
                             <label class="chip"><input type="radio" name="HasStake" value="No" checked /> No</label>
                             <label class="chip"><input type="radio" name="HasStake" value="Yes" /> Yes</label>
                         </div>
                     </div>
-                    <div class="col-8">
+                    <div class="col-8 form-group">
                         <label for="StakeEntity">If yes, name of entity</label>
                         <input type="text" name="StakeEntity" id="StakeEntity" class="form-control" />
                     </div>
-                    <div class="col-4">
+                    <div class="col-4 form-group">
                         <label for="StakePercent">Percentage (%)</label>
                         <input type="number" step="0.01" min="0" max="100" name="StakePercent" id="StakePercent" class="form-control" />
                     </div>
@@ -744,96 +812,75 @@
             </fieldset>
 
             <!-- 8) PROOF OF ADDRESS -->
-            <fieldset class="kyc-card is-locked" id="secProofAddress" disabled>
-                <h3>8) Proof of Address</h3>
+            <fieldset class="section locked" id="secProofAddress" disabled>
+                <h3 class="section-title">8) Proof of Address</h3>
                 <div class="grid">
-                    <div class="col-8">
-                        <label asp-for="AddressProofType">Address Proof Type <span class="req">*</span></label>
-                        <select asp-for="AddressProofType" class="form-control" asp-items="ViewBag.AddressTypes" id="AddressProofType"></select>
-                        <span asp-validation-for="AddressProofType" class="text-danger"></span>
+                    <div class="col-8 form-group">
+                        <label asp-for="AddressProofType">Address Proof Type <span class="required">*</span></label>
+                        <select asp-for="AddressProofType" class="form-control" asp-items="addressTypes" id="AddressProofType"></select>
+                        <span asp-validation-for="AddressProofType" class="field-validation-error"></span>
                     </div>
-                    <div class="col-4">
-                        <label for="AddressProofFile">Attach Address Proof <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label for="AddressProofFile">Attach Address Proof <span class="required">*</span></label>
                         <input type="file" name="AddressProofFile" id="AddressProofFile" class="form-control" required />
                     </div>
                 </div>
             </fieldset>
 
             <!-- 9) SOURCE OF INCOME -->
-            <fieldset class="kyc-card is-locked" id="secIncome" disabled>
-                <h3>9) Source of Income</h3>
+            <fieldset class="section locked" id="secIncome" disabled>
+                <h3 class="section-title">9) Source of Income</h3>
                 <div class="grid">
-                    <div class="col-8">
-                        <label asp-for="IncomeProofType">Income Proof Type <span class="req">*</span></label>
-                        <select asp-for="IncomeProofType" class="form-control" asp-items="ViewBag.IncomeProofTypes" id="IncomeProofType"></select>
-                        <span asp-validation-for="IncomeProofType" class="text-danger"></span>
+                    <div class="col-8 form-group">
+                        <label asp-for="IncomeProofType">Income Proof Type <span class="required">*</span></label>
+                        <select asp-for="IncomeProofType" class="form-control" asp-items="incomeProofTypes" id="IncomeProofType"></select>
+                        <span asp-validation-for="IncomeProofType" class="field-validation-error"></span>
                     </div>
-                    <div class="col-4">
-                        <label for="IncomeProofFile">Attach Income Proof <span class="req">*</span></label>
+                    <div class="col-4 form-group">
+                        <label for="IncomeProofFile">Attach Income Proof <span class="required">*</span></label>
                         <input type="file" name="IncomeProofFile" id="IncomeProofFile" class="form-control" required />
                     </div>
                 </div>
             </fieldset>
 
-            <!-- 10) PASSPORT PHOTO (OPTIONAL) -->
-            @* <fieldset class="kyc-card is-locked" id="secPhoto" disabled>
-                <h3>10) Recent Passport Photo (Optional)</h3>
-                <input type="file" name="PassportPhotoFile" class="form-control" />
-            </fieldset> *@
-
-            <!-- 11) SIGNATURES & DECLARATION -->
-            <fieldset class="kyc-card is-locked" id="secSignatures" disabled>
-                <h3>10) Signatures & Declaration</h3>
+            <!-- 10) SIGNATURES & DECLARATION -->
+            <fieldset class="section locked" id="secSignatures" disabled>
+                <h3 class="section-title">10) Signatures & Declaration</h3>
                 <div class="grid">
-                    <div class="col-12">
-                        <label class="inline" style="gap:10px;">
+                    <div class="col-12 form-group">
+                        <label class="chip">
                             <input type="checkbox" name="ConsentAccuracy" value="true" required />
-                            <span>I declare that all information provided is true.</span>
+                            <span>I declare that all information provided is true and accurate.</span>
                         </label>
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 form-group">
                         <label for="CustomerSignatureName">Customer Name (as on ID)</label>
                         <input type="text" name="CustomerSignatureName" id="CustomerSignatureName" class="form-control" />
                     </div>
-                    <div class="col-3">
+                    <div class="col-3 form-group">
                         <label for="CustomerSignatureDate">Date</label>
                         <input type="date" name="CustomerSignatureDate" id="CustomerSignatureDate" class="form-control" />
                     </div>
-                    <div class="col-3">
+                    <div class="col-3 form-group">
                         <label for="CustomerSignatureFile">Signature (optional upload)</label>
                         <input type="file" name="CustomerSignatureFile" id="CustomerSignatureFile" class="form-control" />
                     </div>
-
-              @*       <div class="col-6">
-                        <label for="OfficerName">Standard Insurance – Officer Name</label>
-                        <input type="text" name="OfficerName" id="OfficerName" class="form-control" />
-                    </div>
-                    <div class="col-3">
-                        <label for="OfficerDate">Date</label>
-                        <input type="date" name="OfficerDate" id="OfficerDate" class="form-control" />
-                    </div>
-                    <div class="col-3">
-                        <label for="EmployeeNumber">Employee Number</label>
-                        <input type="text" name="EmployeeNumber" id="EmployeeNumber" class="form-control" />
-                    </div>
-                </div> *@
-                <div class="disclaimer" style="margin-top:10px;">
+                </div>
+                <div class="disclaimer">
                     Note: Additional verification may be requested to comply with Mozambican AML/CFT requirements.
                 </div>
             </fieldset>
 
-            <!-- Actions -->
+            <!-- Action Buttons -->
             <div class="action-bar">
-                <div class="kyc-container" style="display:flex; justify-content:flex-end;">
+                <div class="action-buttons">
                     <button name="action" value="save" class="btn btn-ghost" type="submit">Save Draft</button>
-                    <button name="action" value="submit" class="btn btn-success" type="submit">Submit</button>
+                    <button name="action" value="submit" class="btn btn-success" type="submit">Submit Application</button>
                 </div>
             </div>
-
         </form>
     </div>
-</div>
-
+</section>
 <script>
     (function () {
       // ---------- sections to lock/unlock (after Personal Data) ----------
@@ -1003,5 +1050,3 @@
       });
     })();
 </script>
-
-

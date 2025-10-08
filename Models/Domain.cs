@@ -211,6 +211,7 @@ namespace ClientPortal.Models
         [Required, MaxLength(120)] public string Name { get; set; } = string.Empty;
         [MaxLength(60)] public string Class { get; set; } = string.Empty; // Motor/HealthLife/Travel/Property/Other
         public bool Active { get; set; } = true;
+        [MaxLength(300)] public string Description { get; set; } = string.Empty;
     }
 
     // VMs you already use

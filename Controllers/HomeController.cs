@@ -1,39 +1,49 @@
-using ClientPortal.Models;  // <-- was Moz.Models
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Moz.Services;
-using System.Diagnostics;
+using ClientPortal.Models;  // Namespace for view models
+using Microsoft.AspNetCore.Mvc;  // For controller base class and attributes
+using Microsoft.Extensions.Logging; // For logging
+using Moz.Services;   // Namespace containing the insurance service interface
+using System.Diagnostics;  // For error tracing
 
-namespace ClientPortal.Controllers   // <-- was Moz.Controllers
+namespace ClientPortal.Controllers
 {
     public class HomeController : Controller
     {
-        private readonly ILogger<HomeController> _logger;
+        private readonly ILogger<HomeController> _logger;  // Logger instance for logging
+        private readonly IInsuranceProductService _insuranceProductService;  // Service for fetching insurance products
 
-        private readonly IBank_interface Bank_Interface;
-
-        public HomeController(ILogger<HomeController> logger, IBank_interface bank_Interface)
+        // Constructor with dependency injection for logger and insurance product service
+        public HomeController(ILogger<HomeController> logger, IInsuranceProductService insuranceProductService)
         {
             _logger = logger;
-            Bank_Interface = bank_Interface;
+            _insuranceProductService = insuranceProductService;
         }
 
+        // Existing Index action
         public IActionResult Index()
         {
             return View();
         }
 
-        public async Task<IActionResult> Banks()
+        // New action to get insurance products and display them
+        public async Task<IActionResult> InsuranceProducts()
         {
-         ViewBag.banks= await  Bank_Interface.GetBanks();
+            // Call the async service method to fetch products
+            var products = await _insuranceProductService.GetInsuranceProducts();
+
+            // Pass the products to the ViewBag for use in the view
+            ViewBag.InsuranceProducts = products;
+
+            // Return the view to render the list
             return View();
         }
 
+        // Existing Privacy action
         public IActionResult Privacy()
         {
             return View();
         }
 
+        // Existing error handling action
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {

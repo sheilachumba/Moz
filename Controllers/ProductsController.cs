@@ -1,37 +1,85 @@
-﻿using ClientPortal.Data;
-using ClientPortal.Models; 
-using Microsoft.AspNetCore.Authorization;
+﻿using ClientPortal.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Globalization;
+using Moz.Models;
+using Moz.Services; // Add this at the top if not already present
 
 namespace ClientPortal.Controllers
 {
-    [Authorize]
     public class ProductsController : Controller
     {
-        private readonly AppDbContext _db;
-        public ProductsController(AppDbContext db) => _db = db;
+        private readonly IInsuranceProductService _insuranceProductService;
 
-        private static readonly string[] CanonicalKeys = new[]
+        // Inject the BC products service via constructor dependency injection
+        public ProductsController(IInsuranceProductService insuranceProductService)
         {
-            "Motor","WorkmenCompensation","PersonalAccidents","Engineering",
-            "Specialized","Multimark","HealthLife","Funeral" 
-        };
+            _insuranceProductService = insuranceProductService;
+        }
 
-        private static string ImageFor(string key) => key.ToLowerInvariant() switch
+        [HttpGet]
+        public async Task<IActionResult> Index(string? q, string? classFilter)
         {
-            "motor" => "motor",
-            "workmencompensation" => "workmen-compensation",
-            "personalaccidents" => "personal-accidents",
-            "engineering" => "engineering",
-            "specialized" => "specialized",
-            "multimark" => "multimark",
-            "healthlife" => "health-life",
-            "funeral" => "funeral",
-            _ => "placeholder"
-        };
+            List<InsuranceProduct> bcProducts;
+            try
+            {
+                // Try to fetch products from BC API
+                bcProducts = await _insuranceProductService.GetInsuranceProducts();
+            }
+            catch (Exception ex)
+            {
+                // If an error occurs, log it and show a friendly message
+                // You can use a logger here if available
+                ViewBag.ErrorMessage = "Unable to load products at this time. Please try again later.";
+                // Return an empty list so the view can handle it gracefully
+                bcProducts = new List<InsuranceProduct>();
+            }
 
+            // ... (rest of your mapping, filtering, grouping logic as before)
+
+            // (same as previous step)
+            var cards = bcProducts.Select(p => new ProductCardVm
+            {
+                Id = 0,
+                Name = p.Name,
+                Class = p.Class_Group,
+                MainClass = MapToCanonical(p.Class_Group, p.Name)
+            }).ToList();
+
+            if (!string.IsNullOrWhiteSpace(classFilter) && !classFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
+            {
+                cards = cards.Where(c => c.MainClass.Equals(classFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            var CanonicalKeys = new[] { "Motor", "WorkmenCompensation", "PersonalAccidents", "Engineering", "Specialized", "Multimark", "HealthLife", "Funeral" };
+
+            var groups = cards
+                .GroupBy(c => c.MainClass)
+                .OrderBy(g => Array.IndexOf(CanonicalKeys, g.Key))
+                .Select(g => new ProductGroupVm
+                {
+                    MainClass = g.Key,
+                    SubGroups = g.GroupBy(x => string.IsNullOrWhiteSpace(x.Class) ? "Unclassified" : NormalizeSubClass(x.Class))
+                                 .OrderBy(sg => sg.Key)
+                                 .Select(sg => new ProductSubGroupVm
+                                 {
+                                     SubClass = sg.Key,
+                                     Items = sg.OrderBy(x => x.Name).ToList()
+                                 })
+                                 .ToList()
+                })
+                .ToList();
+
+            ViewBag.Query = q;
+            ViewBag.Classes = new[] { "All" }.Concat(CanonicalKeys).ToArray();
+            ViewBag.ClassFilter = classFilter ?? "All";
+
+            // Pass any error message to the view
+            ViewBag.ErrorMessage = ViewBag.ErrorMessage;
+
+            return View(groups);
+        }
+
+
+        // Copy your MapToCanonical and NormalizeSubClass private methods here (same as before)
         private static string MapToCanonical(string? cls, string? name)
         {
             var t = $"{cls} {name}".ToLowerInvariant();
@@ -47,71 +95,11 @@ namespace ClientPortal.Controllers
             return "Specialized";
         }
 
-        [HttpGet]
-        public async Task<IActionResult> Index(string? q, string? classFilter)
-        {
-            var query = _db.Products.AsNoTracking().Where(p => p.Active);
-
-            if (!string.IsNullOrWhiteSpace(q))
-            {
-                var term = q.Trim().ToLowerInvariant();
-                query = query.Where(p => p.Name.ToLower().Contains(term) || p.Class.ToLower().Contains(term));
-            }
-
-            var items = await query
-                .OrderBy(p => p.Name)
-                .Select(p => new { p.Id, p.Name, p.Class })
-                .ToListAsync();
-
-            // Map to ClientPortal.Models.ProductCardVm
-            var cards = items.Select(p =>
-            {
-                var main = MapToCanonical(p.Class, p.Name);
-                return new ProductCardVm
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Class = p.Class,
-                    MainClass = main // <- this exists in your Models VM
-                    // ImageSlug is computed from Name in your Models VM (no need to set)
-                };
-            }).ToList();
-
-            if (!string.IsNullOrWhiteSpace(classFilter) && !classFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
-            {
-                cards = cards.Where(c => c.MainClass.Equals(classFilter, StringComparison.OrdinalIgnoreCase)).ToList();
-            }
-
-            // Group by MainClass -> then by normalized original Class
-            var groups = cards
-                .GroupBy(c => c.MainClass)
-                .OrderBy(g => Array.IndexOf(CanonicalKeys, g.Key))
-                .Select(g => new ProductGroupVm
-                {
-                    MainClass = g.Key,
-                    SubGroups = g.GroupBy(x => string.IsNullOrWhiteSpace(x.Class) ? "Unclassified" : NormalizeSubClass(x.Class))
-                                .OrderBy(sg => sg.Key)
-                                .Select(sg => new ProductSubGroupVm
-                                {
-                                    SubClass = sg.Key,
-                                    Items = sg.OrderBy(x => x.Name).ToList()
-                                })
-                                .ToList()
-                })
-                .ToList();
-
-            ViewBag.Query = q;
-            ViewBag.Classes = new[] { "All" }.Concat(CanonicalKeys).ToArray(); 
-            ViewBag.ClassFilter = classFilter ?? "All";
-
-            return View(groups); 
-        }
-
         private static string NormalizeSubClass(string? s)
         {
             s ??= "";
             s = s.Replace("_", " ").Trim();
-            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
         }
     }
 }

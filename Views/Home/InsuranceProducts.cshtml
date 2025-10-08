@@ -1,0 +1,29 @@
+﻿
+@{
+    ViewData["Title"] = "Insurance Products";  // e page title
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<p>Welcome to the insurance products test page.</p>
+
+@* Loop through the list of products passed via ViewBag *@
+@foreach (var product in ViewBag.InsuranceProducts)
+{
+    <div style="padding:8px;">
+        @* Display the product name and code *@
+        <strong>@product.Name</strong> (@product.Code)
+        <br />
+        @*  show product description if available *@
+        @if (!string.IsNullOrEmpty(product.Product_Description))
+        {
+            <span>Description: @product.Product_Description</span>
+        }
+        <br />
+        @* Show whether the product is available online *@
+        <span>Show Online: @(product.Show_Online ? "Yes" : "No")</span>
+        <br />
+        @* Show the regulatory class value *@
+        <span>Regulator Class: @product.Regulator_Class</span>
+    </div>
+}
