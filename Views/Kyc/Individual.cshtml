@@ -451,42 +451,55 @@
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
 
-            <!-- 1) PERSONAL DATA -->
+            <!-- 1 PERSONAL DATA -->
             <fieldset class="section" id="secPersonal">
-                <h3 class="section-title">1) Personal Data</h3>
-
+                <h3 class="section-title">1 Personal Data</h3>
                 <div class="grid">
+
+                    <!-- NUIT FIRST (NUMBER AND FILE) -->
                     <div class="col-4 form-group">
-                        <label asp-for="FirstName">First Name <span class="required">*</span></label>
+                        <label asp-for="NUIT">NUIT (9 digits) <span class="required"></span></label>
+                        <input asp-for="NUIT" id="NUIT" class="form-control" inputmode="numeric" pattern="9" minlength="9" maxlength="9" />
+                        <div class="helper-text">Exactly 9 digits, no spaces.</div>
+                        <span asp-validation-for="NUIT" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-4 form-group">
+                        <label for="NuitFile">Attach NUIT Document <span class="required"></span></label>
+                        <input type="file" name="NuitFile" id="NuitFile" class="form-control" />
+                    </div>
+
+                    <!-- NAMES AND DOB -->
+                    <div class="col-4 form-group">
+                        <label asp-for="FirstName">First Name <span class="required"></span></label>
                         <input asp-for="FirstName" class="form-control" />
                         <span asp-validation-for="FirstName" class="field-validation-error"></span>
                     </div>
-
                     <div class="col-4 form-group">
                         <label asp-for="MiddleName">Middle Name</label>
                         <input asp-for="MiddleName" class="form-control" />
                         <span asp-validation-for="MiddleName" class="field-validation-error"></span>
                     </div>
-
                     <div class="col-4 form-group">
-                        <label asp-for="LastName">Last Name <span class="required">*</span></label>
+                        <label asp-for="LastName">Last Name <span class="required"></span></label>
                         <input asp-for="LastName" class="form-control" />
                         <span asp-validation-for="LastName" class="field-validation-error"></span>
                     </div>
-
                     <div class="col-4 form-group">
-                        <label asp-for="DateOfBirth">Date of Birth <span class="required">*</span></label>
+                        <label asp-for="DateOfBirth">Date of Birth <span class="required"></span></label>
                         <input asp-for="DateOfBirth" type="date" class="form-control" />
                         <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
                     </div>
-
+                    <!-- NATIONALITY DROPDOWN (source: BC, single option: Mozambique for now) -->
                     <div class="col-4 form-group">
-                        <label for="Nationality">Nationality <span class="required">*</span></label>
-                        <input type="text" name="Nationality" id="Nationality" class="form-control" />
+                        <label for="Nationality">Nationality <span class="required"></span></label>
+                        <select name="Nationality" id="Nationality" class="form-control">
+                            <option value="">Select nationality</option>
+                            <option value="Mozambique" selected>Mozambique</option>
+                        </select>
                     </div>
-
+                    <!-- GENDER, MARITAL STATUS -->
                     <div class="col-4 form-group">
-                        <label asp-for="Gender">Gender <span class="required">*</span></label>
+                        <label asp-for="Gender">Gender <span class="required"></span></label>
                         <select asp-for="Gender" class="form-control">
                             <option value="">Select gender</option>
                             <option>Female</option>
@@ -495,7 +508,6 @@
                         </select>
                         <span asp-validation-for="Gender" class="field-validation-error"></span>
                     </div>
-
                     <div class="col-4 form-group">
                         <label asp-for="MaritalStatus">Marital Status</label>
                         <select asp-for="MaritalStatus" class="form-control">
@@ -508,60 +520,82 @@
                         <span asp-validation-for="MaritalStatus" class="field-validation-error"></span>
                     </div>
 
+                    <!-- MEANS OF IDENTIFICATION: RADIO, ONLY ONE CAN BE PICKED -->
                     <div class="col-12 form-group">
-                        <label>Identification Documents <span class="required">*</span></label>
+                        <label>Means of Identification <span class="required"></span></label>
                         <div class="chip-group">
-                            @foreach (var item in identityTypes)
+                            @foreach (var item in ViewBag.IdentityTypes as List<SelectListItem> ?? new())
                             {
                                 <label class="chip">
-                                    <input type="checkbox"
-                                           class="id-type"
-                                           value="@item.Value"
-                                           data-label="@item.Text" />
-                                    @item.Text
+                                    <input type="radio" class="id-type" name="IdentityType" value="@item.Value" data-label="@item.Text" /> @item.Text
                                 </label>
                             }
                         </div>
-                        <div class="helper-text">Select all that apply. Each selection will require a number and a file.</div>
+                        <div class="helper-text">Select only one document type. Required fields will be shown below.</div>
                     </div>
-
+                    <!-- DYNAMIC FIELDS FOR MEANS OF IDENTIFICATION: NUMBER, FILE, EXPIRY DATE if required -->
                     <div id="IdDocsFields" class="col-12"></div>
 
+                    <!-- CONTACT -->
                     <div class="col-4 form-group">
-                        <label asp-for="NUIT">NUIT (9 digits) <span class="required">*</span></label>
-                        <input asp-for="NUIT"
-                               id="NUIT"
-                               class="form-control"
-                               inputmode="numeric"
-                               pattern="\d{9}"
-                               minlength="9"
-                               maxlength="9" />
-                        <div class="helper-text">Exactly 9 digits (no spaces).</div>
-                        <span asp-validation-for="NUIT" class="field-validation-error"></span>
-                    </div>
-
-                    <div class="col-4 form-group">
-                        <label for="NuitFile">Attach NUIT Document <span class="required">*</span></label>
-                        <input type="file" name="NuitFile" id="NuitFile" class="form-control" />
-                    </div>
-
-                    <div class="col-4 form-group">
-                        <label asp-for="Phone">Contact Number <span class="required">*</span></label>
+                        <label asp-for="Phone">Contact Number <span class="required"></span></label>
                         <input asp-for="Phone" class="form-control" />
                         <span asp-validation-for="Phone" class="field-validation-error"></span>
                     </div>
-
                     <div class="col-4 form-group">
                         <label asp-for="Email">E-mail</label>
                         <input asp-for="Email" class="form-control" />
                         <span asp-validation-for="Email" class="field-validation-error"></span>
                     </div>
+
                 </div>
             </fieldset>
 
+            <!-- JavaScript for Dynamic Fields logic: Only one ID, show expiry date for all but National ID and Birth Certificate -->
+            @* <script>
+                const idContainer = document.getElementById("IdDocsFields");
+                const idRadios = document.querySelectorAll(".id-type");
+                function addIdGroup(value, label) {
+                    if (!idContainer || idContainer.querySelector('.id-doc[data-type="' + value + '"]')) return;
+                    // Check if expiry date needed
+                    let needsExpiry = label !== "National ID" && label !== "Birth Certificate";
+                    let expiryHtml = needsExpiry
+                        ? `<div class="col-6 form-group">
+                                <label>Expiry Date<span class="required"></span></label>
+                                <input type="date" class="form-control" name="IdentityDocs[${value}].ExpiryDate" required />
+                           </div>`
+                        : "";
+                    const html =
+                        `<div class="document-group id-doc" data-type="${value}">
+                            <div class="document-title">${label}</div>
+                            <input type="hidden" name="IdentityDocs.Index" value="${value}" />
+                            <input type="hidden" name="IdentityDocs[${value}].Type" value="${value}" />
+                            <div class="grid">
+                                <div class="col-6 form-group">
+                                    <label>${label} Number<span class="required"></span></label>
+                                    <input type="text" class="form-control" name="IdentityDocs[${value}].Number" required />
+                                </div>
+                                <div class="col-6 form-group">
+                                    <label>Attach ${label}<span class="required"></span></label>
+                                    <input type="file" class="form-control" name="IdentityDocs[${value}].File" required />
+                                </div>
+                                ${expiryHtml}
+                            </div>
+                        </div>`;
+                    idContainer.innerHTML = html;
+                }
+                function removeIdGroup() { idContainer.innerHTML = ""; }
+                idRadios.forEach(cb => {
+                    cb.addEventListener("change", function () {
+                        removeIdGroup();
+                        if (this.checked) addIdGroup(cb.value, cb.dataset.label);
+                    });
+                });
+            </script> *@
+
             <!-- 3) PERSONAL ADDRESS -->
             <fieldset class="section locked" id="secAddress">
-                <h3 class="section-title">3) Personal Address</h3>
+                <h3 class="section-title">2) Personal Address</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
                         <label asp-for="AddressLine">Physical Address <span class="required">*</span></label>
@@ -573,7 +607,7 @@
 
             <!-- 4) PROFESSIONAL DATA -->
             <fieldset class="section locked" id="secProfessional">
-                <h3 class="section-title">4) Professional Data</h3>
+                <h3 class="section-title">3) Professional Data</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
                         <label for="EmployerAddress">Physical Address of Employer</label>
@@ -588,7 +622,7 @@
 
             <!-- 5) PEP -->
             <fieldset class="section locked" id="secPep">
-                <h3 class="section-title">5) Politically Exposed Person (PEP)</h3>
+                <h3 class="section-title">4) Politically Exposed Person (PEP)</h3>
                 <p class="section-helper">PEP includes holders of prominent public functions (last 2 years), first-degree relatives, and close associates.</p>
                 <div class="grid">
                     <div class="col-12 form-group">
@@ -605,190 +639,20 @@
                 </div>
             </fieldset>
 
-            <!-- 6) PRODUCTS & SERVICES -->
-            <fieldset class="section locked" id="secProducts">
-                <h3 class="section-title">6) Products & Services</h3>
-
+             <!-- 6. BENEFICIARY INSTEAD OF PRODUCTS SERVICES -->
+            <fieldset class="section locked" id="secBeneficiary">
+                <h3 class="section-title">6 Beneficiary Name</h3>
                 <div class="grid">
-                    <div class="col-6 form-group">
-                        <label for="ProductClass">Product Class <span class="required">*</span></label>
-                        <select id="ProductClass" name="ProductClass" class="form-control" required>
-                            <option value="">Select product class</option>
-                            <option value="Motor">Motor</option>
-                            <option value="WorkmenCompensation">Workmen Compensation</option>
-                            <option value="PersonalAccidents">Personal Accidents</option>
-                            <option value="Engineering">Engineering</option>
-                            <option value="Specialized">Specialized</option>
-                            <option value="Multimark">Multimark</option>
-                            <option value="HealthLife">Health & Life</option>
-                            <option value="Funeral">Funeral</option>
-                        </select>
-                    </div>
-
-                    <div class="col-6 form-group">
-                        <label for="ProductSubClass">Product Subclass</label>
-                        <select id="ProductSubClass" name="ProductSubClass" class="form-control">
-                            <option value="">Select subclass (optional)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Service-specific sections -->
-                <div class="service-section" id="svc-Motor">
-                    <div class="document-title">Motor Insurance Details</div>
-                    <div class="grid">
-                        <div class="col-4 form-group">
-                            <label for="VehicleMake">Vehicle Make</label>
-                            <input type="text" name="VehicleMake" id="VehicleMake" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="VehicleModel">Vehicle Model</label>
-                            <input type="text" name="VehicleModel" id="VehicleModel" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="VehicleYear">Year</label>
-                            <input type="number" name="VehicleYear" id="VehicleYear" class="form-control" min="1900" max="2100" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="RegistrationNumber">Registration Number</label>
-                            <input type="text" name="RegistrationNumber" id="RegistrationNumber" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="DriversLicenseNumber">Driver's License Number <span class="required">*</span></label>
-                            <input type="text" name="DriversLicenseNumber" id="DriversLicenseNumber" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="DriversLicenseFile">Attach Driver's License <span class="required">*</span></label>
-                            <input type="file" name="DriversLicenseFile" id="DriversLicenseFile" class="form-control" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Other service sections (simplified for brevity) -->
-                <div class="service-section" id="svc-WorkmenCompensation" style="display:none;">
-                    <div class="document-title">Workmen Compensation Details</div>
-                    <div class="grid">
-                        <div class="col-4 form-group">
-                            <label for="EmployeeCount">Employee Count</label>
-                            <input type="number" min="1" name="EmployeeCount" id="EmployeeCount" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="AnnualPayroll">Annual Payroll (MZN)</label>
-                            <input type="number" min="0" step="0.01" name="AnnualPayroll" id="AnnualPayroll" class="form-control" />
-                        </div>
-                        <div class="col-4 form-group">
-                            <label for="OccupationRisk">Occupation Risk Class</label>
-                            <input type="text" name="OccupationRisk" id="OccupationRisk" class="form-control" placeholder="e.g., Low / Medium / High" />
-                        </div>
-                    </div>
-                </div>
-                <!-- PERSONAL ACCIDENTS -->
-                <div class="col-12 svc" id="svc-PersonalAccidents" style="display:none;">
-                    <div class="grid">
-                        <div class="col-6">
-                            <label for="PAType">Cover Type</label>
-                            <select id="PAType" name="PAType" class="form-control">
-                                <option value="">Select</option>
-                                <option>Individual</option>
-                                <option>Group</option>
-                                <option>GPA</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label for="PASumAssured">Sum Assured (MZN)</label>
-                            <input type="number" min="0" step="0.01" id="PASumAssured" name="PASumAssured" class="form-control" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ENGINEERING -->
-                <div class="col-12 svc" id="svc-Engineering" style="display:none;">
-                    <div class="grid">
-                        <div class="col-6">
-                            <label for="ProjectName">Project / Contract Name</label>
-                            <input type="text" id="ProjectName" name="ProjectName" class="form-control" />
-                        </div>
-                        <div class="col-6">
-                            <label for="ContractValue">Contract Value (MZN)</label>
-                            <input type="number" min="0" step="0.01" id="ContractValue" name="ContractValue" class="form-control" />
-                        </div>
-                        <div class="col-8">
-                            <label for="SiteAddress">Site Address</label>
-                            <input type="text" id="SiteAddress" name="SiteAddress" class="form-control" />
-                        </div>
-                        <div class="col-4">
-                            <label for="ProjectDurationMonths">Duration (months)</label>
-                            <input type="number" min="1" id="ProjectDurationMonths" name="ProjectDurationMonths" class="form-control" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SPECIALIZED -->
-                <div class="col-12 svc" id="svc-Specialized" style="display:none;">
-                    <label for="SpecializedDesc">Describe the specialized cover required</label>
-                    <textarea id="SpecializedDesc" name="SpecializedDesc" rows="3" class="form-control" placeholder="e.g., Cyber, Political Violence, Credit, Aviation, Marine, etc."></textarea>
-                </div>
-
-                <!-- MULTIMARK -->
-                <div class="col-12 svc" id="svc-Multimark" style="display:none;">
-                    <label for="MultimarkNotes">Multimark cover notes / scope</label>
-                    <textarea id="MultimarkNotes" name="MultimarkNotes" rows="3" class="form-control" placeholder="Summarize the required sections & limits."></textarea>
-                </div>
-
-                <!-- HEALTH & LIFE (MERGED) -->
-                <div class="col-12 svc" id="svc-HealthLife" style="display:none;">
-                    <div class="grid">
-                        <div class="col-6">
-                            <label for="PlanType">Plan Type</label>
-                            <select name="PlanType" id="PlanType" class="form-control">
-                                <option value="">Select</option>
-                                <option>Individual</option>
-                                <option>Family</option>
-                                <option>Corporate</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label for="DependentsCount">Number of Dependents</label>
-                            <input type="number" name="DependentsCount" id="DependentsCount" class="form-control" min="0" />
-                        </div>
-                        <div class="col-6">
-                            <label for="BeneficiaryName">Beneficiary's Name</label>
-                            <input type="text" name="BeneficiaryName" id="BeneficiaryName" class="form-control" />
-                        </div>
-                        <div class="col-6">
-                            <label for="BeneficiaryRelation">Beneficiary Relationship</label>
-                            <input type="text" name="BeneficiaryRelation" id="BeneficiaryRelation" class="form-control" />
-                        </div>
-                        <div class="col-6">
-                            <label for="SumAssured">Sum Assured (MZN)</label>
-                            <input type="number" name="SumAssured" id="SumAssured" class="form-control" min="0" step="0.01" />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- FUNERAL -->
-                <div class="col-12 svc" id="svc-Funeral" style="display:none;">
-                    <div class="grid">
-                        <div class="col-6">
-                            <label for="FuneralCoverType">Funeral Cover Type</label>
-                            <select id="FuneralCoverType" name="FuneralCoverType" class="form-control">
-                                <option value="">Select</option>
-                                <option>Individual</option>
-                                <option>Family</option>
-                                <option>Group</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label for="FuneralSumAssured">Sum Assured (MZN)</label>
-                            <input type="number" min="0" step="0.01" id="FuneralSumAssured" name="FuneralSumAssured" class="form-control" />
-                        </div>
+                    <div class="col-12 form-group">
+                        <label for="BeneficiaryName">Beneficiary Name <span class="required"></span></label>
+                        <input type="text" name="BeneficiaryName" id="BeneficiaryName" class="form-control" />
                     </div>
                 </div>
             </fieldset>
 
             <!-- 7) OTHER DATA -->
             <fieldset class="section locked" id="secOther">
-                <h3 class="section-title">7) Other Data</h3>
+                <h3 class="section-title">6) Other Data</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
                         <label>Do you hold a stake in any company/entity?</label>
@@ -810,7 +674,7 @@
 
             <!-- 8) PROOF OF ADDRESS -->
             <fieldset class="section locked" id="secProofAddress">
-                <h3 class="section-title">8) Proof of Address</h3>
+                <h3 class="section-title">7) Proof of Address</h3>
                 <div class="grid">
                     <div class="col-8 form-group">
                         <label asp-for="AddressProofType">Address Proof Type <span class="required">*</span></label>
@@ -826,7 +690,7 @@
 
             <!-- 9) SOURCE OF INCOME -->
             <fieldset class="section locked" id="secIncome">
-                <h3 class="section-title">9) Source of Income</h3>
+                <h3 class="section-title">8) Source of Income</h3>
                 <div class="grid">
                     <div class="col-8 form-group">
                         <label asp-for="IncomeProofType">Income Proof Type <span class="required">*</span></label>
@@ -842,7 +706,7 @@
 
             <!-- 10) SIGNATURES & DECLARATION -->
             <fieldset class="section locked" id="secSignatures">
-                <h3 class="section-title">10) Signatures & Declaration</h3>
+                <h3 class="section-title">9) Signatures & Declaration</h3>
                 <div class="grid">
                     <div class="col-12 form-group">
                         <label class="chip">
@@ -875,18 +739,17 @@
                     <button name="action" value="submit" class="btn btn-success" type="submit">Submit Application</button>
                 </div>
             </div>
-            <input type="hidden" asp-for="No" value="INSU000" />
+           
         </form>
     </div>
 </section>
 
 <script>
-
     (function () {
-        // ---------- sections to lock/unlock (after Personal Data) ----------
+        // Section lock/unlock after Personal Data
         const secIds = [
             'secAddress', 'secProfessional', 'secPep',
-            'secProducts', 'secOther', 'secProofAddress', 'secIncome', 'secSignatures'
+            'secBeneficiary', 'secOther', 'secProofAddress', 'secIncome', 'secSignatures'
         ];
         const sections = Object.fromEntries(secIds.map(id => [id, document.getElementById(id)]));
 
@@ -894,13 +757,11 @@
             if (!el) return;
             if (locked) {
                 el.classList.add('locked');
-                // Disable all form elements within the section
                 el.querySelectorAll('input, select, textarea, button').forEach(input => {
                     input.disabled = true;
                 });
             } else {
                 el.classList.remove('locked');
-                // Enable all form elements within the section
                 el.querySelectorAll('input, select, textarea, button').forEach(input => {
                     input.disabled = false;
                 });
@@ -915,65 +776,7 @@
             Object.values(sections).forEach(s => setLocked(s, false));
         }
 
-        // ---------- multiple identity documents (dynamic fields) ----------
-        const idContainer = document.getElementById('IdDocsFields');
-        const idChecks = document.querySelectorAll('.id-type');
-
-        function addIdGroup(value, label) {
-            if (!idContainer || idContainer.querySelector(`.id-doc[data-type="${value}"]`)) return;
-            const html = `
-                <div class="document-group id-doc" data-type="${value}">
-                    <div class="document-title">${label}</div>
-                    <input type="hidden" name="IdentityDocs.Index" value="${value}">
-                    <input type="hidden" name="IdentityDocs[${value}].Type" value="${value}">
-                    <div class="grid">
-                        <div class="col-6 form-group">
-                            <label>${label} Number <span class="required">*</span></label>
-                            <input type="text" class="form-control" name="IdentityDocs[${value}].Number" required>
-                        </div>
-                        <div class="col-6 form-group">
-                            <label>Attach ${label} <span class="required">*</span></label>
-                            <input type="file" class="form-control" name="IdentityDocs[${value}].File" required>
-                        </div>
-                    </div>
-                </div>`;
-            idContainer.insertAdjacentHTML('beforeend', html);
-            updateGate();
-        }
-
-        function removeIdGroup(value) {
-            if (!idContainer) return;
-            const el = idContainer.querySelector(`.id-doc[data-type="${value}"]`);
-            if (el) el.remove();
-            updateGate();
-        }
-
-        idChecks.forEach(cb => {
-            cb.addEventListener('change', () => {
-                const label = cb.dataset.label || cb.value;
-                cb.checked ? addIdGroup(cb.value, label) : removeIdGroup(cb.value);
-            });
-        });
-
-        // If some were prechecked (e.g., draft), render them:
-        idChecks.forEach(cb => {
-            if (cb.checked) addIdGroup(cb.value, cb.dataset.label || cb.value);
-        });
-
-        function identityReady() {
-            if (!idContainer) return false;
-            const groups = idContainer.querySelectorAll('.id-doc');
-            if (!groups.length) return false;
-            for (const g of groups) {
-                const num = g.querySelector('input[type="text"]');
-                const file = g.querySelector('input[type="file"]');
-                if (!num || !num.value.trim()) return false;
-                if (!file || !(file.files && file.files.length)) return false;
-            }
-            return true;
-        }
-
-        // ---------- NUIT (exactly 9 digits) ----------
+        // NUIT validation (exactly 9 digits)
         const nuit = document.getElementById('NUIT');
         const nuitFile = document.getElementById('NuitFile');
 
@@ -987,14 +790,62 @@
             updateGate();
         });
 
-        // ---------- gate: unlock rest after personal-docs + nuit complete ----------
+        // Identity document dynamic fields (single selection, expiry date logic)
+        const idContainer = document.getElementById("IdDocsFields");
+        const idRadios = document.querySelectorAll(".id-type");
+        function addIdGroup(value, label) {
+            if (!idContainer || idContainer.querySelector('.id-doc[data-type="' + value + '"]')) return;
+            let needsExpiry = label !== "National ID" && label !== "Birth Certificate";
+            let expiryHtml = needsExpiry
+                ? `<div class="col-6 form-group">
+                        <label>Expiry Date<span class="required"></span></label>
+                        <input type="date" class="form-control" name="IdentityDocs[${value}].ExpiryDate" required />
+                   </div>`
+                : "";
+            const html =
+                `<div class="document-group id-doc" data-type="${value}">
+                    <div class="document-title">${label}</div>
+                    <input type="hidden" name="IdentityDocs.Index" value="${value}" />
+                    <input type="hidden" name="IdentityDocs[${value}].Type" value="${value}" />
+                    <div class="grid">
+                        <div class="col-6 form-group">
+                            <label>${label} Number<span class="required"></span></label>
+                            <input type="text" class="form-control" name="IdentityDocs[${value}].Number" required />
+                        </div>
+                        <div class="col-6 form-group">
+                            <label>Attach ${label}<span class="required"></span></label>
+                            <input type="file" class="form-control" name="IdentityDocs[${value}].File" required />
+                        </div>
+                        ${expiryHtml}
+                    </div>
+                </div>`;
+            idContainer.innerHTML = html;
+            updateGate();
+        }
+        function removeIdGroup() { idContainer.innerHTML = ""; }
+        idRadios.forEach(cb => {
+            cb.addEventListener("change", function () {
+                removeIdGroup();
+                if (this.checked) addIdGroup(cb.value, cb.dataset.label);
+            });
+        });
+
+        function identityReady() {
+            if (!idContainer) return false;
+            const group = idContainer.querySelector('.id-doc');
+            if (!group) return false;
+            const num = group.querySelector('input[type="text"]');
+            const file = group.querySelector('input[type="file"]');
+            if (!num || !num.value.trim()) return false;
+            if (!file || !(file.files && file.files.length)) return false;
+            return true;
+        }
+
+        // Gate: unlock rest after personal-docs + nuit complete
         function updateGate() {
             const okId = identityReady();
             const okNuit = !!(nuit && nuit.value.length === 9);
             const okNf = !!(nuitFile && nuitFile.files && nuitFile.files.length);
-
-            console.log('Gate check:', { okId, okNuit, okNf }); // Debug log
-
             if (okId && okNuit && okNf) {
                 unlockAllAfterPersonal();
             } else {
@@ -1002,7 +853,6 @@
             }
         }
 
-        // Add event listeners for all relevant inputs
         idContainer?.addEventListener('input', updateGate);
         idContainer?.addEventListener('change', updateGate);
         nuit?.addEventListener('input', updateGate);
@@ -1012,52 +862,7 @@
         lockAllAfterPersonal();
         updateGate();
 
-        // ---------- Product Class and Subclass handling ----------
-        (function () {
-            const cls = document.getElementById('ProductClass');
-            const sub = document.getElementById('ProductSubClass');
-            const serviceSections = Array.from(document.querySelectorAll('.service-section'));
-
-            const subclasses = {
-                "Motor": [["ThirdParty", "Third Party"], ["Comprehensive", "Comprehensive"]],
-                "WorkmenCompensation": [["Statutory", "Statutory"], ["EmployerLiability", "Employer's Liability"]],
-                "PersonalAccidents": [["Individual", "Individual"], ["Group", "Group"]],
-                "Engineering": [["CAR", "Contractors All Risk"], ["EAR", "Erection All Risk"]],
-                "Specialized": [["Cyber", "Cyber"], ["Aviation", "Aviation"], ["Marine", "Marine"]],
-                "Multimark": [["General", "General Multimark"]],
-                "HealthLife": [["Health", "Health"], ["Life", "Life"]],
-                "Funeral": [["Individual", "Individual"], ["Family", "Family"], ["Group", "Group"]]
-            };
-
-            function setSubclasses(forClass) {
-                sub.innerHTML = '<option value="">Select subclass (optional)</option>';
-                (subclasses[forClass] || []).forEach(([v, t]) => {
-                    const opt = document.createElement('option');
-                    opt.value = v;
-                    opt.textContent = t;
-                    sub.appendChild(opt);
-                });
-            }
-
-            function showSection(forClass) {
-                serviceSections.forEach(s => s.style.display = 'none');
-                const el = document.getElementById('svc-' + forClass);
-                if (el) el.style.display = 'block';
-            }
-
-            cls?.addEventListener('change', () => {
-                const val = cls.value || '';
-                setSubclasses(val);
-                showSection(val);
-            });
-
-            if (cls && cls.value) {
-                setSubclasses(cls.value);
-                showSection(cls.value);
-            }
-        })();
-
-        // ---------- final submit guard ----------
+        // Final submit guard
         const form = document.getElementById('kycForm');
         const addressProofFile = document.getElementById('AddressProofFile');
         const incomeProofFile = document.getElementById('IncomeProofFile');
@@ -1065,7 +870,7 @@
         form?.addEventListener('submit', function (e) {
             if (!identityReady()) {
                 e.preventDefault();
-                alert('Please add at least one identification document with its number and file.');
+                alert('Please add one identification document with its number and file.');
                 return;
             }
             if (!(nuit && nuit.value.length === 9)) {
@@ -1087,23 +892,6 @@
                 e.preventDefault();
                 alert('Please attach the Proof of Income before submitting.');
                 return;
-            }
-
-            // Check motor insurance requirements
-            const productClass = document.getElementById('ProductClass');
-            if (productClass && productClass.value === 'Motor') {
-                const dlNum = document.getElementById('DriversLicenseNumber');
-                const dlFile = document.getElementById('DriversLicenseFile');
-                if (!(dlNum && dlNum.value.trim())) {
-                    e.preventDefault();
-                    alert("Please provide the Driver's License Number for Motor insurance.");
-                    return;
-                }
-                if (!(dlFile && dlFile.files.length)) {
-                    e.preventDefault();
-                    alert("Please attach the Driver's License for Motor insurance.");
-                    return;
-                }
             }
         });
     })();

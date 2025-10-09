@@ -1,12 +1,13 @@
 ﻿using ClientPortal.Data;
 using ClientPortal.Models;
 using ClientPortal.Services;
+using KycSubmissionService;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,12 +22,15 @@ public class KycController : Controller
     private readonly UserManager<ApplicationUser> _users;
     private readonly AppDbContext _db;
     private readonly IChecklistProvider _checklist;
-    private readonly KycSubmissionService _kycSubmissionService;
+    private readonly KycSubmissionService _kycSubmissionService; 
 
-
-    public KycController(UserManager<ApplicationUser> users, AppDbContext db, IChecklistProvider checklist, KycSubmissionService kycSubmissionService)
+    public KycController(UserManager<ApplicationUser> users, AppDbContext db,
+        IChecklistProvider checklist, KycSubmissionService kycSubmissionService) 
     {
-        _users = users; _db = db; _checklist = checklist; _kycSubmissionService = kycSubmissionService;
+        _users = users;
+        _db = db;
+        _checklist = checklist;
+        _kycSubmissionService = kycSubmissionService;
     }
 
     // ------------------- CHECKLIST -------------------
@@ -194,8 +198,6 @@ public class KycController : Controller
                         TempData["Err"] = "Failed to submit KYC data to Business Central.";
                         return RedirectToAction("Individual", "Dashboard");
                     }
-
-
 
                     // Upload documents one by one (example for one document)
                     // Repeat for all required docs
@@ -371,6 +373,7 @@ public class KycController : Controller
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Company);
         return View(vm);
     }
+
     // ------------------- UPLOAD (AJAX helper; still available) -------------------
 
     [HttpPost]
