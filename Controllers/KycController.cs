@@ -1,13 +1,12 @@
 ﻿using ClientPortal.Data;
 using ClientPortal.Models;
 using ClientPortal.Services;
-using KycSubmissionService;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,15 +21,13 @@ public class KycController : Controller
     private readonly UserManager<ApplicationUser> _users;
     private readonly AppDbContext _db;
     private readonly IChecklistProvider _checklist;
-    private readonly KycSubmissionService _kycSubmissionService; 
+    private readonly KycSubmissionService _kycSubmissionService;
+    private readonly BusinessCentralBasicApiService _businessCentralBasicApiService;
 
-    public KycController(UserManager<ApplicationUser> users, AppDbContext db,
-        IChecklistProvider checklist, KycSubmissionService kycSubmissionService) 
+
+    public KycController(UserManager<ApplicationUser> users, AppDbContext db, IChecklistProvider checklist, KycSubmissionService kycSubmissionService, BusinessCentralBasicApiService businessCentralBasicApiService)
     {
-        _users = users;
-        _db = db;
-        _checklist = checklist;
-        _kycSubmissionService = kycSubmissionService;
+        _users = users; _db = db; _checklist = checklist; _kycSubmissionService = kycSubmissionService; _businessCentralBasicApiService = businessCentralBasicApiService;
     }
 
     // ------------------- CHECKLIST -------------------
@@ -104,33 +101,56 @@ public class KycController : Controller
         ViewBag.Requirements = _checklist.Get(KycType.Individual);
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Individual);
 
-        ViewBag.IdentityTypes = new List<SelectListItem>
-        {
-            new("National ID", "National ID"),
-            new("Passport", "Passport"),
-            new("Birth Certificate", "Birth Certificate"),
-            new("Voter Card", "Voter Card"),
-            new("Driving License", "Driving License"),
-            new("Work ID", "Work ID"),
-            new("Foreigner Residence ID (DIRE)", "DIRE"),
-            new("Refugee Identification Card", "Refugee Card"),
-        };
+        // Fetch salutations dynamically from Business Central and map to SelectListItems 
+        var salutations = await _businessCentralBasicApiService.GetSalutationsAsync();
+        ViewBag.IdentityTypes = salutations.Select(s =>
+            new SelectListItem
+            {
+                Text = string.IsNullOrEmpty(s.Description) ? s.Code : $"{s.Code} - {s.Description}",
+                Value = s.Code
+            }).ToList();
 
+        // Fetch countries dynamically from Business Central and add to ViewBag.Countries
+        var countries = await _businessCentralBasicApiService.GetCountriesAsync();
+        ViewBag.Countries = countries.Select(c =>
+            new SelectListItem
+            {
+                Text = c.Name,
+                Value = c.Code
+            }).ToList();
+        var postalcodes = await _businessCentralBasicApiService.GetPostalCodesAsync();
+        ViewBag.PostalCodes = postalcodes
+            .Select(pc => new SelectListItem
+            {
+                Text = $"{pc.Code} - {pc.City}",
+                Value = pc.Code
+            }).ToList();
+        var sources = await _businessCentralBasicApiService.GetSourcesOfFundsAsync();
+        ViewBag.SourceOfFunds = sources
+            .Select(sf => new SelectListItem
+            {
+                Text = sf.Source,
+                Value = sf.Source
+            }).ToList();
+
+        // Other dropdown lists remain static or adjust similarly as needed
         ViewBag.AddressTypes = new List<SelectListItem>
-        {
-            new("Utility Bill", "Utility Bill"),
-            new("Employer Letter", "Employer Letter"),
-            new("Municipal Declaration", "Municipal Declaration"),
-        };
+    {
+        new("Utility Bill", "Utility Bill"),
+        new("Employer Letter", "Employer Letter"),
+        new("Municipal Declaration", "Municipal Declaration"),
+    };
 
         ViewBag.IncomeProofTypes = new List<SelectListItem>
-        {
-            new("Employer Letter", "Employer Letter"),
-            new("Self-Declaration", "Self-Declaration"),
-        };
+    {
+        new("Employer Letter", "Employer Letter"),
+        new("Self-Declaration", "Self-Declaration"),
+    };
 
         return View(kyc);
     }
+
+
 
     // ------------------- INDIVIDUAL (POST) -------------------
     // Lift limits so file binding doesn't fail for larger PDFs/images.
@@ -198,6 +218,8 @@ public class KycController : Controller
                         TempData["Err"] = "Failed to submit KYC data to Business Central.";
                         return RedirectToAction("Individual", "Dashboard");
                     }
+
+
 
                     // Upload documents one by one (example for one document)
                     // Repeat for all required docs
@@ -373,7 +395,6 @@ public class KycController : Controller
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Company);
         return View(vm);
     }
-
     // ------------------- UPLOAD (AJAX helper; still available) -------------------
 
     [HttpPost]
@@ -443,4 +464,6 @@ public class KycController : Controller
         var allPresent = requiredKeys.IsSubsetOf(uploadedKeys);
         return Task.FromResult(allPresent);
     }
+
+
 }

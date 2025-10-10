@@ -1,73 +1,435 @@
-﻿@using ClientPortal.Models
-@model IEnumerable<ClientPortal.Models.ProductGroupVm>
-@if (!string.IsNullOrEmpty(ViewBag.ErrorMessage))
-{
-    <div class="alert" style="color:red;">@ViewBag.ErrorMessage</div>
-}
-
+﻿@model IEnumerable<ClientPortal.Models.ProductGroupVm>
 @{
     ViewData["Title"] = "Products & Services";
-    var q = ViewBag.Query as string;         // Search/filter query
-    string[] classes = ViewBag.Classes as string[] ?? Array.Empty<string>(); // Grouping classes
+    var classes = ViewBag.Classes as string[] ?? Array.Empty<string>();
+    var classFilter = ViewBag.ClassFilter as string ?? "All";
+    var errorMsg = ViewBag.ErrorMessage as string;
 }
 
-<!-- Products and Services Page (renders live-fetched products grouped and filtered) -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
 
-<section class="products-page">
-    <div class="wrap">
-        <h2>Products & Services</h2>
+<style>
+    /* ================= PRODUCTS PAGE STYLING ================= */
+    .products-page {
+        --blue: #1a2555;
+        --blue-accent: #3655ff;
+        --text: #0b0f1a;
+        --muted: #6b7280;
+        --bg: #ffffff;
+        --card: #ffffff;
+        --border: #e5e7eb;
+        --ring: rgba(54,85,255,.12);
+        --shadow: 0 10px 24px rgba(0,0,0,.06);
+        --shadow-lg: 0 18px 40px rgba(0,0,0,.08);
+        --radius: 18px;
+        --radius-sm: 12px;
+        --content-max: 1200px;
+        font-family: "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg);
+        padding: 2rem;
+        max-width: var(--content-max);
+        margin: 0 auto;
+    }
 
-        <!-- Search and class filter form -->
-        <form method="get" class="search-form">
-            <input type="text" name="q" value="@q" placeholder="Search products…" class="form-control" />
-            <select name="classFilter" class="form-select">
-                <option value="">All Classes</option>
-                @foreach (var c in classes)
-                {
-                    <option value="@c">@c</option>
-                }
-            </select>
-            <button type="submit" class="btn-primary">Apply Filters</button>
-        </form>
+    .products-header {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
 
-        <!-- If there are no products, show message -->
-        @if (Model == null || !Model.Any())
-        {
-            <div class="alert">No products available.</div>
+    .products-title {
+        color: var(--blue);
+        font-weight: 900;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, var(--blue) 0%, var(--blue-accent) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .products-subtitle {
+        color: var(--muted);
+        font-size: 1.1rem;
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.6;
+    }
+
+    /* ================= FILTER STYLING ================= */
+    .filter-section {
+        background: var(--card);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+    }
+
+    .filter-form {
+        display: flex;
+        gap: 1rem;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .filter-label {
+        display: block;
+        font-weight: 700;
+        color: var(--blue);
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: white;
+        color: var(--text);
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--blue-accent);
+            box-shadow: 0 0 0 4px var(--ring);
         }
-        else
-        {
-            <!-- Loop through product groups and subgroups for display -->
-            <div class="p-grid">
-                @foreach (var g in Model)
-                {
-                    <section class="p-group">
-                        <h3>@g.MainClass</h3>
-                        @foreach (var sg in g.SubGroups)
+
+    .filter-btn {
+        background: var(--blue-accent);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-sm);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+        .filter-btn:hover {
+            background: var(--blue);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(54,85,255,.3);
+        }
+
+    /* ================= ERROR MESSAGE ================= */
+    .alert-danger {
+        background: #fee2e2;
+        color: #dc2626;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid #fecaca;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+        .alert-danger i {
+            font-size: 1.2rem;
+        }
+
+    /* ================= PRODUCT GROUPS ================= */
+    .product-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .product-group {
+        background: var(--card);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--border);
+        transition: all 0.3s ease;
+    }
+
+        .product-group:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+    .group-header {
+        background: linear-gradient(135deg, var(--blue) 0%, var(--blue-accent) 100%);
+        color: white;
+        padding: 1.5rem 2rem;
+        margin: 0;
+    }
+
+        .group-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+            .group-header h3 i {
+                font-size: 1.3rem;
+            }
+
+    .subgroups-container {
+        padding: 0;
+    }
+
+    .subgroup {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--border);
+        transition: background 0.3s ease;
+    }
+
+        .subgroup:last-child {
+            border-bottom: none;
+        }
+
+        .subgroup:hover {
+            background: #f8faff;
+        }
+
+    .subgroup-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+        .subgroup-header h4 {
+            margin: 0;
+            color: var(--blue);
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .subgroup-header i {
+            color: var(--blue-accent);
+            font-size: 1.1rem;
+        }
+
+    .product-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .product-item {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 1.25rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .product-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--blue-accent);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .product-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,.08);
+            border-color: var(--blue-accent);
+        }
+
+            .product-item:hover::before {
+                transform: scaleY(1);
+            }
+
+    .product-name {
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .product-class {
+        color: var(--muted);
+        font-size: 0.9rem;
+        background: #f3f4f6;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        display: inline-block;
+        font-weight: 600;
+    }
+
+    /* ================= EMPTY STATE ================= */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: var(--muted);
+    }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            font-size: 1.5rem;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            max-width: 400px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+    /* ================= RESPONSIVE DESIGN ================= */
+    @@media (max-width: 768px) {
+        .products-page {
+            padding: 1rem;
+        }
+
+        .products-title {
+            font-size: 2rem;
+        }
+
+        .filter-form {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .filter-group {
+            min-width: auto;
+        }
+
+        .product-items {
+            grid-template-columns: 1fr;
+        }
+
+        .subgroup {
+            padding: 1rem;
+        }
+
+        .group-header {
+            padding: 1rem 1.5rem;
+        }
+
+            .group-header h3 {
+                font-size: 1.3rem;
+            }
+    }
+
+    @@media (max-width: 480px) {
+        .products-title {
+            font-size: 1.75rem;
+        }
+
+        .empty-state {
+            padding: 2rem 1rem;
+        }
+
+            .empty-state i {
+                font-size: 3rem;
+            }
+    }
+</style>
+
+<div class="products-page">
+    <div class="products-header">
+        <h1 class="products-title">Products & Services</h1>
+        <p class="products-subtitle">Discover our comprehensive range of insurance products tailored to meet your unique needs</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMsg))
+    {
+        <div class="alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span>@errorMsg</span>
+        </div>
+    }
+
+    <div class="filter-section">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label class="filter-label" for="classFilter">Filter by Category</label>
+                <select name="classFilter" id="classFilter" class="filter-select">
+                    <option value="All">All Categories</option>
+                    @foreach (var c in classes)
+                    {
+                        <option value="@c" selected="@(c == classFilter ? "selected" : null)">@c</option>
+                    }
+                </select>
+            </div>
+            <button type="submit" class="filter-btn">
+                <i class="bi bi-funnel"></i>
+                Apply Filter
+            </button>
+        </form>
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="empty-state">
+            <i class="bi bi-inboxes"></i>
+            <h3>No Products Available</h3>
+            <p>We couldn't find any products matching your criteria. Please try a different filter or check back later.</p>
+        </div>
+    }
+    else
+    {
+        <div class="product-groups">
+            @foreach (var group in Model)
+            {
+                <section class="product-group">
+                    <div class="group-header">
+                        <h3>
+                            <i class="bi bi-folder-fill"></i>
+                            @group.MainClass
+                        </h3>
+                    </div>
+                    <div class="subgroups-container">
+                        @foreach (var subgroup in group.SubGroups)
                         {
-                            <div class="p-sub">
-                                <div class="p-subtle">@sg.SubClass</div>
-                                <div class="p-cards">
-                                    @foreach (var p in sg.Items)
-                                    {
-                                        var imgPath = $"/images/products/{p.ImageSlug}.jpg";
-                                        <article class="p-card">
-                                            <div class="p-img">
-                                                <!-- Shows the product image, fallback to placeholder -->
-                                                <img src="@imgPath" alt="@p.Name" onerror="this.src='/images/products/_placeholder.jpg'">
-                                            </div>
-                                            <div class="p-body">
-                                                <div class="p-name">@p.Name</div>          <!-- Product name -->
-                                                <div class="p-class">@p.Class</div>        <!-- Product class/category -->
-                                            </div>
-                                        </article>
-                                    }
+                            <div class="subgroup">
+                                <div class="subgroup-header">
+                                    <i class="bi bi-folder2-open"></i>
+                                    <h4>@subgroup.SubClass</h4>
                                 </div>
+                                <ul class="product-items">
+                                    @foreach (var item in subgroup.Items)
+                                    {
+                                        <li class="product-item">
+                                            <div class="product-name">@item.Name</div>
+                                            <span class="product-class">@item.Class</span>
+                                        </li>
+                                    }
+                                </ul>
+
                             </div>
                         }
-                    </section>
-                }
-            </div>
-        }
-    </div>
-</section>
+                    </div>
+                </section>
+            }
+        </div>
+    }
+</div>

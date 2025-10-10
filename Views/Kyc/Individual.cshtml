@@ -490,13 +490,10 @@
                         <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
                     </div>
                     <!-- NATIONALITY DROPDOWN (source: BC, single option: Mozambique for now) -->
-                    <div class="col-4 form-group">
-                        <label for="Nationality">Nationality <span class="required"></span></label>
-                        <select name="Nationality" id="Nationality" class="form-control">
-                            <option value="">Select nationality</option>
-                            <option value="Mozambique" selected>Mozambique</option>
-                        </select>
-                    </div>
+                    <select asp-for="Nationality" id="Nationality" class="form-control" asp-items="ViewBag.Countries">
+                        <option value="">Select nationality</option>
+                    </select>
+
                     <!-- GENDER, MARITAL STATUS -->
                     <div class="col-4 form-group">
                         <label asp-for="Gender">Gender <span class="required"></span></label>
@@ -594,16 +591,14 @@
             </script> *@
 
             <!-- 3) PERSONAL ADDRESS -->
-            <fieldset class="section locked" id="secAddress">
-                <h3 class="section-title">2) Personal Address</h3>
-                <div class="grid">
-                    <div class="col-12 form-group">
-                        <label asp-for="AddressLine">Physical Address <span class="required">*</span></label>
-                        <input asp-for="AddressLine" class="form-control" placeholder="House / Street / City / Province" />
-                        <span asp-validation-for="AddressLine" class="field-validation-error"></span>
-                    </div>
-                </div>
-            </fieldset>
+            <div class="col-4 form-group">
+                <label asp-for="PostCode">Postal Code <span class="required"></span></label>
+                <select asp-for="PostCode" class="form-control" asp-items="ViewBag.PostalCodes">
+                    <option value="">Select postal code</option>
+                </select>
+                <span asp-validation-for="PostCode" class="field-validation-error"></span>
+            </div>
+
 
             <!-- 4) PROFESSIONAL DATA -->
             <fieldset class="section locked" id="secProfessional">
@@ -689,20 +684,14 @@
             </fieldset>
 
             <!-- 9) SOURCE OF INCOME -->
-            <fieldset class="section locked" id="secIncome">
-                <h3 class="section-title">8) Source of Income</h3>
-                <div class="grid">
-                    <div class="col-8 form-group">
-                        <label asp-for="IncomeProofType">Income Proof Type <span class="required">*</span></label>
-                        <select asp-for="IncomeProofType" class="form-control" asp-items="incomeProofTypes" id="IncomeProofType"></select>
-                        <span asp-validation-for="IncomeProofType" class="field-validation-error"></span>
-                    </div>
-                    <div class="col-4 form-group">
-                        <label for="IncomeProofFile">Attach Income Proof <span class="required">*</span></label>
-                        <input type="file" name="IncomeProofFile" id="IncomeProofFile" class="form-control" required />
-                    </div>
-                </div>
-            </fieldset>
+            <div class="col-4 form-group">
+                <label asp-for="SourceOfFunds">Source of Funds</label>
+                <select asp-for="SourceOfFunds" class="form-control" asp-items="ViewBag.SourceOfFunds">
+                    <option value="">Select source</option>
+                </select>
+                <span asp-validation-for="SourceOfFunds" class="field-validation-error"></span>
+            </div>
+
 
             <!-- 10) SIGNATURES & DECLARATION -->
             <fieldset class="section locked" id="secSignatures">

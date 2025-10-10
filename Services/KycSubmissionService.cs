@@ -1,123 +1,113 @@
 ﻿using ClientPortal.Models;
-using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace KycSubmissionService
+public class KycSubmissionService
 {
-    public class KycSubmissionService
+    private static readonly string baseUrl = "http://196.201.224.102:2048/BC260/ODataV4/";
+    private static readonly string companyEndpoint = "Company('STANDARD%20INSURANCE')/Customercard";
+    private static readonly string insuredCardEndpoint = "Company('STANDARD%20INSURANCE')/Insuredcard";
+
+    public async Task<string> GetCustomersAsync()
     {
-        private readonly string _url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/Insuredcard";
-        private readonly string _username = "Administrator";
-        private readonly string _password = "Insurance@2030#";
+        using var client = new HttpClient();
+        var byteArray = Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
 
-        // 1. Mapping Helper
-        private object MapToBusinessCentralPayload(IndividualKyc kyc)
+        var response = await client.GetAsync(baseUrl + companyEndpoint);
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    public async Task<bool> SubmitIndividualKycAsync(IndividualKyc individualKyc)
+    {
+        // TODO: Map and serialize individualKyc to BC payload
+        //using var client = new HttpClient();
+        //var byteArray = Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
+        //client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        //var json = "{var bcPayload = new\r\n{\r\n    Title = individualKyc.Title, // e.g., \"MR\"\r\n    First_name = individualKyc.FirstName,\r\n    Surname = individualKyc.LastName,\r\n    Other_Names = individualKyc.MiddleName,\r\n    Name = $\"{individualKyc.FirstName} {individualKyc.LastName}\".Trim(),\r\n    Sex = individualKyc.Gender,\r\n    Date_of_Birth = individualKyc.DateOfBirth?.ToString(\"yyyy-MM-dd\"),\r\n    Marital_Status = individualKyc.MaritalStatus,\r\n    Occupation = individualKyc.Profession,\r\n    Nationality = individualKyc.Nationality,\r\n    Physical_Address = individualKyc.AddressLine,\r\n    Postal_Address = individualKyc.PostalAddress,\r\n    Post_Code = individualKyc.PostCode,\r\n    City = individualKyc.City,\r\n    State = individualKyc.State,\r\n    Country_Region_Code = individualKyc.CountryCode,\r\n    Primary_Phone_No = individualKyc.Phone,\r\n    Primary_Email = individualKyc.Email,\r\n    NUIT = individualKyc.NUIT,\r\n    Approval_Status = \"Open\",\r\n    Customer_Status = \"Active\",\r\n    Customer_Posting_Group = \"INSURED\",\r\n    // Add other fields as needed, using defaults or empty strings if not collected\r\n    BVN_No = \"\",\r\n    Means_of_Identification = individualKyc.IdentityType,\r\n    ID_Number = individualKyc.IdentityNumber,\r\n    ID_Expiry_Date = individualKyc.IdentityExpiryDate?.ToString(\"yyyy-MM-dd\"),\r\n    Religion_Code = \"\",\r\n    Religion_Name = \"\",\r\n    SLA_Process = \"\",\r\n    Relationship_Manager = \"\",\r\n    Relationship_Manager_Name = \"\",\r\n    PEP_Status = \"\",\r\n    High_Risk_Low_Risk = \"0\",\r\n    Segments = \"\",\r\n    Subsegments = \"\",\r\n    Customer_Category = \"0\",\r\n    Source_of_Funds = \"\",\r\n    Work_Physical = \"\",\r\n    E_Mail_2 = \"\",\r\n    Privacy_Blocked = false,\r\n    Accept_Marketing_Communication = false,\r\n    Accept_Renewal_Email = true,\r\n    Accept_Renewal_SMS = true,\r\n    Data_Protection_Consent = false,\r\n    KYC = false,\r\n    Utility_Bill = false,\r\n    Address_Verification = false,\r\n    Next_of_Kin_Title = individualKyc.NextOfKinTitle,\r\n    Next_of_kin_Name = individualKyc.NextOfKinName,\r\n    Next_of_Kin_Gender = individualKyc.NextOfKinGender,\r\n    Next_of_kin_Email = individualKyc.NextOfKinEmail,\r\n    Next_of_Kin_Phone_No = individualKyc.NextOfKinPhone,\r\n    Next_of_kin_address = individualKyc.NextOfKinAddress,\r\n    Next_of_kin_DOB = individualKyc.NextOfKinDOB?.ToString(\"yyyy-MM-dd\"),\r\n    Next_of_Kin_Relationship = individualKyc.NextOfKinRelationship,\r\n    Officers_Name = \"SIIBL-CIC-DEMO\\\\ADMINISTRATOR\",\r\n    Onboarding_Date = DateTime.UtcNow.ToString(\"yyyy-MM-dd\"),\r\n    Intermediary_No = \"\",\r\n    Intermediary_Name = \"\",\r\n    Classification = \"\",\r\n    Balance = 0,\r\n    Balance_LCY = 0,\r\n    Bill_to_Customer_No = \"\",\r\n    Preferred_Bank_Account_Code = \"\",\r\n    Blocked = \"\",\r\n    Blocking_date = \"0001-01-01\",\r\n    Unblocking_date = \"0001-01-01\",\r\n    Global_Dimension_1_Filter = \"\",\r\n    Global_Dimension_2_Filter = \"\",\r\n    Currency_Filter = \"\"\r\n};\r\n\r\nvar json = JsonSerializer.Serialize(bcPayload);\r\n}";
+
+
+        //var content = new StringContent(json, Encoding.UTF8, "application/json");
+        //var response = await client.PostAsync(baseUrl + insuredCardEndpoint, content);
+        //return response.IsSuccessStatusCode;
+
+
+        using var handler = new HttpClientHandler
         {
-            return new
-            {
-                Title = kyc.Title,
-                First_name = kyc.FirstName,
-                Surname = kyc.LastName,
-                Other_Names = kyc.MiddleName,
-                Name = kyc.FullName ?? $"{kyc.FirstName} {kyc.LastName}",
-                Sex = kyc.Gender,
-                Date_of_Birth = kyc.DateOfBirth?.ToString("yyyy-MM-dd"),
-                Marital_Status = kyc.MaritalStatus,
-                Occupation = kyc.Occupation,
-                Nationality = kyc.Nationality,
-                BVN_No = kyc.BvnNo,
-                Means_of_Identification = kyc.IdType,
-                ID_Number = kyc.IdNumber,
-                ID_Expiry_Date = kyc.IdExpiryDate?.ToString("yyyy-MM-dd"),
-                Religion_Code = kyc.ReligionCode,
-                Religion_Name = kyc.ReligionName,
-                Approval_Status = kyc.ApprovalStatus ?? "Open",
-                SLA_Process = kyc.SlaProcess,
-                Relationship_Manager = kyc.RelationshipManager,
-                Relationship_Manager_Name = kyc.RelationshipManagerName,
-                PEP_Status = kyc.PepStatus,
-                High_Risk_Low_Risk = kyc.HighRiskLowRisk,
-                Segments = kyc.Segments,
-                Subsegments = kyc.Subsegments,
-                Customer_Category = kyc.CustomerCategory,
-                Source_of_Funds = kyc.SourceOfFunds,
-                Physical_Address = kyc.PhysicalAddress,
-                Postal_Address = kyc.PostalAddress,
-                Work_Physical = kyc.WorkPhysical,
-                Post_Code = kyc.PostCode,
-                City = kyc.City,
-                State = kyc.State,
-                Country_Region_Code = kyc.CountryRegionCode,
-                Primary_Phone_No = kyc.PrimaryPhoneNo,
-                Phone_No = kyc.PhoneNo,
-                Primary_Email = kyc.PrimaryEmail,
-                E_Mail_2 = kyc.Email2,
-                Privacy_Blocked = kyc.PrivacyBlocked,
-                Accept_Marketing_Communication = kyc.AcceptMarketingCommunication,
-                Accept_Renewal_Email = kyc.AcceptRenewalEmail,
-                Accept_Renewal_SMS = kyc.AcceptRenewalSms,
-                Data_Protection_Consent = kyc.DataProtectionConsent,
-                KYC = kyc.KycFlag,
-                Utility_Bill = kyc.UtilityBill,
-                Address_Verification = kyc.AddressVerification,
-                Next_of_Kin_Title = kyc.NextOfKinTitle,
-                Next_of_kin_Name = kyc.NextOfKinName,
-                Next_of_Kin_Gender = kyc.NextOfKinGender,
-                Next_of_Kin_Email = kyc.NextOfKinEmail,
-                Next_of_Kin_Phone_No = kyc.NextOfKinPhoneNo,
-                Next_of_kin_address = kyc.NextOfKinAddress,
-                Next_of_kin_DOB = kyc.NextOfKinDob?.ToString("yyyy-MM-dd"),
-                Next_of_Kin_Relationship = kyc.NextOfKinRelationship,
-                Officers_Name = kyc.OfficersName,
-                Onboarding_Date = kyc.OnboardingDate?.ToString("yyyy-MM-dd"),
-                Intermediary_No = kyc.IntermediaryNo,
-                Intermediary_Name = kyc.IntermediaryName,
-                Classification = kyc.Classification,
-                Balance = kyc.Balance,
-                Balance_LCY = kyc.BalanceLcy,
-                Bill_to_Customer_No = kyc.BillToCustomerNo,
-                Customer_Posting_Group = kyc.CustomerPostingGroup ?? "INSURED",
-                Preferred_Bank_Account_Code = kyc.PreferredBankAccountCode,
-                Blocked = kyc.Blocked,
-                Customer_Status = kyc.CustomerStatus ?? "Active",
-                Blocking_date = kyc.BlockingDate?.ToString("yyyy-MM-dd"),
-                Unblocking_date = kyc.UnblockingDate?.ToString("yyyy-MM-dd"),
-                Global_Dimension_1_Filter = kyc.GlobalDimension1Filter,
-                Global_Dimension_2_Filter = kyc.GlobalDimension2Filter,
-                Currency_Filter = kyc.CurrencyFilter
-            };
-        }
+            Credentials = new NetworkCredential("Administrator", "Insurance@2030#", "YourDomain")
+        };
 
-        // 2. POST Method
-        public async Task<bool> SubmitKycToBusinessCentralAsync(IndividualKyc kyc)
+        using var client = new HttpClient(handler);
+
+        string url = baseUrl + insuredCardEndpoint;
+
+        // Serialize the accountApplication object to JSON
+        var jsonData = JsonSerializer.Serialize(individualKyc);
+        var content = new StringContent(jsonData, System.Text.Encoding.UTF8, "application/json");
+
+        try
         {
-            var payload = BcPayload(kyc);
-            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { IgnoreNullValues = true });
+            // Send the POST request
+            var response = await client.PostAsync(url, content);
 
-            using var client = new HttpClient();
-            var byteArray = Encoding.ASCII.GetBytes($"{_username}:{_password}");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var response = await client.PostAsync(_url, content);
-
+            // Check if the response is successful
             if (response.IsSuccessStatusCode)
             {
-                // Success: handle as needed
-                return true;
+                // Deserialize the response content into the same type of object
+                var responseData = await response.Content.ReadAsStringAsync();
+                var createdObject = JsonSerializer.Deserialize<IndividualKyc>(responseData, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (createdObject == null)
+                {
+                    throw new Exception("The response content is null or could not be deserialized.");
+                }
+                return response.IsSuccessStatusCode;
             }
             else
             {
-                var error = await response.Content.ReadAsStringAsync();
-                // Log or throw error as needed
-                throw new Exception($"Business Central POST failed: {response.StatusCode} - {error}");
+                // Get error content for debugging
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to post data. StatusCode: {response.StatusCode}, Error: {errorContent}");
             }
         }
+        catch (Exception ex)
+        {
+            // Log or handle the exception as needed
+            throw new Exception($"An error occurred while creating Account Application: {ex.Message}", ex);
+        }
+    }
+
+    public async Task<bool> SubmitCompanyKycAsync(CompanyKyc companyKyc)
+    {
+        // TODO: Map and serialize companyKyc to BC payload
+        using var client = new HttpClient();
+        var byteArray = Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        var json = "{}";
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+        var response = await client.PostAsync(baseUrl + insuredCardEndpoint, content);
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> UploadKycDocumentAsync(string insuredCardNo, string filePath, string fileName)
+    {
+        using var client = new HttpClient();
+        var byteArray = Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+        using var content = new MultipartFormDataContent();
+        using var fileContent = new ByteArrayContent(await System.IO.File.ReadAllBytesAsync(filePath));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        content.Add(fileContent, "file", fileName);
+        var endpoint = $"{baseUrl}Company('STANDARD%20INSURANCE')/Insuredcard('{insuredCardNo}')/attachments";
+        var response = await client.PostAsync(endpoint, content);
+        return response.IsSuccessStatusCode;
     }
 
 }
