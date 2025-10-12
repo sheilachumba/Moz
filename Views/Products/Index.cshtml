@@ -421,9 +421,16 @@
                                         <li class="product-item">
                                             <div class="product-name">@item.Name</div>
                                             <span class="product-class">@item.Class</span>
+                                            <form asp-controller="Cover" asp-action="Apply" method="get" style="margin-top: 1rem;">
+                                                <input type="hidden" name="productName" value="@item.Name" />
+                                                <button type="submit" class="filter-btn" style="width:100%;margin-top:0.5rem;">
+                                                    <i class="bi bi-check2-circle"></i> Apply for Cover
+                                                </button>
+                                            </form>
                                         </li>
                                     }
                                 </ul>
+
 
                             </div>
                         }

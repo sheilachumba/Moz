@@ -215,7 +215,6 @@ namespace ClientPortal.Models
         [MaxLength(300)] public string Description { get; set; } = string.Empty;
     }
 
-    // VMs you already use
     public class ClaimQuotationVm
     {
         public string Type { get; set; } = default!;
@@ -242,6 +241,7 @@ namespace ClientPortal.Models
     }
 
 public class IndividualKyc
+
     {
         // ========= Your local/domain fields =========
         [JsonPropertyName("@odata.etag")]
@@ -468,6 +468,11 @@ public class IndividualKyc
         public string? IncomeProofType { get; set; }
 
 
+    }
+    public class MeansOfIdentificationVm
+    {
+        public string Means_of_ID { get; set; }
+        public string Description { get; set; }
     }
 
     public class CompanyKyc

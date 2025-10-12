@@ -17,15 +17,18 @@ namespace ClientPortal.Controllers
     {
         private readonly UserManager<ApplicationUser> _users;
         private readonly AppDbContext _db;
+        private readonly BusinessCentralBasicApiService _bcService;
 
         public DashboardController(
      UserManager<ApplicationUser> users,
      AppDbContext db,
-     IInsuranceProductService insuranceProductService)
+     IInsuranceProductService insuranceProductService,
+     BusinessCentralBasicApiService bcService)
         {
             _users = users;
             _db = db;
             _insuranceProductService = insuranceProductService;
+            _bcService = bcService;
         }
 
 
@@ -56,6 +59,9 @@ namespace ClientPortal.Controllers
             if (user.KycType is not (KycType.Individual or KycType.SoleProprietor))
                 return RedirectToAction(nameof(Index));
 
+            var bcKyc = await _bcService.GetIndividualKycStatusAsync(user.Id);
+            ViewBag.KycStatus = bcKyc?.Status.ToString() ?? "Not Submitted";
+
             if (!IsSubmittedOrVerified(user))
             {
                 var hasDraft =
@@ -67,7 +73,6 @@ namespace ClientPortal.Controllers
             }
 
             await PopulateDashboardDataAsync(user);
-            ViewBag.KycStatus = user.KycStatus;
             ViewBag.CoverUrl = null;
             return View(user);
         }
@@ -81,6 +86,9 @@ namespace ClientPortal.Controllers
             if (user.KycType is not (KycType.Company or KycType.Association))
                 return RedirectToAction(nameof(Index));
 
+            var bcKyc = await _bcService.GetIndividualKycStatusAsync(user.Id); // or GetCompanyKycStatusAsync
+            ViewBag.KycStatus = bcKyc?.Status.ToString() ?? "Not Submitted";
+
             if (!IsSubmittedOrVerified(user))
             {
                 var hasDraft =
@@ -92,7 +100,6 @@ namespace ClientPortal.Controllers
             }
 
             await PopulateDashboardDataAsync(user);
-            ViewBag.KycStatus = user.KycStatus;
             ViewBag.CoverUrl = null;
             return View(user);
         }

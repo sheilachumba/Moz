@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using ClientPortal.Models;
+using Microsoft.Extensions.Configuration;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -179,6 +180,52 @@ public class BusinessCentralBasicApiService
                 result.Add(src);
         }
         return result.Select(s => new SourceOfFundsVm { Source = s }).ToList();
+    }
+    
+    public async Task<List<MeansOfIdentificationVm>> GetMeansOfIdentificationAsync()
+    {
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/MeansofIdentification";
+        SetBasicAuthHeader();
+
+        var response = await _httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+            throw new Exception($"Failed to fetch means of identification: HTTP {(int)response.StatusCode}");
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var values = doc.RootElement.GetProperty("value");
+
+        var result = new List<MeansOfIdentificationVm>();
+        foreach (var item in values.EnumerateArray())
+        {
+            result.Add(new MeansOfIdentificationVm
+            {
+                Means_of_ID = item.GetProperty("Means_of_ID").GetString() ?? "",
+                Description = item.GetProperty("Description").GetString() ?? ""
+            });
+
+        }
+        return result;
+    }
+    public async Task<IndividualKyc?> GetIndividualKycStatusAsync(string userId)
+    {
+        var url = $"http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/Insuredcard";
+        SetBasicAuthHeader();
+        var response = await _httpClient.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // You may handle 404 differently if no record found yet
+            return null;
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+        var kyc = JsonSerializer.Deserialize<IndividualKyc>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        return kyc;
     }
 
 }

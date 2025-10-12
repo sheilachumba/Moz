@@ -132,6 +132,14 @@ public class KycController : Controller
                 Text = sf.Source,
                 Value = sf.Source
             }).ToList();
+        // means of identification
+        var meansOfIdList = await _businessCentralBasicApiService.GetMeansOfIdentificationAsync();
+        ViewBag.MeansOfIdentification = meansOfIdList.Select(m =>
+            new SelectListItem
+            {
+                Text = string.IsNullOrWhiteSpace(m.Description) ? m.Means_of_ID : $"{m.Means_of_ID} - {m.Description}",
+                Value = m.Means_of_ID
+            }).ToList();
 
         // Other dropdown lists remain static or adjust similarly as needed
         ViewBag.AddressTypes = new List<SelectListItem>

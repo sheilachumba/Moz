@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Identity
 @inject SignInManager<ClientPortal.Models.ApplicationUser> SignInManager
 @inject UserManager<ClientPortal.Models.ApplicationUser> UserManager
+@inject Microsoft.AspNetCore.Identity.SignInManager<ApplicationUser> SignInManager
 @{
     // Hide chrome if needed per-page: ViewBag.HideChrome = true;
     var hideChrome = ViewBag.HideChrome as bool? ?? false;
@@ -86,13 +87,15 @@
 
         .topbar__brand-primary {
             color: var(--blue);
-            font-weight: 900;
+            font-weight: 950;
             letter-spacing: .2px;
+            font-family: Times New Roman;
         }
 
         .topbar__brand-sub {
             color: #111;
-            font-weight: 800;
+            font-weight: 950;
+            font-family: Times New Roman;
         }
 
         .topbar__actions {

@@ -518,18 +518,15 @@
                     </div>
 
                     <!-- MEANS OF IDENTIFICATION: RADIO, ONLY ONE CAN BE PICKED -->
-                    <div class="col-12 form-group">
-                        <label>Means of Identification <span class="required"></span></label>
-                        <div class="chip-group">
-                            @foreach (var item in ViewBag.IdentityTypes as List<SelectListItem> ?? new())
-                            {
-                                <label class="chip">
-                                    <input type="radio" class="id-type" name="IdentityType" value="@item.Value" data-label="@item.Text" /> @item.Text
-                                </label>
-                            }
-                        </div>
-                        <div class="helper-text">Select only one document type. Required fields will be shown below.</div>
+                    <div class="col-4 form-group">
+                        <label asp-for="IdType">Means of Identification</label>
+                        <select asp-for="IdType" class="form-control" asp-items="ViewBag.MeansOfIdentification">
+                            <option value="">Select one</option>
+                        </select>
+                        <span asp-validation-for="IdType" class="field-validation-error"></span>
                     </div>
+
+
                     <!-- DYNAMIC FIELDS FOR MEANS OF IDENTIFICATION: NUMBER, FILE, EXPIRY DATE if required -->
                     <div id="IdDocsFields" class="col-12"></div>
 

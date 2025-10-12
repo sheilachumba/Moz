@@ -5,6 +5,12 @@
     Layout = "_Layout";
 }
 
+@{
+    var kycStatusRaw = ViewBag.KycStatus as string ?? "";
+    KycStatus kycStatusEnum;
+    Enum.TryParse(kycStatusRaw, out kycStatusEnum);
+}
+
 <style>
     /* ===== Dashboard Theme (scoped with .dash) ===== */
     .dash {
@@ -565,18 +571,31 @@
                 </div>
 
                 <!-- KYC Status Banner -->
-                @if (ViewBag.KycStatus == KycStatus.Submitted)
+                @if (kycStatusEnum == KycStatus.Submitted)
                 {
                     <div class="kyc-status-banner kyc-status-pending">
                         <i class="bi bi-clock-history"></i> Your KYC application is under review
                     </div>
                 }
-                else if (ViewBag.KycStatus == KycStatus.Verified)
+                else if (kycStatusEnum == KycStatus.Verified)
                 {
                     <div class="kyc-status-banner kyc-status-approved">
                         <i class="bi bi-check-circle"></i> Your KYC has been approved!
                     </div>
                 }
+                else if (kycStatusEnum == KycStatus.Draft)
+                {
+                    <div class="kyc-status-banner kyc-status-draft">
+                        Your KYC is in draft status. Please complete the form.
+                    </div>
+                }
+                else
+                {
+                    <div class="kyc-status-banner kyc-status-unknown">
+                        KYC status unknown or not submitted.
+                    </div>
+                }
+
 
                 <!-- Hero Section with User Welcome -->
                 <div class="hero-container">

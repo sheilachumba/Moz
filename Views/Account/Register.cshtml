@@ -26,7 +26,7 @@
         height: 100vh;
         margin: 0;
         padding: 0;
-        background: url('/images/register-bg.jpg') no-repeat center center fixed;
+        background: url('/images/register-bg.png') no-repeat center center fixed;
         background-size: cover;
         overflow-y: auto;
         overflow-x: hidden;
@@ -84,18 +84,15 @@
     }
 
     @@keyframes slideUp {
-        from
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
 
-    {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .logo-wrap {
@@ -121,8 +118,9 @@
         text-align: center;
         margin: 0 0 10px;
         font-weight: 800;
-        font-size: 2.25rem;
+        font-size: 2.0 rem;
         letter-spacing: -0.02em;
+        font-family: Times New Roman;
     }
 
     h2 {
@@ -253,15 +251,47 @@
             box-shadow: none;
         }
 
+    /* Password meter styling */
+    .password-meter-container {
+        margin-top: 10px;
+    }
+
     #pwdMeter {
         width: 100%;
         height: 8px;
-        margin-top: 10px;
-        accent-color: var(--brand-blue);
         border-radius: 4px;
         background: #e5e7eb;
         display: block;
+        -webkit-appearance: none;
+        appearance: none;
     }
+
+        #pwdMeter::-webkit-progress-bar {
+            background: #e5e7eb;
+            border-radius: 4px;
+        }
+
+        #pwdMeter::-webkit-progress-value {
+            background: var(--brand-blue);
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        #pwdMeter.weak::-webkit-progress-value {
+            background: #dc2626;
+        }
+
+        #pwdMeter.fair::-webkit-progress-value {
+            background: #d97706;
+        }
+
+        #pwdMeter.good::-webkit-progress-value {
+            background: #2563eb;
+        }
+
+        #pwdMeter.strong::-webkit-progress-value {
+            background: #059669;
+        }
 
     #meterText {
         color: var(--text);
@@ -300,40 +330,42 @@
             margin: 5px 0;
         }
 
+    .requirement-met {
+        color: #059669;
+    }
+
+    .requirement-unmet {
+        color: #6b7280;
+    }
+
     @@media (max-width: 680px) {
-        article
+        article {
+            padding: 36px 28px;
+            max-width: 100%;
+        }
 
-    {
-        padding: 36px 28px;
-        max-width: 100%;
-    }
+        .grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
 
-    .grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
+        h1 {
+            font-size: 1.875rem;
+        }
 
-    h1 {
-        font-size: 1.875rem;
-    }
-
-    h2 {
-        font-size: 1rem;
-    }
-
+        h2 {
+            font-size: 1rem;
+        }
     }
 
     @@media (max-width: 480px) {
-        .auth-wrap
+        .auth-wrap {
+            padding: 30px 16px;
+        }
 
-    {
-        padding: 30px 16px;
-    }
-
-    article {
-        padding: 32px 24px;
-    }
-
+        article {
+            padding: 32px 24px;
+        }
     }
 </style>
 
@@ -343,7 +375,7 @@
             <div class="logo-wrap">
                 <img src="/images/logo.png" alt="Standard Bank Insurance" />
             </div>
-            <h1>Standard Bank Insurance</h1>
+            <h1>STANDARD INSURANCE CORRETORES DE SEGUROS, SA</h1>
             <h2>Create your account</h2>
 
             <form asp-action="Register" method="post" id="regForm" novalidate>
@@ -364,7 +396,7 @@
                     <div class="grid">
                         <label>
                             First Name
-                            <input asp-for="FirstName" placeholder="Alice" autocomplete="given-name" />
+                            <input asp-for="FirstName" autocomplete="given-name" />
                         </label>
                         <label>
                             Middle Name
@@ -372,7 +404,7 @@
                         </label>
                         <label>
                             Last Name
-                            <input asp-for="LastName" placeholder="Johnson" autocomplete="family-name" />
+                            <input asp-for="LastName" autocomplete="family-name" />
                         </label>
                     </div>
                 </div>
@@ -380,21 +412,21 @@
                 <div id="coFields" style="display:none">
                     <label>
                         Company Name
-                        <input asp-for="CompanyName" placeholder="Contoso Ltd." autocomplete="organization" />
+                        <input asp-for="CompanyName" autocomplete="organization" />
                     </label>
                 </div>
 
                 <div id="soleFields" style="display:none">
                     <label>
                         Full Name
-                        <input asp-for="SoleProprietorName" placeholder="Alex M. Kimani" autocomplete="name" />
+                        <input asp-for="SoleProprietorName" autocomplete="name" />
                     </label>
                 </div>
 
                 <div id="assocFields" style="display:none">
                     <label>
                         Association Name
-                        <input asp-for="AssociationName" placeholder="Teachers Welfare Association" />
+                        <input asp-for="AssociationName" />
                     </label>
                 </div>
 
@@ -415,16 +447,17 @@
                         <input asp-for="Phone"
                                type="tel"
                                inputmode="tel"
-                               autocomplete="tel"
-                               placeholder="+258 84 123 4567" />
+                               autocomplete="tel" />
                     </label>
                 </div>
 
                 <label>
                     Password
                     <input asp-for="Password" id="pwd" type="password" autocomplete="new-password" placeholder="Enter a strong password" />
-                    <small id="meterText">Strength: —</small>
-                    <progress id="pwdMeter" value="0" max="4"></progress>
+                    <div class="password-meter-container">
+                        <progress id="pwdMeter" value="0" max="10"></progress>
+                        <span id="meterText">Enter a password to check strength</span>
+                    </div>
                 </label>
 
                 <label>
@@ -435,15 +468,16 @@
                 <div class="password-requirements">
                     <strong>Password requirements:</strong>
                     <ul>
-                        <li>At least 12 characters recommended</li>
-                        <li>Include uppercase, lowercase, number, and symbol</li>
-                        <li>Avoid common or personal information</li>
-                        <li>Consider using a passphrase (e.g., three random words)</li>
+                        <li id="req-length" class="requirement-unmet">At least 8 characters</li>
+                        <li id="req-lowercase" class="requirement-unmet">Include lowercase letter</li>
+                        <li id="req-uppercase" class="requirement-unmet">Include uppercase letter</li>
+                        <li id="req-number" class="requirement-unmet">Include number</li>
+                        <li id="req-symbol" class="requirement-unmet">Include symbol</li>
                     </ul>
                 </div>
 
                 <div asp-validation-summary="All" class="text-danger"></div>
-                <button class="primary" id="btnSubmit" disabled>Create Account</button>
+                <button class="primary" id="btnSubmit">Create Account</button>
             </form>
         </article>
     </div>
@@ -460,40 +494,116 @@
 
         function toggleFields() {
             const v = acct.value;
-            ind.style.display   = (v === '1') ? '' : 'none';
-            cof.style.display   = (v === '2') ? '' : 'none';
-            sole.style.display  = (v === '3') ? '' : 'none';
-            assoc.style.display = (v === '4') ? '' : 'none';
+            ind.style.display   = (v === '1') ? 'block' : 'none';
+            cof.style.display   = (v === '2') ? 'block' : 'none';
+            sole.style.display  = (v === '3') ? 'block' : 'none';
+            assoc.style.display = (v === '4') ? 'block' : 'none';
         }
         acct.addEventListener('change', toggleFields);
         toggleFields();
 
-        // Password meter
-        const pwd = document.getElementById('pwd');
-        const meter = document.getElementById('pwdMeter');
+        // Password strength meter functionality
+        const pwdInput = document.getElementById('pwd');
+        const pwdMeter = document.getElementById('pwdMeter');
         const meterText = document.getElementById('meterText');
-        const btn = document.getElementById('btnSubmit');
 
-        function scorePassword(p) {
-            let s = 0;
-            if (p.length >= 12) s++;
-            if (/[a-z]/.test(p)) s++;
-            if (/[A-Z]/.test(p)) s++;
-            if (/[0-9]/.test(p)) s++;
-            if (/[^A-Za-z0-9]/.test(p)) s++;
-            return s;
+        function updatePasswordStrength() {
+            const password = pwdInput.value;
+            let strength = 0;
+            let feedback = '';
+
+            // Reset if empty
+            if (!password) {
+                pwdMeter.value = 0;
+                meterText.textContent = 'Enter a password to check strength';
+                meterText.style.color = '#6b7280';
+                pwdMeter.className = '';
+                resetRequirements();
+                return;
+            }
+
+            // Check requirements
+            const hasLower = /[a-z]/.test(password);
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSymbol = /[^A-Za-z0-9]/.test(password);
+            const hasLength = password.length >= 8;
+
+            // Update requirement indicators
+            updateRequirementIndicators(hasLower, hasUpper, hasNumber, hasSymbol, hasLength, password.length);
+
+            // Length check (up to 3 points)
+            if (password.length >= 12) strength += 3;
+            else if (password.length >= 8) strength += 2;
+            else if (password.length >= 6) strength += 1;
+
+            // Character variety checks
+            if (hasLower) strength += 1;
+            if (hasUpper) strength += 1;
+            if (hasNumber) strength += 1;
+            if (hasSymbol) strength += 1;
+
+            // Bonus for mixed case and numbers/symbols
+            if (hasLower && hasUpper) strength += 1;
+            if (hasNumber && hasSymbol) strength += 1;
+
+            // Cap at 10
+            strength = Math.min(strength, 10);
+
+            // Update meter and text
+            pwdMeter.value = strength;
+
+            // Determine strength level and color
+            if (strength <= 3) {
+                feedback = 'Weak';
+                meterText.style.color = '#dc2626';
+                pwdMeter.className = 'weak';
+            } else if (strength <= 6) {
+                feedback = 'Fair';
+                meterText.style.color = '#d97706';
+                pwdMeter.className = 'fair';
+            } else if (strength <= 8) {
+                feedback = 'Good';
+                meterText.style.color = '#2563eb';
+                pwdMeter.className = 'good';
+            } else {
+                feedback = 'Strong';
+                meterText.style.color = '#059669';
+                pwdMeter.className = 'strong';
+            }
+
+            meterText.textContent = `Password strength: ${feedback} (${strength}/10)`;
         }
-        function updateMeter() {
-            const s = scorePassword(pwd.value);
-            meter.value = Math.min(s, 4);
-            let label = 'Weak';
-            if (s <= 2) label = 'Weak';
-            else if (s === 3) label = 'Medium';
-            else if (s >= 4 && pwd.value.length >= 12) label = 'Strong';
-            meterText.textContent = `Strength: ${label}`;
-            btn.disabled = !(label === 'Strong');
+
+        function resetRequirements() {
+            document.getElementById('req-length').textContent = 'At least 8 characters';
+            document.getElementById('req-length').className = 'requirement-unmet';
+            document.getElementById('req-lowercase').className = 'requirement-unmet';
+            document.getElementById('req-uppercase').className = 'requirement-unmet';
+            document.getElementById('req-number').className = 'requirement-unmet';
+            document.getElementById('req-symbol').className = 'requirement-unmet';
         }
-        pwd.addEventListener('input', updateMeter);
-        updateMeter();
+
+        function updateRequirementIndicators(lower, upper, number, symbol, minLength, length) {
+            // Update length requirement with current count
+            document.getElementById('req-length').textContent = `At least 8 characters (${length}/8)`;
+            document.getElementById('req-length').className = minLength ? 'requirement-met' : 'requirement-unmet';
+
+            // Update other requirements
+            document.getElementById('req-lowercase').className = lower ? 'requirement-met' : 'requirement-unmet';
+            document.getElementById('req-uppercase').className = upper ? 'requirement-met' : 'requirement-unmet';
+            document.getElementById('req-number').className = number ? 'requirement-met' : 'requirement-unmet';
+            document.getElementById('req-symbol').className = symbol ? 'requirement-met' : 'requirement-unmet';
+        }
+
+        // Add event listeners
+        pwdInput.addEventListener('input', updatePasswordStrength);
+        pwdInput.addEventListener('change', updatePasswordStrength);
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePasswordStrength();
+        });
     </script>
+}
 }
