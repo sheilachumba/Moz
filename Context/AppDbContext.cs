@@ -1,5 +1,6 @@
 ﻿using ClientPortal.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClientPortal.Data
@@ -30,7 +31,10 @@ namespace ClientPortal.Data
         protected override void OnModelCreating(ModelBuilder b)
         {
             base.OnModelCreating(b);
-           
+
+            b.Ignore<SelectListItem>();
+            b.Ignore<SelectListGroup>();
+
 
 
             // ApplicationUser configuration

@@ -469,6 +469,12 @@
                     </div>
 
                     <!-- NAMES AND DOB -->
+                    <label for="SelectedSalutation">Salutation</label>
+                    <select asp-for="SelectedSalutation" asp-items="ViewBag.IdentityTypes" class="form-select">
+                        <option value="">Select a salutation...</option>
+                    </select>
+
+
                     <div class="col-4 form-group">
                         <label asp-for="FirstName">First Name <span class="required"></span></label>
                         <input asp-for="FirstName" class="form-control" />

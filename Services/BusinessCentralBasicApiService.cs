@@ -1,55 +1,50 @@
 ﻿using ClientPortal.Models;
 using Microsoft.Extensions.Configuration;
+using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
-// This service handles Basic Authentication for Business Central on-premises API calls.
 public class BusinessCentralBasicApiService
 {
     private readonly IConfiguration _config;
     private readonly HttpClient _httpClient;
 
-    public BusinessCentralBasicApiService(IConfiguration config, IHttpClientFactory factory)
+    public BusinessCentralBasicApiService(IConfiguration config)
     {
         _config = config;
-        _httpClient = factory.CreateClient();
+        var handler = new HttpClientHandler
+        {
+            Credentials = new NetworkCredential(
+                _config["BcApi:Administrator"],
+                _config["BcApi:Insurance@2030#"],
+                _config["BcApi:SIIBL-CIC-DEMO"]) 
+        };
+        _httpClient = new HttpClient(handler);
     }
-
-    // Configure the HttpClient with Basic Auth headers
-    private void SetBasicAuthHeader()
-    {
-        var username = _config["BcApi:Username"];   // Correct key
-        var password = _config["BcApi:Password"];   // Correct key
-        var auth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", auth);
-    }
-
 
     // Make a GET request to a BC endpoint
     public async Task<HttpResponseMessage> GetAsync(string url)
     {
-        SetBasicAuthHeader();
         return await _httpClient.GetAsync(url);
     }
 
     // Make a POST request to a BC endpoint
     public async Task<HttpResponseMessage> PostAsync(string url, HttpContent content)
     {
-        SetBasicAuthHeader();
         return await _httpClient.PostAsync(url, content);
     }
 
     // Make a PATCH request to a BC endpoint
     public async Task<HttpResponseMessage> PatchAsync(string url, HttpContent content)
     {
-        SetBasicAuthHeader();
         var method = new HttpMethod("PATCH");
         var request = new HttpRequestMessage(method, url) { Content = content };
         return await _httpClient.SendAsync(request);
     }
+
     public class Salutation
     {
         public string Code { get; set; } = string.Empty;
@@ -58,9 +53,7 @@ public class BusinessCentralBasicApiService
 
     public async Task<List<Salutation>> GetSalutationsAsync()
     {
-        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/Salutations";
-
-        SetBasicAuthHeader();
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/Salutations"; // Fully encoded URL
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -84,18 +77,16 @@ public class BusinessCentralBasicApiService
         }
         return result;
     }
+
     public class CountryRegion
     {
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        // You may add more fields if needed
     }
 
     public async Task<List<CountryRegion>> GetCountriesAsync()
     {
-        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/CountriesAndRegions";
-
-        SetBasicAuthHeader();
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/CountriesAndRegions";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -118,6 +109,7 @@ public class BusinessCentralBasicApiService
         }
         return result;
     }
+
     public class PostalCodeVm
     {
         public string Code { get; set; } = string.Empty;
@@ -127,8 +119,7 @@ public class BusinessCentralBasicApiService
 
     public async Task<List<PostalCodeVm>> GetPostalCodesAsync()
     {
-        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/PostalCodes";
-        SetBasicAuthHeader();
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/PostalCodes";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -152,6 +143,7 @@ public class BusinessCentralBasicApiService
         }
         return result;
     }
+
     public class SourceOfFundsVm
     {
         public string Source { get; set; } = string.Empty;
@@ -159,8 +151,7 @@ public class BusinessCentralBasicApiService
 
     public async Task<List<SourceOfFundsVm>> GetSourcesOfFundsAsync()
     {
-        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/Insuredcard";
-        SetBasicAuthHeader();
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/Insuredcard";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
@@ -181,12 +172,16 @@ public class BusinessCentralBasicApiService
         }
         return result.Select(s => new SourceOfFundsVm { Source = s }).ToList();
     }
-    
+
+    public class MeansOfIdentificationVm
+    {
+        public string Means_of_ID { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
     public async Task<List<MeansOfIdentificationVm>> GetMeansOfIdentificationAsync()
     {
-        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/MeansofIdentification";
-        SetBasicAuthHeader();
-
+        var url = "http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/MeansofIdentification";
         var response = await _httpClient.GetAsync(url);
         if (!response.IsSuccessStatusCode)
             throw new Exception($"Failed to fetch means of identification: HTTP {(int)response.StatusCode}");
@@ -207,15 +202,14 @@ public class BusinessCentralBasicApiService
         }
         return result;
     }
+
     public async Task<IndividualKyc?> GetIndividualKycStatusAsync(string userId)
     {
-        var url = $"http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/Insuredcard";
-        SetBasicAuthHeader();
+        var url = $"http://196.201.224.102:2048/BC260/ODataV4/Company%28%27STANDARD%20INSURANCE%27%29/Insuredcard";
         var response = await _httpClient.GetAsync(url);
 
         if (!response.IsSuccessStatusCode)
         {
-            // You may handle 404 differently if no record found yet
             return null;
         }
 
@@ -227,5 +221,4 @@ public class BusinessCentralBasicApiService
 
         return kyc;
     }
-
 }

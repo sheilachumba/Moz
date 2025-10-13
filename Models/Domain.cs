@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 //using ClientPortal.Models;
 namespace ClientPortal.Models
@@ -301,6 +303,13 @@ public class IndividualKyc
 
         [JsonPropertyName("Means_of_Identification")]
         public string? IdType { get; set; }
+
+        //[JsonIgnore]
+        //public string? SelectedSalutation { get; set; }
+
+        public List<SelectListItem>? Salutations { get; set; }
+        [NotMapped]
+        public string SelectedSalutation { get; set; }
 
         [JsonPropertyName("ID_Number")]
         public string? IdNumber { get; set; }

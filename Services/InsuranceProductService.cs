@@ -19,14 +19,14 @@ namespace Moz.Services
         {
             var handler = new HttpClientHandler
             {
-                Credentials = new NetworkCredential("Administrator", "Insurance@2030#", "YourDomain")
+                Credentials = new NetworkCredential("Administrator", "Insurance@2030#", "SIIBL-CIC-DEMO")
             };
 
             _httpClient = new HttpClient(handler);
 
             // Add Basic authentication header explicitly as double insurance
-            var byteArray = System.Text.Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+            //var byteArray = System.Text.Encoding.ASCII.GetBytes("Administrator:Insurance@2030#");
+            //_httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
         }
 
         public async Task<List<InsuranceProduct>> GetInsuranceProducts()

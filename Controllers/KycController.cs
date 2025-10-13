@@ -102,13 +102,33 @@ public class KycController : Controller
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Individual);
 
         // Fetch salutations dynamically from Business Central and map to SelectListItems 
-        var salutations = await _businessCentralBasicApiService.GetSalutationsAsync();
-        ViewBag.IdentityTypes = salutations.Select(s =>
-            new SelectListItem
+      
+        {
+            var salutations = await _businessCentralBasicApiService.GetSalutationsAsync();
+            ViewBag.IdentityTypes = salutations.Select(s => new SelectListItem
             {
                 Text = string.IsNullOrEmpty(s.Description) ? s.Code : $"{s.Code} - {s.Description}",
                 Value = s.Code
             }).ToList();
+
+            // Pre-select user's current salutation if present
+            var selectedSalutation = kyc.IdType; // Assuming IdType stores salutation code
+            foreach (var item in ViewBag.IdentityTypes)
+            {
+                if (item.Value == selectedSalutation)
+                {
+                    item.Selected = true;
+                    break;
+                }
+            }
+
+            // Set the SelectedSalutation property for model binding
+            kyc.SelectedSalutation = selectedSalutation;
+        }
+
+        return View(kyc);
+
+
 
         // Fetch countries dynamically from Business Central and add to ViewBag.Countries
         var countries = await _businessCentralBasicApiService.GetCountriesAsync();
@@ -181,7 +201,7 @@ public class KycController : Controller
         // Guard: only Individual/SoleProprietor can post here
         if (user.KycType != KycType.Individual && user.KycType != KycType.SoleProprietor)
             return RedirectToAction(nameof(Company));
-
+        vm.IdType = vm.SelectedSalutation;
         // 1) Save files first so drafts never lose attachments
         await SaveFileAsync(user.Id, KycType.Individual, "IdentityDocument", IdentityFile);
         await SaveFileAsync(user.Id, KycType.Individual, "NuitDocument", NuitFile);
