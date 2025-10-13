@@ -22,17 +22,36 @@ public class KycController : Controller
     private readonly AppDbContext _db;
     private readonly IChecklistProvider _checklist;
     private readonly KycSubmissionService _kycSubmissionService;
-    private readonly BusinessCentralBasicApiService _businessCentralBasicApiService;
-
-
-    public KycController(UserManager<ApplicationUser> users, AppDbContext db, IChecklistProvider checklist, KycSubmissionService kycSubmissionService, BusinessCentralBasicApiService businessCentralBasicApiService)
+    private readonly SalutationService _salutationService;
+    private readonly CountryRegionService _countryRegionService;
+    private readonly PostalCodeService _postalCodeService;
+    private readonly SourceOfFundsService _sourceOfFundsService;
+    private readonly MeansOfIdentificationService _meansOfIdentificationService;
+    
+    public KycController(
+        UserManager<ApplicationUser> users,
+        AppDbContext db,
+        IChecklistProvider checklist,
+        KycSubmissionService kycSubmissionService,
+        SalutationService salutationService,
+        CountryRegionService countryRegionService,
+        PostalCodeService postalCodeService,
+        SourceOfFundsService sourceOfFundsService,
+        MeansOfIdentificationService meansOfIdentificationService)
     {
-        _users = users; _db = db; _checklist = checklist; _kycSubmissionService = kycSubmissionService; _businessCentralBasicApiService = businessCentralBasicApiService;
+        _users = users;
+        _db = db;
+        _checklist = checklist;
+        _kycSubmissionService = kycSubmissionService;
+        _salutationService = salutationService;
+        _countryRegionService = countryRegionService;
+        _postalCodeService = postalCodeService;
+        _sourceOfFundsService = sourceOfFundsService;
+        _meansOfIdentificationService = meansOfIdentificationService;
     }
 
     // ------------------- CHECKLIST -------------------
 
-    // GET: derive KYC type from the signed-in user
     [HttpGet]
     public async Task<IActionResult> Checklist()
     {
@@ -47,7 +66,6 @@ public class KycController : Controller
         return View(new ChecklistVm(type, reqs, false));
     }
 
-    // POST: derive KYC type from the signed-in user
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Checklist(bool acknowledged)
@@ -83,7 +101,6 @@ public class KycController : Controller
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        // Guard: only Individual/SoleProprietor can view this form
         if (user.KycType != KycType.Individual && user.KycType != KycType.SoleProprietor)
             return Content("Invalid KYC type for Individual form (" + user.KycType + "). Contact support.");
 
@@ -101,59 +118,54 @@ public class KycController : Controller
         ViewBag.Requirements = _checklist.Get(KycType.Individual);
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Individual);
 
-        // Fetch salutations dynamically from Business Central and map to SelectListItems 
-      
+        // Fetch salutations
+        var salutations = await _salutationService.GetSalutationsAsync();
+        ViewBag.IdentityTypes = salutations.Select(s => new SelectListItem
         {
-            var salutations = await _businessCentralBasicApiService.GetSalutationsAsync();
-            ViewBag.IdentityTypes = salutations.Select(s => new SelectListItem
-            {
-                Text = string.IsNullOrEmpty(s.Description) ? s.Code : $"{s.Code} - {s.Description}",
-                Value = s.Code
-            }).ToList();
+            Text = string.IsNullOrEmpty(s.Description) ? s.Code : $"{s.Code} - {s.Description}",
+            Value = s.Code
+        }).ToList();
 
-            // Pre-select user's current salutation if present
-            var selectedSalutation = kyc.IdType; // Assuming IdType stores salutation code
-            foreach (var item in ViewBag.IdentityTypes)
+        var selectedSalutation = kyc.IdType;
+        foreach (var item in ViewBag.IdentityTypes)
+        {
+            if (item.Value == selectedSalutation)
             {
-                if (item.Value == selectedSalutation)
-                {
-                    item.Selected = true;
-                    break;
-                }
+                item.Selected = true;
+                break;
             }
-
-            // Set the SelectedSalutation property for model binding
-            kyc.SelectedSalutation = selectedSalutation;
         }
+        kyc.SelectedSalutation = selectedSalutation;
 
-        return View(kyc);
-
-
-
-        // Fetch countries dynamically from Business Central and add to ViewBag.Countries
-        var countries = await _businessCentralBasicApiService.GetCountriesAsync();
+        // Fetch countries
+        var countries = await _countryRegionService.GetCountriesAsync();
         ViewBag.Countries = countries.Select(c =>
             new SelectListItem
             {
                 Text = c.Name,
                 Value = c.Code
             }).ToList();
-        var postalcodes = await _businessCentralBasicApiService.GetPostalCodesAsync();
+
+        // Fetch postal codes
+        var postalcodes = await _postalCodeService.GetPostalCodesAsync();
         ViewBag.PostalCodes = postalcodes
             .Select(pc => new SelectListItem
             {
                 Text = $"{pc.Code} - {pc.City}",
                 Value = pc.Code
             }).ToList();
-        var sources = await _businessCentralBasicApiService.GetSourcesOfFundsAsync();
+
+        // Fetch sources of funds
+        var sources = await _sourceOfFundsService.GetSourcesOfFundsAsync();
         ViewBag.SourceOfFunds = sources
             .Select(sf => new SelectListItem
             {
                 Text = sf.Source,
                 Value = sf.Source
             }).ToList();
-        // means of identification
-        var meansOfIdList = await _businessCentralBasicApiService.GetMeansOfIdentificationAsync();
+
+        // Fetch means of identification
+        var meansOfIdList = await _meansOfIdentificationService.GetMeansOfIdentificationAsync();
         ViewBag.MeansOfIdentification = meansOfIdList.Select(m =>
             new SelectListItem
             {
@@ -161,27 +173,25 @@ public class KycController : Controller
                 Value = m.Means_of_ID
             }).ToList();
 
-        // Other dropdown lists remain static or adjust similarly as needed
+        // Static dropdowns
         ViewBag.AddressTypes = new List<SelectListItem>
-    {
-        new("Utility Bill", "Utility Bill"),
-        new("Employer Letter", "Employer Letter"),
-        new("Municipal Declaration", "Municipal Declaration"),
-    };
+        {
+            new("Utility Bill", "Utility Bill"),
+            new("Employer Letter", "Employer Letter"),
+            new("Municipal Declaration", "Municipal Declaration"),
+        };
 
         ViewBag.IncomeProofTypes = new List<SelectListItem>
-    {
-        new("Employer Letter", "Employer Letter"),
-        new("Self-Declaration", "Self-Declaration"),
-    };
+        {
+            new("Employer Letter", "Employer Letter"),
+            new("Self-Declaration", "Self-Declaration"),
+        };
 
         return View(kyc);
     }
 
-
-
     // ------------------- INDIVIDUAL (POST) -------------------
-    // Lift limits so file binding doesn't fail for larger PDFs/images.
+
     [HttpPost, ValidateAntiForgeryToken]
     [RequestFormLimits(MultipartBodyLengthLimit = 1024L * 1024L * 100L)]
     [RequestSizeLimit(1024L * 1024L * 100L)]
@@ -191,18 +201,18 @@ public class KycController : Controller
         IFormFile NuitFile,
         IFormFile AddressProofFile,
         IFormFile IncomeProofFile,
-        IFormFile DriversLicenseFile,         // optional, used for Motor
-        IFormFile PassportPhotoFile,          // optional
-        [FromForm(Name = "action")] string action)   // <-- bind the clicked button ("save" | "submit")
+        IFormFile DriversLicenseFile,
+        IFormFile PassportPhotoFile,
+        [FromForm(Name = "action")] string action)
     {
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        // Guard: only Individual/SoleProprietor can post here
         if (user.KycType != KycType.Individual && user.KycType != KycType.SoleProprietor)
             return RedirectToAction(nameof(Company));
+
         vm.IdType = vm.SelectedSalutation;
-        // 1) Save files first so drafts never lose attachments
+
         await SaveFileAsync(user.Id, KycType.Individual, "IdentityDocument", IdentityFile);
         await SaveFileAsync(user.Id, KycType.Individual, "NuitDocument", NuitFile);
         await SaveFileAsync(user.Id, KycType.Individual, "AddressProof", AddressProofFile);
@@ -210,7 +220,6 @@ public class KycController : Controller
         await SaveFileAsync(user.Id, KycType.Individual, "DriversLicense", DriversLicenseFile);
         await SaveFileAsync(user.Id, KycType.Individual, "PassportPhoto", PassportPhotoFile);
 
-        // 2) Upsert main KYC row (even if invalid -> we still redirect to dashboard)
         var existing = await _db.IndividualKycs.SingleOrDefaultAsync(x => x.UserId == user.Id);
         if (existing == null)
         {
@@ -219,13 +228,12 @@ public class KycController : Controller
         }
         else
         {
-            // *** KEY-SAFE UPDATE ***
-            vm.Id = existing.Id;                 // keep PK
-            vm.UserId = existing.UserId;         // keep FK/identifying FK
+            vm.Id = existing.Id;
+            vm.UserId = existing.UserId;
             _db.Entry(existing).CurrentValues.SetValues(vm);
         }
 
-        try { HttpContext.Session.SetString("HasDraft", "true"); } catch { /* ignore */ }
+        try { HttpContext.Session.SetString("HasDraft", "true"); } catch { }
         await _db.SaveChangesAsync();
 
         var isSubmit = string.Equals(action, "submit", StringComparison.OrdinalIgnoreCase);
@@ -233,12 +241,10 @@ public class KycController : Controller
 
         if (isSubmit)
         {
-            // If complete & valid -> Submitted; else keep as draft but still redirect to dashboard
             if (await HasAllRequiredDocs(user.Id, KycType.Individual) && ModelState.IsValid)
             {
                 try
                 {
-                    // Submit KYC data to BC
                     bool success = await _kycSubmissionService.SubmitIndividualKycAsync(vm);
 
                     if (!success)
@@ -247,10 +253,6 @@ public class KycController : Controller
                         return RedirectToAction("Individual", "Dashboard");
                     }
 
-
-
-                    // Upload documents one by one (example for one document)
-                    // Repeat for all required docs
                     var insuredCardNo = "INSU000"; // Replace with actual insured card number from BC response if available
                     var uploadSuccess = await _kycSubmissionService.UploadKycDocumentAsync(insuredCardNo, IdentityFile.FileName, IdentityFile.FileName);
                     if (!uploadSuccess)
@@ -259,7 +261,6 @@ public class KycController : Controller
                         return RedirectToAction("Individual", "Dashboard");
                     }
 
-                    // Update status locally
                     var row = existing ?? vm;
                     row.Status = KycStatus.Submitted;
                     row.SubmittedAt = DateTime.UtcNow;
@@ -271,7 +272,6 @@ public class KycController : Controller
                 }
                 catch (Exception ex)
                 {
-                    // Log exception (add your logging here)
                     TempData["Err"] = $"An error occurred during submission: {ex.Message}";
                 }
             }
@@ -288,7 +288,6 @@ public class KycController : Controller
             return RedirectToAction("Individual", "Dashboard");
         }
 
-        // Fallback
         ViewBag.Requirements = _checklist.Get(KycType.Individual);
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Individual);
         return View(vm);
@@ -302,7 +301,6 @@ public class KycController : Controller
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        // Guard: only Company/Association can view this form
         if (user.KycType != KycType.Company && user.KycType != KycType.Association)
             return RedirectToAction(nameof(Individual));
 
@@ -321,31 +319,29 @@ public class KycController : Controller
     }
 
     // ------------------- COMPANY (POST) -------------------
+
     [HttpPost, ValidateAntiForgeryToken]
     [RequestFormLimits(MultipartBodyLengthLimit = 1024L * 1024L * 100L)]
     [RequestSizeLimit(1024L * 1024L * 100L)]
     public async Task<IActionResult> Company(
         CompanyKyc vm,
-        IFormFile IncCertFile,     // e.g., Certificate of Incorporation
-        IFormFile CR12File,        // registry doc / equivalent
-        IFormFile KRAFile,         // tax PIN / equivalent for MZ adapt naming if needed
-        IFormFile BoardResFile,    // board resolution / mandate
-        [FromForm(Name = "action")] string action) // <-- bind the clicked button ("save" | "submit")
+        IFormFile IncCertFile,
+        IFormFile CR12File,
+        IFormFile KRAFile,
+        IFormFile BoardResFile,
+        [FromForm(Name = "action")] string action)
     {
         var user = await _users.GetUserAsync(User);
         if (user == null) return Challenge();
 
-        // Guard
         if (user.KycType != KycType.Company && user.KycType != KycType.Association)
             return RedirectToAction(nameof(Individual));
 
-        // 1) Save uploaded company documents (adjust keys to your checklist keys)
         await SaveFileAsync(user.Id, KycType.Company, "CertificateOfIncorporation", IncCertFile);
         await SaveFileAsync(user.Id, KycType.Company, "CR12", CR12File);
         await SaveFileAsync(user.Id, KycType.Company, "TaxId", KRAFile);
         await SaveFileAsync(user.Id, KycType.Company, "BoardResolution", BoardResFile);
 
-        // 2) Upsert KYC row (even if invalid -> we still redirect to dashboard)
         var existing = await _db.CompanyKycs.SingleOrDefaultAsync(x => x.UserId == user.Id);
         if (existing == null)
         {
@@ -354,9 +350,8 @@ public class KycController : Controller
         }
         else
         {
-            // *** KEY-SAFE UPDATE ***
-            vm.Id = existing.Id;                 // keep PK
-            vm.UserId = existing.UserId;         // keep FK/identifying FK
+            vm.Id = existing.Id;
+            vm.UserId = existing.UserId;
             _db.Entry(existing).CurrentValues.SetValues(vm);
         }
 
@@ -371,7 +366,6 @@ public class KycController : Controller
             {
                 try
                 {
-                    // Submit KYC data to BC
                     var success = await _kycSubmissionService.SubmitCompanyKycAsync(vm);
                     if (!success)
                     {
@@ -379,8 +373,6 @@ public class KycController : Controller
                         return RedirectToAction("Company", "Dashboard");
                     }
 
-                    // Upload documents one by one (example for one document)
-                    // Repeat for all required docs
                     var insuredCardNo = "INSU000"; // Replace with actual insured card number from BC response if available
                     var uploadSuccess = await _kycSubmissionService.UploadKycDocumentAsync(insuredCardNo, IncCertFile.FileName, IncCertFile.FileName);
                     if (!uploadSuccess)
@@ -389,7 +381,6 @@ public class KycController : Controller
                         return RedirectToAction("Company", "Dashboard");
                     }
 
-                    // Update status locally
                     var row = existing ?? vm;
                     row.Status = KycStatus.Submitted;
                     row.SubmittedAt = DateTime.UtcNow;
@@ -401,7 +392,6 @@ public class KycController : Controller
                 }
                 catch (Exception ex)
                 {
-                    // Log exception (add your logging here)
                     TempData["Err"] = $"An error occurred during submission: {ex.Message}";
                 }
             }
@@ -418,12 +408,12 @@ public class KycController : Controller
             return RedirectToAction("Company", "Dashboard");
         }
 
-        // Fallback
         ViewBag.Requirements = _checklist.Get(KycType.Company);
         ViewBag.CanSubmit = await HasAllRequiredDocs(user.Id, KycType.Company);
         return View(vm);
     }
-    // ------------------- UPLOAD (AJAX helper; still available) -------------------
+
+    // ------------------- UPLOAD (AJAX helper) -------------------
 
     [HttpPost]
     public async Task<IActionResult> Upload(KycType type, string docTypeKey, IFormFile file)
@@ -492,6 +482,4 @@ public class KycController : Controller
         var allPresent = requiredKeys.IsSubsetOf(uploadedKeys);
         return Task.FromResult(allPresent);
     }
-
-
 }

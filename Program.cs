@@ -41,7 +41,11 @@ builder.Services.AddTransient<IInsuranceProductService, InsuranceProductService>
 builder.Services.AddTransient<BusinessCentralBasicApiService>();
 builder.Services.AddTransient<KycSubmissionService>();
 builder.Services.AddHttpClient();
-
+builder.Services.AddTransient<SalutationService>();
+builder.Services.AddTransient<CountryRegionService>();
+builder.Services.AddTransient<PostalCodeService>();
+builder.Services.AddTransient<SourceOfFundsService>();
+builder.Services.AddTransient<MeansOfIdentificationService>();
 var app = builder.Build();
 
 // Auto-migrate on startup (dev-friendly)
