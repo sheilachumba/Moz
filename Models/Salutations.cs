@@ -1,11 +1,10 @@
 ﻿using ClientPortal.Models;
 
-namespace Moz.Models
+namespace ClientPortal.Models
 {
-    public class Salutations
+    public class Salutation
     {
-
-        public string Code { get; set; }
-        public string Description { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }

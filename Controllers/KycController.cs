@@ -23,31 +23,31 @@ public class KycController : Controller
     private readonly IChecklistProvider _checklist;
     private readonly KycSubmissionService _kycSubmissionService;
     private readonly SalutationService _salutationService;
-    private readonly CountryRegionService _countryRegionService;
-    private readonly PostalCodeService _postalCodeService;
-    private readonly SourceOfFundsService _sourceOfFundsService;
-    private readonly MeansOfIdentificationService _meansOfIdentificationService;
+    //private readonly CountryRegionService _countryRegionService;
+    //private readonly PostalCodeService _postalCodeService;
+    //private readonly SourceOfFundsService _sourceOfFundsService;
+    //private readonly MeansOfIdentificationService _meansOfIdentificationService;
     
     public KycController(
         UserManager<ApplicationUser> users,
         AppDbContext db,
         IChecklistProvider checklist,
         KycSubmissionService kycSubmissionService,
-        SalutationService salutationService,
-        CountryRegionService countryRegionService,
-        PostalCodeService postalCodeService,
-        SourceOfFundsService sourceOfFundsService,
-        MeansOfIdentificationService meansOfIdentificationService)
+        SalutationService salutationService)
+        //CountryRegionService countryRegionService,
+        //PostalCodeService postalCodeService,
+        //SourceOfFundsService sourceOfFundsService,
+        //MeansOfIdentificationService meansOfIdentificationService
     {
         _users = users;
         _db = db;
         _checklist = checklist;
         _kycSubmissionService = kycSubmissionService;
         _salutationService = salutationService;
-        _countryRegionService = countryRegionService;
-        _postalCodeService = postalCodeService;
-        _sourceOfFundsService = sourceOfFundsService;
-        _meansOfIdentificationService = meansOfIdentificationService;
+        //_countryRegionService = countryRegionService;
+        //_postalCodeService = postalCodeService;
+        //_sourceOfFundsService = sourceOfFundsService;
+        //_meansOfIdentificationService = meansOfIdentificationService;
     }
 
     // ------------------- CHECKLIST -------------------
@@ -138,40 +138,40 @@ public class KycController : Controller
         kyc.SelectedSalutation = selectedSalutation;
 
         // Fetch countries
-        var countries = await _countryRegionService.GetCountriesAsync();
-        ViewBag.Countries = countries.Select(c =>
-            new SelectListItem
-            {
-                Text = c.Name,
-                Value = c.Code
-            }).ToList();
+        //var countries = await _countryRegionService.GetCountriesAsync();
+        //ViewBag.Countries = countries.Select(c =>
+        //    new SelectListItem
+        //    {
+        //        Text = c.Name,
+        //        Value = c.Code
+        //    }).ToList();
 
         // Fetch postal codes
-        var postalcodes = await _postalCodeService.GetPostalCodesAsync();
-        ViewBag.PostalCodes = postalcodes
-            .Select(pc => new SelectListItem
-            {
-                Text = $"{pc.Code} - {pc.City}",
-                Value = pc.Code
-            }).ToList();
+        //var postalcodes = await _postalCodeService.GetPostalCodesAsync();
+        //ViewBag.PostalCodes = postalcodes
+        //    .Select(pc => new SelectListItem
+        //    {
+        //        Text = $"{pc.Code} - {pc.City}",
+        //        Value = pc.Code
+        //    }).ToList();
 
         // Fetch sources of funds
-        var sources = await _sourceOfFundsService.GetSourcesOfFundsAsync();
-        ViewBag.SourceOfFunds = sources
-            .Select(sf => new SelectListItem
-            {
-                Text = sf.Source,
-                Value = sf.Source
-            }).ToList();
+        //var sources = await _sourceOfFundsService.GetSourcesOfFundsAsync();
+        //ViewBag.SourceOfFunds = sources
+        //    .Select(sf => new SelectListItem
+        //    {
+        //        Text = sf.Source,
+        //        Value = sf.Source
+        //    }).ToList();
 
         // Fetch means of identification
-        var meansOfIdList = await _meansOfIdentificationService.GetMeansOfIdentificationAsync();
-        ViewBag.MeansOfIdentification = meansOfIdList.Select(m =>
-            new SelectListItem
-            {
-                Text = string.IsNullOrWhiteSpace(m.Description) ? m.Means_of_ID : $"{m.Means_of_ID} - {m.Description}",
-                Value = m.Means_of_ID
-            }).ToList();
+        //var meansOfIdList = await _meansOfIdentificationService.GetMeansOfIdentificationAsync();
+        //ViewBag.MeansOfIdentification = meansOfIdList.Select(m =>
+        //    new SelectListItem
+        //    {
+        //        Text = string.IsNullOrWhiteSpace(m.Description) ? m.Means_of_ID : $"{m.Means_of_ID} - {m.Description}",
+        //        Value = m.Means_of_ID
+        //    }).ToList();
 
         // Static dropdowns
         ViewBag.AddressTypes = new List<SelectListItem>

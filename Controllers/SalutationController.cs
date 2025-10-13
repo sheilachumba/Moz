@@ -12,8 +12,8 @@ namespace Moz.Controllers
             public async Task<ActionResult> Index()
             {
                 var salutations = await _service.GetSalutationsAsync();
-                ViewBag.Salutations = new SelectList(salutations, "Code", "Description");
-                return View();
+            ViewBag.Salutations = new SelectList(salutations, "Code", "Description");
+            return View();
             }
         }
     }

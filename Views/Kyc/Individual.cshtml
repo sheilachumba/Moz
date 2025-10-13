@@ -1,5 +1,5 @@
 ﻿@model ClientPortal.Models.IndividualKyc
-@inject HttpClient Http
+@using Newtonsoft.Json
 @{
     Layout = "_Layout";
     ViewData["Title"] = "Individual KYC (Mozambique)";
@@ -447,7 +447,7 @@
                 <span class="required">*</span> Required fields must be completed. Uploads are required before continuing.
             </p>
         </div>
-
+        <pre>@Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.Salutations))</pre>
         <form asp-controller="Kyc" asp-action="Individual" method="post" enctype="multipart/form-data" id="kycForm">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="validation-summary-errors"></div>
@@ -470,7 +470,11 @@
                     </div>
 
                     <!-- NAMES AND DOB -->
-                  
+                    <select asp-for="SelectedSalutation" asp-items="ViewBag.Salutations" class="form-select">
+                        <option value="">Select a salutation...</option>
+                    </select>
+
+
 
                     <div class="col-4 form-group">
                         <label asp-for="FirstName">First Name <span class="required"></span></label>
@@ -493,9 +497,9 @@
                         <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
                     </div>
                     <!-- NATIONALITY DROPDOWN (source: BC, single option: Mozambique for now) -->
-                    <select asp-for="Nationality" id="Nationality" class="form-control" asp-items="ViewBag.Countries">
+                    @* <select asp-for="Nationality" id="Nationality" class="form-control" asp-items="ViewBag.Countries">
                         <option value="">Select nationality</option>
-                    </select>
+                    </select> *@
 
                     <!-- GENDER, MARITAL STATUS -->
                     <div class="col-4 form-group">
@@ -521,13 +525,13 @@
                     </div>
 
                     <!-- MEANS OF IDENTIFICATION: RADIO, ONLY ONE CAN BE PICKED -->
-                    <div class="col-4 form-group">
+                    @* <div class="col-4 form-group">
                         <label asp-for="IdType">Means of Identification</label>
                         <select asp-for="IdType" class="form-control" asp-items="ViewBag.MeansOfIdentification">
                             <option value="">Select one</option>
                         </select>
                         <span asp-validation-for="IdType" class="field-validation-error"></span>
-                    </div>
+                    </div> *@
 
 
                     <!-- DYNAMIC FIELDS FOR MEANS OF IDENTIFICATION: NUMBER, FILE, EXPIRY DATE if required -->
@@ -591,13 +595,13 @@
             </script> *@
 
             <!-- 3) PERSONAL ADDRESS -->
-            <div class="col-4 form-group">
+            @* <div class="col-4 form-group">
                 <label asp-for="PostCode">Postal Code <span class="required"></span></label>
                 <select asp-for="PostCode" class="form-control" asp-items="ViewBag.PostalCodes">
                     <option value="">Select postal code</option>
                 </select>
                 <span asp-validation-for="PostCode" class="field-validation-error"></span>
-            </div>
+            </div> *@
 
 
             <!-- 4) PROFESSIONAL DATA -->
@@ -684,13 +688,13 @@
             </fieldset>
 
             <!-- 9) SOURCE OF INCOME -->
-            <div class="col-4 form-group">
+            @* <div class="col-4 form-group">
                 <label asp-for="SourceOfFunds">Source of Funds</label>
                 <select asp-for="SourceOfFunds" class="form-control" asp-items="ViewBag.SourceOfFunds">
                     <option value="">Select source</option>
                 </select>
                 <span asp-validation-for="SourceOfFunds" class="field-validation-error"></span>
-            </div>
+            </div> *@
 
 
             <!-- 10) SIGNATURES & DECLARATION -->

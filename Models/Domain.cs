@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -195,12 +196,18 @@ namespace ClientPortal.Models
     {
         public int Id { get; set; }
 
-        [Required] public string UserId { get; set; } = default!;
-        [Required, MaxLength(50)] public string Reference { get; set; } = default!; // e.g., QTN-2001
+        [Required]
+        public string UserId { get; set; } = default!;
 
-        [Required] public string Status { get; set; } = "Draft"; // Draft/Sent/Accepted/Declined
+        [Required, MaxLength(50)]
+        public string Reference { get; set; } = default!; // e.g., QTN-2001
+
+        [Required]
+        public string Status { get; set; } = "Draft"; // Draft/Sent/Accepted/Declined
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        [Precision(18, 4)] // Ensures correct SQL column type
         public decimal? Amount { get; set; }
 
         public virtual ApplicationUser User { get; set; } = default!;
@@ -277,6 +284,9 @@ public class IndividualKyc
         public string IdentityNumber { get; set; } = string.Empty;
         public DateTime? IdentityExpiryDate { get; set; }
         public string SourceOfFunds { get; set; } = string.Empty;
+        public string Means_of_ID { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
 
         // Next of Kin
         public string NextOfKinTitle { get; set; } = string.Empty;

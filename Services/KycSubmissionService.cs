@@ -165,10 +165,10 @@ public class KycSubmissionService
         }
         return true;
     }
-    public async Task<ActionResult> Index()
-    {
-        var salutations = await _service.GetSalutationsAsync();
-        ViewBag.Salutations = new SelectList(salutations, "Code", "Description");
-        return View();
-    }
+    //public async Task<ActionResult> Index()
+    //{
+    //    var salutations = await _service.GetSalutationsAsync();
+    //    ViewBag.Salutations = new SelectList(salutations, "Code", "Description");
+    //    return View();
+    //}
 }

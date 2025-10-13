@@ -7,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ClientPortal.Models;
 
 namespace ClientPortal.Services
 {
@@ -42,6 +43,7 @@ namespace ClientPortal.Services
                     Code = item.GetProperty("Code").GetString(),
                     Description = item.GetProperty("Description").GetString()
                 });
+
             }
 
             return list;
