@@ -1,0 +1,176 @@
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@using MudBlazor.Charts
+
+<div class="overview-container">
+    <!-- Stats Cards -->
+    <div class="stats-grid mb-4">
+        <!-- Policies Card -->
+        <div class="stat-card">
+            <div class="stat-icon" style="color: #4f46e5;">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" />
+            </div>
+            <div class="stat-value">@PolicyStats.Total</div>
+            <div class="stat-label">@LangService.T("Total Policies", "Total de Apólices")</div>
+            <div class="stat-details">
+                <span>@LangService.T("Active", "Ativas"): @PolicyStats.Active</span>
+                <span>@LangService.T("Pending", "Pendentes"): @PolicyStats.Pending</span>
+            </div>
+        </div>
+
+        <!-- Payments Card -->
+        <div class="stat-card">
+            <div class="stat-icon" style="color: #10b981;">
+                <MudIcon Icon="@Icons.Material.Filled.Payments" Size="Size.Large" />
+            </div>
+            <div class="stat-value">@PaymentStats.TotalAmount.ToString("C2")</div>
+            <div class="stat-label">@LangService.T("Total Payments", "Total de Pagamentos")</div>
+            <div class="stat-details">
+                <span>@LangService.T("This Month", "Este Mês"): @PaymentStats.ThisMonthAmount.ToString("C2")</span>
+            </div>
+        </div>
+
+        <!-- Claims Card -->
+        <div class="stat-card">
+            <div class="stat-icon" style="color: #ef4444;">
+                <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Large" />
+            </div>
+            <div class="stat-value">@ClaimStats.Total</div>
+            <div class="stat-label">@LangService.T("Total Claims", "Total de Sinistros")</div>
+            <div class="stat-details">
+                <span>@LangService.T("Open", "Abertos"): @ClaimStats.Open</span>
+                <span>@LangService.T("Closed", "Fechados"): @ClaimStats.Closed</span>
+            </div>
+        </div>
+
+        <!-- Quotes Card -->
+        <div class="stat-card">
+            <div class="stat-icon" style="color: #8b5cf6;">
+                <MudIcon Icon="@Icons.Material.Filled.RequestQuote" Size="Size.Large" />
+            </div>
+            <div class="stat-value">@QuoteStats.Total</div>
+            <div class="stat-label">@LangService.T("Total Quotes", "Total de Cotações")</div>
+            <div class="stat-details">
+                <span>@LangService.T("Converted", "Convertidas"): @QuoteStats.Converted</span>
+                <span>@LangService.T("Pending", "Pendentes"): @QuoteStats.Pending</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+        <!-- Bar Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h4>@LangService.T("Monthly Overview", "Visão Mensal")</h4>
+            </div>
+            <div class="chart-content">
+                <MudChart @ref="barChart" ChartType="ChartType.Bar" ChartOptions="@barChartOptions" 
+                         XAxisLabels="@xAxisLabels" YAxisFormatString="{0:C0}" 
+                         ChartSeries="@barChartSeries" />
+            </div>
+        </div>
+
+        <!-- Pie Chart -->
+        <div class="chart-container">
+            <div class="chart-header">
+                <h4>@LangService.T("Policy Distribution", "Distribuição de Apólices")</h4>
+            </div>
+            <div class="chart-content">
+                <MudChart @ref="pieChart" ChartType="ChartType.Pie" ChartOptions="@pieChartOptions" 
+                         ChartSeries="@pieChartSeries" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="export-actions mt-4">
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                   OnClick="ExportToPdf" EndIcon="@Icons.Material.Filled.PictureAsPdf">
+            @LangService.T("Export to PDF", "Exportar para PDF")
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success" Class="ms-2"
+                   OnClick="ExportToExcel" EndIcon="@Icons.Material.Filled.TableChart">
+            @LangService.T("Export to Excel", "Exportar para Excel")
+        </MudButton>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ReportStats PolicyStats { get; set; } = new();
+    [Parameter] public ReportStats PaymentStats { get; set; } = new();
+    [Parameter] public ReportStats ReceiptStats { get; set; } = new();
+    [Parameter] public ReportStats ClaimStats { get; set; } = new();
+    [Parameter] public ReportStats QuoteStats { get; set; } = new();
+    [Parameter] public EventCallback OnExportPdf { get; set; }
+    [Parameter] public LanguageService LangService { get; set; }
+    
+    private MudChart barChart;
+    private MudChart pieChart;
+    
+    // Chart data
+    private List<ChartSeries> barChartSeries = new();
+    private List<ChartSeries> pieChartSeries = new();
+    private string[] xAxisLabels = Array.Empty<string>();
+    
+    // Chart options
+    private ChartOptions barChartOptions = new()
+    {
+        ChartPalette = new string[] { "#4f46e5", "#10b981", "#ef4444" },
+        YAxisTicks = 5,
+        XAxisLines = true,
+        YAxisLines = true,
+        DisableLegend = false,
+        LineStrokeWidth = 3
+    };
+    
+    private ChartOptions pieChartOptions = new()
+    {
+        ChartPalette = new string[] { "#4f46e5", "#8b5cf6", "#a78bfa", "#c4b5fd" },
+        DisableLegend = false
+    };
+    
+    protected override void OnInitialized()
+    {
+        InitializeCharts();
+    }
+    
+    private void InitializeCharts()
+    {
+        // Bar chart data
+        barChartSeries = new List<ChartSeries>
+        {
+            new() { Name = LangService.T("Active", "Ativas"), Data = new double[] { 45, 52, 65, 55, 47, 60 } },
+            new() { Name = LangService.T("Pending", "Pendentes"), Data = new double[] { 15, 20, 12, 18, 25, 22 } },
+            new() { Name = LangService.T("Expired", "Expiradas"), Data = new double[] { 5, 8, 3, 7, 5, 8 } }
+        };
+        xAxisLabels = new[] { 
+            LangService.T("Jan", "Jan"), 
+            LangService.T("Feb", "Fev"), 
+            LangService.T("Mar", "Mar"),
+            LangService.T("Apr", "Abr"),
+            LangService.T("May", "Mai"),
+            LangService.T("Jun", "Jun")
+        };
+        
+        // Pie chart data
+        pieChartSeries = new List<ChartSeries>
+        {
+            new() { Name = LangService.T("Auto", "Automóvel"), Data = new double[] { 45 } },
+            new() { Name = LangService.T("Home", "Casa"), Data = new double[] { 25 } },
+            new() { Name = LangService.T("Health", "Saúde"), Data = new double[] { 20 } },
+            new() { Name = LangService.T("Life", "Vida"), Data = new double[] { 10 } }
+        };
+    }
+    
+    private async Task ExportToPdf()
+    {
+        await OnExportPdf.InvokeAsync();
+    }
+    
+    private async Task ExportToExcel()
+    {
+        // TODO: Implement Excel export
+        // This will be handled by the parent component
+    }
+}

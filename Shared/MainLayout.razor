@@ -1,0 +1,271 @@
+@inherits LayoutComponentBase
+
+<PageTitle>Standard Insurance</PageTitle>
+<div class="page @(isDark? "dark" : "light")">
+    <main>
+        <MudThemeProvider @ref="_themeProvider" IsDarkMode="@isDark" Theme="@theme" />
+        <MudDialogProvider />
+        <MudSnackbarProvider />
+        <MudLayout>
+            <MudBreakpointProvider OnBreakpointChanged="OnBreakpointChanged" />
+            @if (isvisible)
+            {
+                <MudAppBar Elevation="1" Dense="true" Style="background-color:#17275F">
+                    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+                    <MudSpacer />
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div style="display:flex;gap:4px;background:rgba(255,255,255,.12);padding:4px;border-radius:9999px;">
+                            <button class="lang-btn @((lang=="en")?"active":null)" @onclick='@(()=>SetLang("en"))' style="border:none;background:transparent;color:white;font-weight:700;padding:4px 8px;border-radius:9999px;">EN</button>
+                            <button class="lang-btn @((lang=="pt")?"active":null)" @onclick='@(()=>SetLang("pt"))' style="border:none;background:transparent;color:white;font-weight:700;padding:4px 8px;border-radius:9999px;">PT</button>
+                        </div>
+                        <MudIconButton Color="Color.Inherit" OnClick="@ToggleTheme" Icon="@(isDark ? Icons.Material.Outlined.LightMode : Icons.Material.Outlined.DarkMode)" />
+                    </div>
+                    <MudBadge OnClick="@(()=>navigate.NavigateTo("/NottificationsPage"))" Color="Color.Warning" Overlap="true" Class="mx-6 my-4">
+                        <MudIcon @onclick="@(()=>navigate.NavigateTo("/NottificationsPage"))" Style="color:white" Size="Size.Medium" Icon="@Icons.Material.Filled.NotificationsActive" Color="Color.Inherit" />
+                    </MudBadge>
+                    <MudMenu>
+                        <ActivatorContent>
+                            <MudAvatar>
+                                <MudAvatar Style="@Smallavaterstyle">@FirstLeter</MudAvatar>
+                            </MudAvatar>
+                            <MudText Class="hide-on-mobile" Style="margin-top:6px;margin-left:8px">@name</MudText>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudPaper Width="300px" Square="true" Elevation="0">
+                                <MudList T="string" Dense="true">
+                                    <div style="text-align:center">
+                                        <MudAvatar Style="@avaterstyle">@FirstLeter</MudAvatar>
+                                        <MudText Typo="Typo.h5" Class="px-4 mt-3 text-capitalize">@name</MudText>
+                                        <MudText Typo="Typo.body2" Class="px-4 mud-text-secondary">@email</MudText>
+                                    </div>
+                                    <MudDivider Style="margin-top:8px" />
+                                    <MudListItem Text="My Profile" OnClick="@(()=>navigate.NavigateTo($"/UserAccount/{UserIdd}"))" Icon="@Icons.Material.Outlined.AccountCircle" />
+                                    <MudListItem Text="My Inbox" Icon="@Icons.Material.Outlined.Inbox" />
+                                    <MudDivider />
+                                    <MudListItem Style="Color:red" Text="Log Out" OnClick="LogOut" IconColor="Color.Error" Icon="@Icons.Material.Filled.Logout" />
+                                </MudList>
+                            </MudPaper>
+                        </ChildContent>
+                    </MudMenu>
+                </MudAppBar>
+                <MudDrawer @bind-Open="@open" ClipMode="clipMode" Breakpoint="@breakpoint" PreserveOpenState="@preserveOpenState" Elevation="1" Variant="@drawerVariant">
+                    @if (open)
+                    {
+                        <div style="display: flex; align-items: center;">
+                            <MudImage Src="Images/LOGO.png" Style="height:50px; margin-right:10px;" Class="img-fluid" />
+                            <div>
+                                <div style="font-size:large;font-weight:bolder;">Standard Insurance</div>
+                                <div style="font-size:small;">Client Portal</div>
+                            </div>
+                        </div>
+
+                    }
+                    else
+                    {
+                        <div>
+                            <MudImage Src="Images/LOGO.png" Style="height:50px" Class="img-fluid" />
+                        </div>
+                    }
+                    <NavMenu />
+                </MudDrawer>
+            }
+            <MudMainContent Class="pt-12 px-0">
+                <CascadingValue Value="this">
+                    <CascadingValue Value="deviceCategory">
+                        <div @key="lang">
+                            <body style="background-color:ghostwhite;font-family:Calibri" class="content px-0">
+                                @Body
+                            </body>
+                        </div>
+                    </CascadingValue>
+                </CascadingValue>
+            </MudMainContent>
+        </MudLayout>
+    </main>
+</div>
+<MudMessageBox @ref="mbox" Title="Warning!!." CancelText="Cancel ">
+    <MessageContent>
+        <MudAlert Severity="Severity.Error">
+            You are about to log out. Would you like to continue?
+        </MudAlert>
+    </MessageContent>
+    <YesButton>
+        <MudButton Variant="Variant.Filled" Class="text-capitalize" Color="Color.Error" EndIcon="@Icons.Material.Outlined.Logout"> Log Out!</MudButton>
+    </YesButton>
+</MudMessageBox>
+
+@implements IDisposable
+
+@code {
+    [Inject] public MOZ_UPGRADE.Utils.LanguageService LangService { get; set; }
+    [Inject] public IJSRuntime JS { get; set; }
+    private MudThemeProvider _themeProvider;
+    private readonly MudTheme theme = new()
+    {
+        Palette = new Palette
+        {
+            Primary = "#0B184E",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#0B184E",
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "16px"
+        },
+        Typography = new Typography
+        {
+            Default = new Default
+            {
+                FontFamily = new[] { "Inter", "SF Pro Text", "SF Pro Display", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Arial", "sans-serif" }
+            }
+        }
+    };
+    private bool isDark = false;
+    private string lang = "pt";
+    bool open = true;
+    string avaterstyle = "";
+    string Smallavaterstyle = "";
+    string name = "n/a";
+    string FirstLeter = "";
+    string email = "n/a";
+    string color = "";
+    string UserIdd;
+
+    int count = 0;
+    bool isvisible = false;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var stored = await JS.InvokeAsync<string>("localStorage.getItem", "site_lang");
+            if (!string.IsNullOrWhiteSpace(stored))
+            {
+                lang = stored;
+                LangService.SetLang(lang);
+            }
+            else
+            {
+                // default Portuguese
+                LangService.SetLang(lang);
+                await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", lang);
+            }
+            var theme = await JS.InvokeAsync<string>("localStorage.getItem", "site_theme");
+            isDark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { }
+        LangService.OnChange += HandleLangChanged;
+        name = await unitOfWork.Get_LoggedIn_User.UserFullName();
+        FirstLeter = unitOfWork.icolorCodes.GetFirstLetter(name);
+        email = await unitOfWork.Get_LoggedIn_User.UserEmail();
+        color = unitOfWork.icolorCodes.GetColorCode_string();
+        avaterstyle = $"background-color:{color}; height:70px; width:70px; font-size:2rem;color:white";
+        UserIdd = await unitOfWork.Get_LoggedIn_User.UserId();
+        Smallavaterstyle = $"background-color:{color};border:solid 1px white;color:white";
+       
+        isvisible = true;
+    }
+    bool preserveOpenState = false;
+    Breakpoint breakpoint = Breakpoint.Md;
+    DrawerVariant drawerVariant = DrawerVariant.Mini;
+    DrawerClipMode clipMode = DrawerClipMode.Never;
+
+    private async Task SetLang(string code)
+    {
+        lang = (code=="pt")?"pt":"en";
+        LangService.SetLang(lang);
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", lang); } catch { }
+        StateHasChanged();
+    }
+
+    private async Task ToggleTheme()
+    {
+        isDark = !isDark;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_theme", isDark?"dark":"light"); } catch { }
+        StateHasChanged();
+    }
+
+    void ToggleDrawer()
+    {
+        open = !open;
+    }
+    void OnBreakpointChanged(Breakpoint bp)
+    {
+        // On mobile (below Md) use Temporary so closed drawer is fully hidden (no icons)
+        drawerVariant = bp < Breakpoint.Md ? DrawerVariant.Temporary : DrawerVariant.Mini;
+        open = bp >= Breakpoint.Md;
+        StateHasChanged();
+    }
+    MudMessageBox mbox { get; set; }
+    public async Task LogOut()
+    {
+        bool? result = await mbox.Show();
+        if (result != null)
+        {
+            unitOfWork.Get_LoggedIn_User.LogOut();
+            navigate.NavigateTo("/", true);
+        }
+        StateHasChanged();
+    }
+
+    private void HandleLangChanged() => InvokeAsync(StateHasChanged);
+
+}
+<MudOverlay @bind-Visible="visible" LightBackground="true" AutoClose="false" ZIndex="9999">
+    <MudCard Elevation="0">
+        <MudCardActions>
+            <MudProgressCircular Color="Color.Warning" Indeterminate="true" />
+            <MudText Typo="Typo.h6" Color="Color.Warning" Style="margin-left:24px">Loading...</MudText>
+        </MudCardActions>
+    </MudCard>
+</MudOverlay>
+
+    @code {
+    private bool visible;
+
+    public void OpenLoading()
+    {
+        visible = true;
+        StateHasChanged();
+    }
+    public void CloseLoading()
+    {
+        visible = false;
+        StateHasChanged();
+    }
+    }
+
+
+
+@code {
+    public string deviceCategory;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+            // deviceCategory = await ScreenSizeService.GetDeviceCategoryAsync();
+            // ScreenSizeService.OnResize += HandleResize;
+
+            // await ScreenSizeService.RegisterResizeHandlerAsync();
+
+            StateHasChanged(); // Trigger a re-render to update the UI
+
+        }
+    }
+
+    private void HandleResize(string newCategory)
+    {
+        deviceCategory = newCategory;
+        InvokeAsync(StateHasChanged); // Update the UI when screen size changes
+    }
+
+    public void Dispose()
+    {
+        // ScreenSizeService.OnResize -= HandleResize;
+        try { LangService.OnChange -= HandleLangChanged; } catch { }
+    }
+
+}

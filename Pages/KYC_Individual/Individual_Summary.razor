@@ -1,0 +1,608 @@
+@page "/Individual_Summary"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+
+<style>
+    .kyc-page {
+        background: #ffffff;
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+
+    .kyc-header {
+        background: #ffffff;
+        color: #333;
+        padding: 16px 14px;
+        margin-bottom: 16px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .kyc-header-content {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .kyc-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 14px 16px 14px;
+    }
+
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: 12px;
+        padding: 16px 12px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        gap: 6px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background: #e0e0e0;
+        z-index: 0;
+    }
+
+    .step.active:not(:last-child)::after {
+        background: #3657a6;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        border: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: #999;
+        margin-bottom: 6px;
+        position: relative;
+        z-index: 1;
+        font-size: 13px;
+    }
+
+    .step.active .step-number {
+        background: #3657a6;
+        border-color: #3657a6;
+        color: white;
+    }
+
+    .step-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .step.active .step-label {
+        color: #2d488f;
+    }
+
+    .review-section {
+        background: white;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #283A79;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 2px solid #e8edf9;
+        padding-bottom: 6px;
+    }
+
+    .success-alert {
+        background: #e7f3ff;
+        border: 1px solid #d0ddff;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        color: #1F3A7F;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .info-card {
+        border-left: 4px solid #3657a6;
+        padding: 10px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .info-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: #283A79;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    .documents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .document-badge {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .document-name {
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 6px;
+        font-size: 0.9rem;
+    }
+
+    .document-status {
+        display: inline-block;
+        padding: 3px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-uploaded {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .consent-section {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .consent-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .consent-icon {
+        font-size: 1.5rem;
+    }
+
+    .consent-title {
+        font-weight: 700;
+        color: #283A79;
+        font-size: 0.95rem;
+    }
+
+    .consent-text {
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 10px;
+    }
+
+    .compliance-box {
+        background: #e8edf9;
+        border-left: 4px solid #283A79;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 12px;
+    }
+
+    .compliance-title {
+        font-weight: 700;
+        color: #283A79;
+        margin-bottom: 6px;
+    }
+
+    .compliance-text {
+        color: #0f172a;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        margin-top: 12px;
+    }
+
+    .btn {
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-secondary {
+        background: transparent;
+        border: 1px solid #e2e8f0;
+        color: #0f172a;
+    }
+
+    .btn-secondary:hover {
+        background: #e8edf9;
+        border-color: #3657a6;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #283A79, #3657a6);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #1F3A7F, #2d488f);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(31,58,127, 0.25);
+    }
+
+    /* Mobile adjustments */
+    @@media (max-width: 600px) {
+        .kyc-header { padding: 12px 10px; margin-bottom: 12px; }
+        .kyc-content { padding: 0 10px 12px 10px; }
+        .section-title { font-size: 1rem; margin-bottom: 8px; }
+        .review-section { padding: 12px; }
+        .action-buttons { flex-direction: column; gap: 10px; }
+        .btn { width: 100%; }
+        .step-indicator { padding: 14px 10px; margin-bottom: 12px; }
+        .step-number { width: 30px; height: 30px; font-size: 12px; }
+        .step-label { font-size: 12px; }
+    }
+</style>
+
+<div class="kyc-page">
+    <!-- Header -->
+    <div class="kyc-header">
+        <div class="kyc-header-content">
+            <MudText Typo="Typo.h4" style="font-weight: 700; margin-bottom: 10px;">
+                @LangService.T("Individual KYC Application","Aplicação KYC Individual")
+            </MudText>
+            <MudText Typo="Typo.body1" style="opacity: 0.95;">
+                @LangService.T("Review and submit your KYC information","Revise e submeta as suas informações KYC")
+            </MudText>
+        </div>
+    </div>
+
+    <div class="kyc-content">
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-label">@LangService.T("Personal Information","Informação Pessoal")</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-label">@LangService.T("Upload Documents","Carregar Documentos")</div>
+            </div>
+            <div class="step active">
+                <div class="step-number">3</div>
+                <div class="step-label">@LangService.T("Review & Submit","Rever & Submeter")</div>
+            </div>
+        </div>
+
+        <!-- Review Section -->
+        <div class="review-section">
+            <div class="section-title">📋 @LangService.T("Review Your Application","Revise a Sua Candidatura")</div>
+            <MudText Typo="Typo.body2" style="color: #999; margin-bottom: 15px;">
+                @LangService.T("Please review all information before final submission","Por favor, reveja todas as informações antes da submissão final")
+            </MudText>
+
+            <div class="success-alert">
+                ✓ @LangService.T("Documents uploaded. Please review and submit your application.","Documentos carregados. Por favor, reveja e submeta a sua candidatura.")
+            </div>
+
+            <!-- Personal Information -->
+            <div class="section-title" style="margin-top: 30px; margin-bottom: 20px;">
+                👤 @LangService.T("Personal Information","Informação Pessoal")
+            </div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Full Name","Nome Completo")</div>
+                    <div class="info-value">@(kycData?.First_name ?? "N/A") @(kycData?.Last_Name ?? "")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Date of Birth","Data de Nascimento")</div>
+                    <div class="info-value">@(kycData?.Date_of_Birth ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Gender","Género")</div>
+                    <div class="info-value">@(kycData?.Sex ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Nationality","Nacionalidade")</div>
+                    <div class="info-value">@(kycData?.Nationality ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("ID Type","Tipo de ID")</div>
+                    <div class="info-value">@(kycData?.Means_of_Identification ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("ID Number","Número de ID")</div>
+                    <div class="info-value">@(kycData?.BVN_No ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Email","Email")</div>
+                    <div class="info-value">@(kycData?.E_Mail ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Phone","Telefone")</div>
+                    <div class="info-value">@(kycData?.Phone_No ?? "N/A")</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">@LangService.T("Address","Morada")</div>
+                    <div class="info-value">@(kycData?.Address ?? "N/A")</div>
+                </div>
+            </div>
+
+            <!-- Uploaded Documents -->
+            <div class="section-title" style="margin-top: 30px; margin-bottom: 20px;">
+                📄 @LangService.T("Uploaded Documents","Documentos Carregados")
+            </div>
+            <div class="documents-grid">
+                <div class="document-badge">
+                    <div class="document-name">@LangService.T("Identification Document","Documento de Identificação")</div>
+                    <span class="document-status status-uploaded">✓ @LangService.T("Uploaded","Carregado")</span>
+                    <div style="margin-top:8px;">
+                        <button class="btn btn-secondary" @onclick='@(() => ViewDocument("DOC096"))'>@LangService.T("View","Ver")</button>
+                    </div>
+                </div>
+                <div class="document-badge">
+                    <div class="document-name">@LangService.T("Utility Bill","Fatura de Serviços")</div>
+                    <span class="document-status status-uploaded">✓ @LangService.T("Uploaded","Carregado")</span>
+                    <div style="margin-top:8px;">
+                        <button class="btn btn-secondary" @onclick='@(() => ViewDocument("DOC086"))'>@LangService.T("View","Ver")</button>
+                    </div>
+                </div>
+                <div class="document-badge">
+                    <div class="document-name">@LangService.T("Address Verification","Verificação de Morada")</div>
+                    <span class="document-status status-uploaded">✓ @LangService.T("Uploaded","Carregado")</span>
+                    <div style="margin-top:8px;">
+                        <button class="btn btn-secondary" @onclick='@(() => ViewDocument("DOC085"))'>@LangService.T("View","Ver")</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Declarations -->
+            <div class="section-title" style="margin-top: 30px; margin-bottom: 20px;">
+                ⚖️ @LangService.T("Declarations & Consents","Declarações & Consensos")
+            </div>
+
+            <!-- Declaration of Accuracy -->
+            <div class="consent-section">
+                <div class="consent-header">
+                    <span class="consent-icon">⚠️</span>
+                    <div class="consent-title">@LangService.T("Declaration of Accuracy","Declaração de Exatidão")</div>
+                </div>
+                <div class="consent-text">
+                    @LangService.T("I hereby declare that all information provided in this KYC application is true, accurate, and complete to the best of my knowledge. I understand that providing false information may result in the rejection of my application and potential legal consequences.","Declaro que todas as informações fornecidas nesta aplicação KYC são verdadeiras, exatas e completas ao melhor do meu conhecimento. Compreendo que fornecer informações falsas pode resultar na rejeição da minha candidatura e em eventuais consequências legais.")
+                </div>
+                <MudCheckBox @bind-Checked="@confirmAccuracy" Label='@LangService.T("I confirm the accuracy of all information provided","Confirmo a exatidão de todas as informações fornecidas")' />
+            </div>
+
+            <!-- Data Protection Consent -->
+            <div class="consent-section">
+                <div class="consent-header">
+                    <span class="consent-icon">🔒</span>
+                    <div class="consent-title">@LangService.T("Data Protection Consent","Consentimento de Proteção de Dados")</div>
+                </div>
+                <div class="consent-text">
+                    @LangService.T("I consent to the collection, processing, and storage of my personal data in accordance with applicable data protection laws. Your information will be used solely for KYC verification and regulatory compliance purposes.","Consinto na recolha, tratamento e armazenamento dos meus dados pessoais de acordo com as leis de proteção de dados aplicáveis. As suas informações serão utilizadas apenas para verificação KYC e conformidade regulatória.")
+                </div>
+                <MudCheckBox @bind-Checked="@confirmDataProtection" Label='@LangService.T("I consent to data processing as described","Consinto no processamento de dados conforme descrito")' />
+            </div>
+
+            <!-- Marketing Communications -->
+            <div class="consent-section" style="background: #f0fdf4; border-color: #86efac;">
+                <div class="consent-header">
+                    <span class="consent-icon">📧</span>
+                    <div class="consent-title">@LangService.T("Marketing Communications (Optional)","Comunicações de Marketing (Opcional)")</div>
+                </div>
+                <div class="consent-text">
+                    @LangService.T("Would you like to receive updates about new products, services, and special offers?","Gostaria de receber atualizações sobre novos produtos, serviços e ofertas especiais?")
+                </div>
+                <MudCheckBox @bind-Checked="@confirmMarketing" Label='@LangService.T("Yes, I would like to receive marketing communications","Sim, gostaria de receber comunicações de marketing")' />
+            </div>
+
+            <!-- Regulatory Compliance -->
+            <div class="compliance-box">
+                <div class="compliance-title">ℹ️ @LangService.T("Regulatory Compliance","Conformidade Regulatória")</div>
+                <div class="compliance-text">
+                    @LangService.T("This KYC process complies with Anti-Money Laundering (AML) and Counter-Terrorist Financing (CTF) regulations. Your information will be verified and may be shared with regulatory authorities as required by law.","Este processo KYC cumpre as regulações de Prevenção de Branqueamento de Capitais (AML) e Financiamento ao Terrorismo (CTF). As suas informações serão verificadas e poderão ser partilhadas com autoridades regulatórias conforme exigido por lei.")
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button class="btn btn-secondary" @onclick="@(() => navigate.NavigateTo("/Individual_documents"))">
+                    ← @LangService.T("Back to Edit","Voltar para Editar")
+                </button>
+                <button class="btn btn-primary" @onclick="ShowConfirmDialog" disabled="@(!isFormValid)">
+                    @LangService.T("Submit KYC Application →","Submeter Aplicação KYC →")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Dialog -->
+<MudDialog @bind-IsVisible="showConfirmDialog">
+    <TitleContent>
+        <MudText Typo="Typo.h6" style="font-weight: 700;">@LangService.T("Confirm Submission","Confirmar Submissão")</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body1" style="margin-bottom: 15px;">
+            @LangService.T("Are you sure you want to submit your KYC application? Once submitted, your information will be sent for verification.","Tem a certeza de que deseja submeter a sua aplicação KYC? Após submetida, a sua informação será enviada para verificação.")
+        </MudText>
+        <MudAlert Severity="Severity.Warning" Dense="true">
+            @LangService.T("Please ensure all information is accurate before proceeding.","Por favor, certifique-se de que toda a informação está correta antes de prosseguir.")
+        </MudAlert>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CancelSubmit" Variant="Variant.Text">@LangService.T("Cancel","Cancelar")</MudButton>
+        <MudButton OnClick="ConfirmSubmit" Variant="Variant.Filled" Color="Color.Primary">
+            @LangService.T("Yes, Submit Application","Sim, Submeter Aplicação")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+
+    private IndividualKyc kycData;
+    private bool confirmAccuracy = false;
+    private bool confirmDataProtection = false;
+    private bool confirmMarketing = false;
+    private string currentUserContactNo = "";
+    private bool showConfirmDialog = false;
+
+    private bool isFormValid => confirmAccuracy && confirmDataProtection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Layout.OpenLoading();
+
+            // Get current user's Contact_No
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.Contact_No))
+                    {
+                        currentUserContactNo = dbUser.Contact_No;
+
+                        // Load KYC data from BC
+                        kycData = await UnitOfWork.ContactCardService.GetContactCardAsync(currentUserContactNo);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading summary: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+    }
+
+    private void ShowConfirmDialog()
+    {
+        showConfirmDialog = true;
+    }
+
+    private void CancelSubmit()
+    {
+        showConfirmDialog = false;
+    }
+
+    private async Task ConfirmSubmit()
+    {
+        showConfirmDialog = false;
+        await SubmitApplication();
+    }
+
+    private async Task SubmitApplication()
+    {
+        try
+        {
+            Layout.OpenLoading();
+
+            // Update KYC status to submitted
+            if (kycData != null)
+            {
+                kycData.Application_Status = KycStatus.Submitted;
+                kycData.Data_Protection_Consent = true;
+                kycData.Accept_Marketing_Communication = true;
+                await UnitOfWork.ContactCardService.CreateOrUpdateContactCardAsync(kycData);
+            }
+
+            Snackbar.Add("KYC Application submitted successfully!", Severity.Success);
+          
+            navigate.NavigateTo("/Dashboard");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting application: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+    }
+
+    private void ViewDocument(string documentCode)
+    {
+        if (KycUploadContext.IndividualDocumentUrlsByCode.TryGetValue(documentCode, out var url) && !string.IsNullOrWhiteSpace(url))
+        {
+            JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            return;
+        }
+
+        Snackbar.Add($"No uploaded document link found for {documentCode}. Please re-upload.", Severity.Warning);
+    }
+}

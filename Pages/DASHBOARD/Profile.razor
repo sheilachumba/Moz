@@ -1,0 +1,844 @@
+@page "/Profile"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<style>
+    .profile-container {
+        padding: 40px 20px;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+    }
+
+    .profile-header {
+        margin-bottom: 40px;
+    }
+
+    .profile-header h1 {
+        font-size: 42px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 12px 0;
+    }
+
+    .profile-header p {
+        font-size: 16px;
+        color: #666;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .profile-content {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+
+    .profile-card {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2E5090;
+        margin: 0 0 25px 0;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.3s ease;
+        background-color: #fafafa;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #2E5090;
+        background-color: white;
+        box-shadow: 0 0 0 3px rgba(46, 80, 144, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .form-row-full {
+        grid-column: 1 / -1;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 2px solid #f0f0f0;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+        color: white;
+        border: none;
+        padding: 14px 32px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 13px;
+    }
+
+    .btn-save:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-save:active {
+        transform: translateY(-1px);
+    }
+
+    .btn-cancel {
+        background: #f0f0f0;
+        color: #333;
+        border: 2px solid #e0e0e0;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 13px;
+    }
+
+    .btn-cancel:hover {
+        background: #e0e0e0;
+        border-color: #d0d0d0;
+    }
+
+    .profile-avatar-section {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 30px;
+        padding-bottom: 30px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .avatar-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 40px;
+        font-weight: 700;
+    }
+
+    .avatar-info h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #333;
+        margin: 0 0 5px 0;
+    }
+
+    .avatar-info p {
+        font-size: 13px;
+        color: #999;
+        margin: 0;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #2E5090;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 12px;
+    }
+
+    .empty-state {
+        padding: 60px 40px;
+        text-align: center;
+        color: #999;
+    }
+
+    .empty-state-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: #666;
+    }
+
+    .info-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        color: #0d47a1;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-badge.verified {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        color: #1b5e20;
+    }
+
+    .info-badge.pending {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #e65100;
+    }
+
+    .btn-view-more {
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(46, 80, 144, 0.2);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-view-more:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(46, 80, 144, 0.3);
+    }
+
+    .btn-view-more:active {
+        transform: translateY(0);
+    }
+    .status-badges { display:flex; gap:8px; align-items:center; margin-top:6px; }
+    .status-badge { padding:6px 10px; border-radius:9999px; font-size:12px; font-weight:800; letter-spacing:.2px; }
+    .status-open { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+    .status-submitted { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .status-pending { background:#fef9c3; color:#854d0e; border:1px solid #fde68a; }
+    .status-approved { background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; }
+    .status-rejected { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+    .meta-badge { padding:6px 10px; border-radius:9999px; font-size:12px; font-weight:700; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; }
+    .card-subtitle { font-weight:800; color:#283A79; margin:8px 0 10px 0; display:flex; align-items:center; gap:8px; }
+    .card-subtitle::before { content:''; width:10px; height:10px; border-radius:4px; background: linear-gradient(135deg, #283A79 0%, #1F3A7F 100%); box-shadow: 0 3px 8px rgba(40,58,121,.25); }
+    .edit-link { font-size:12px; font-weight:700; color:#0B184E; cursor:pointer; padding:4px 8px; border-radius:10px; background:#eef2ff; border:1px solid #e0e7ff; }
+    .inline-field { display:flex; align-items:center; gap:6px; }
+    .compact-input input,
+    .compact-input select,
+    .compact-input textarea { padding:8px 10px; font-size:13px; }
+    .compact-input label { font-size:12px; }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .grid-3 { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
+    @@media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    .breadcrumb { font-size:12px; color:#64748b; display:flex; align-items:center; gap:6px; }
+    .page-title { margin:4px 0 0 0; font-size:22px; font-weight:800; color:#0B184E; letter-spacing:-0.015em; }
+    .summary-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#fff; border:1px solid #E2E8F0; border-radius:16px; padding:10px 12px; box-shadow: 0 10px 24px rgba(16,24,40,.08), 0 2px 4px rgba(16,24,40,.06); margin: 8px 0 16px 0; }
+    .summary-left { display:flex; align-items:center; gap:12px; }
+    .chip { padding:4px 8px; border-radius:9999px; font-size:12px; font-weight:700; border:1px solid #e2e8f0; background:#f8fafc; color:#334155; }
+    .summary-actions { display:flex; align-items:center; gap:8px; }
+</style>
+
+<div class="profile-container">
+    <div class="profile-header">
+        <div class="breadcrumb">
+            <span>Home</span>
+            <span style="opacity:.5">/</span>
+            <span style="color:#1f2937; font-weight:600;">Profile</span>
+        </div>
+        <h1 class="page-title">My Profile</h1>
+      
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="empty-state">
+            <div class="loading-spinner"></div>
+            <div class="empty-state-text">Loading your profile...</div>
+        </div>
+    }
+    else if (currentUser != null)
+    {
+        <div class="profile-content">
+            @if (currentUser.AccountType.ToString() == "Corporate" || currentUser.AccountType.ToString() == "Company")
+            {
+                <div class="profile-card compact-input">
+                    <h2 class="card-title">Company Information</h2>
+
+                    <div class="profile-avatar-section">
+                        <div class="avatar-circle">@GetInitials(currentUser.Email)</div>
+                        <div class="avatar-info">
+                            <h3>@currentUser.Email</h3>
+                            <p>Account Type: @currentUser.AccountType</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Company Name</label>
+                        <input type="text" @bind="currentUser.FullName" placeholder="Enter company name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Company Email</label>
+                        <input type="email" @bind="currentUser.Email" disabled />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Company Phone</label>
+                        <input type="tel" @bind="currentUser.PhoneNumber" placeholder="Enter company phone" />
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="profile-card">
+                    <h2 class="card-title">Personal Information</h2>
+
+                    <div class="profile-avatar-section">
+                        <div class="avatar-circle">@GetInitials(currentUser.Email)</div>
+                        <div class="avatar-info">
+                            <h3>@currentUser.Email</h3>
+                            <p>Account Type: @currentUser.AccountType</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" @bind="currentUser.Email" disabled />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" @bind="currentUser.FullName" placeholder="Enter your full name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" @bind="currentUser.FirstName" placeholder="Enter your first name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Middle Name</label>
+                        <input type="text" @bind="currentUser.MiddleName" placeholder="Enter your middle name (optional)" />
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" @bind="currentUser.LastName" placeholder="Enter your last name" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" @bind="currentUser.PhoneNumber" placeholder="Enter your phone number" />
+                    </div>
+                </div>
+            }
+
+            <!-- KYC Information Card -->
+            <div class="profile-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0; gap:12px;">
+                    <div>
+                        <h2 class="card-title" style="margin: 0;">KYC Information</h2>
+                        <div class="status-badges">
+                            <span class="status-badge @GetKycStatusClass()">@GetKycStatusText()</span>
+                            @if (kycSummaryLoadedAt.HasValue)
+                            {
+                                <span class="meta-badge">Synced @kycSummaryLoadedAt.Value.ToString("yyyy-MM-dd HH:mm")</span>
+                            }
+                        </div>
+                    </div>
+                    <button class="btn-view-more" @onclick="NavigateToKyc">View More →</button>
+                </div>
+
+                <div class="form-group">
+                    <label>Account Type</label>
+                    <div style="padding: 12px 16px; background-color: #fafafa; border-radius: 8px; border: 2px solid #e0e0e0;">
+                        <span class="info-badge verified">
+                            @currentUser.AccountType
+                        </span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Contact Number (for KYC)</label>
+                    <input type="text" @bind="currentUser.Contact_No" placeholder="Your contact number in BC" />
+                </div>
+
+                @if (currentUser.AccountType.ToString() == "Corporate" || currentUser.AccountType.ToString() == "Company")
+                {
+                    <div class="card-subtitle">Company Details <span class="edit-link" @onclick='@(() => EditCorporateSection("company"))'>Edit</span></div>
+                    <div class="form-row grid-2">
+                        <div class="form-group">
+                            <label>Company Name</label>
+                            <input type="text" value="@corporateKyc?.Name" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Registration No</label>
+                            <div class="inline-field">
+                                <input type="text" value="@corporateKyc?.Company_Registration" disabled />
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Default" Title="Copy" OnClick='@(() => CopyToClipboard(corporateKyc?.Company_Registration))' />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tax ID (NUIT)</label>
+                            <div class="inline-field">
+                                <input type="text" value="@GetCorporateNuit()" disabled />
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Default" Title="Copy" OnClick='@(() => CopyToClipboard(GetCorporateNuit()))' />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Date of Incorporation</label>
+                            <input type="text" value="@corporateKyc?.Date_of_Incorporation" disabled />
+                        </div>
+                    </div>
+
+                    <div class="card-subtitle">Contact <span class="edit-link" @onclick='@(() => EditCorporateSection("contact"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" value="@corporateKyc?.Phone_No" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="text" value="@corporateKyc?.E_Mail" disabled />
+                        </div>
+                    </div>
+
+                    <div class="card-subtitle">Address <span class="edit-link" @onclick='@(() => EditCorporateSection("address"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Country</label>
+                            <input type="text" value="@corporateKyc?.Country_Region_Code" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>City / Post Code</label>
+                            <input type="text" value="@($"{corporateKyc?.City} {corporateKyc?.Post_Code}")" disabled />
+                        </div>
+                    </div>
+                    <div class="form-group form-row-full">
+                        <label>Address</label>
+                        <input type="text" value="@corporateKyc?.Address" disabled />
+                    </div>
+                    <div class="card-subtitle">Representatives <span class="edit-link" @onclick='@(() => EditCorporateSection("representatives"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Company Representative</label>
+                            <input type="text" value="@corporateKyc?.Company_Representative" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Legal Representative</label>
+                            <input type="text" value="@corporateKyc?.Legal_Representative" disabled />
+                        </div>
+                    </div>
+                    <div class="card-subtitle">Risk & Compliance <span class="edit-link" @onclick='@(() => EditCorporateSection("risk"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Source of Funds</label>
+                            <input type="text" value="@corporateKyc?.Source_of_Funds" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>PEP Status</label>
+                            <input type="text" value="@corporateKyc?.PEP_Status" disabled />
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:10px; padding-top:10px; border-top:2px solid #f0f0f0;">
+                        <div class="card-subtitle" style="margin-top:0;">Documents <span class="edit-link" @onclick='@(() => EditCorporateSection("documents"))'>Edit</span></div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Document Type</label>
+                                <input type="text" value="@corporateKyc?.Means_of_Identification" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>Registration Certificate</label>
+                                <input type="text" value="@corporateKyc?.Company_Registration" disabled />
+                            </div>
+                        </div>
+                        <small style="color:#666;">For full document list and uploads, use "View More".</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="card-subtitle">Personal Information <span class="edit-link" @onclick='@(() => EditIndividualSection("personal"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>NUIT</label>
+                            <div class="inline-field">
+                                <input type="text" value="@individualKyc?.BVN_No" disabled />
+                                <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Default" Title="Copy" OnClick='@(() => CopyToClipboard(individualKyc?.BVN_No))' />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" value="@individualKyc?.Title" disabled />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name</label>
+                            <input type="text" value="@individualKyc?.First_name" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name</label>
+                            <input type="text" value="@individualKyc?.Last_Name" disabled />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date of Birth</label>
+                            <input type="text" value="@individualKyc?.Date_of_Birth" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Gender</label>
+                            <input type="text" value="@individualKyc?.Sex" disabled />
+                        </div>
+                    </div>
+                    <div class="card-subtitle">Identification Document <span class="edit-link" @onclick='@(() => EditIndividualSection("identification"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nationality</label>
+                            <input type="text" value="@individualKyc?.Nationality" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Country</label>
+                            <input type="text" value="@individualKyc?.Country_Region_Code" disabled />
+                        </div>
+                    </div>
+                    <div class="form-group form-row-full">
+                        <label>Address</label>
+                        <input type="text" value="@individualKyc?.Address" disabled />
+                    </div>
+                    <div class="card-subtitle">Contact Information <span class="edit-link" @onclick='@(() => EditIndividualSection("contact"))'>Edit</span></div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="text" value="@individualKyc?.Mobile_Phone_No" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="text" value="@individualKyc?.E_Mail" disabled />
+                        </div>
+                    </div>
+                    <div class="card-subtitle">Risk & Compliance</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Occupation</label>
+                            <input type="text" value="@individualKyc?.Occupation" disabled />
+                        </div>
+                        <div class="form-group">
+                            <label>PEP Status</label>
+                            <input type="text" value="@individualKyc?.PEP_Status" disabled />
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top:10px; padding-top:10px; border-top:2px solid #f0f0f0;">
+                        <div class="card-subtitle" style="margin-top:0;">Documents <span class="edit-link" @onclick='@(() => EditIndividualSection("documents"))'>Edit</span></div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ID Document Type</label>
+                                <input type="text" value="@individualKyc?.Means_of_Identification" disabled />
+                            </div>
+                            <div class="form-group">
+                                <label>ID Number</label>
+                                <div class="inline-field">
+                                    <input type="text" value="@individualKyc?.ID_Number" disabled />
+                                    <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Default" Title="Copy" OnClick='@(() => CopyToClipboard(individualKyc?.ID_Number))' />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ID Expiry Date</label>
+                                <input type="text" value="@individualKyc?.ID_Expiry_Date" disabled />
+                            </div>
+                        </div>
+                        <small style="color:#666;">For full document list and uploads, use "View More".</small>
+                    </div>
+                }
+
+                <div class="form-group">
+                    <label>Two-Factor Authentication</label>
+                    <div style="padding: 12px 16px; background-color: #fafafa; border-radius: 8px; border: 2px solid #e0e0e0;">
+                        <span class="info-badge verified">
+                            @(currentUser.IsTwoFAEnabled ? "Enabled" : "Disabled")
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+          <div class="profile-card compact-input" style="margin-top:12px;">
+            <div class="card-subtitle" style="margin-top:0;">Security</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Two-Factor Authentication</label>
+                    <div style="padding: 10px 12px; background-color: #fafafa; border-radius: 8px; border: 1px solid #e0e0e0; font-weight:700;">
+                        @(currentUser.IsTwoFAEnabled ? "Enabled" : "Disabled")
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Manage Security</label>
+                    <div>
+                        <button class="edit-link" @onclick='@(()=>NavigationManager.NavigateTo("/Settings"))'>Open Settings</button>
+                    </div>
+                </div>
+            </div>
+          </div>
+
+          <div class="profile-card compact-input" style="margin-top:12px;">
+            <div class="card-subtitle" style="margin-top:0;">Quick Links</div>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Documents</label>
+                    <div><button class="edit-link" @onclick="GoToDocuments">View Documents</button></div>
+                </div>
+                <div class="form-group">
+                    <label>My Receipts</label>
+                    <div><button class="edit-link" @onclick='@(()=>NavigationManager.NavigateTo("/MyReceipts"))'>Open</button></div>
+                </div>
+                <div class="form-group">
+                    <label>My Claims</label>
+                    <div><button class="edit-link" @onclick='@(()=>NavigationManager.NavigateTo("/MyClaims"))'>Open</button></div>
+                </div>
+            </div>
+          </div>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <div class="empty-state-text">Unable to load profile information</div>
+        </div>
+    }
+</div>
+
+@code {
+    private Users currentUser;
+    private string additionalNotes = "";
+    private bool isLoading = true;
+    private CorporateKyc corporateKyc;
+    private IndividualKyc individualKyc;
+    private DateTime? kycSummaryLoadedAt;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserProfile();
+    }
+
+    private async Task LoadUserProfile()
+    {
+        try
+        {
+            isLoading = true;
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    currentUser = await UnitOfWork.userRepository.GetByEmail(email);
+                    if (currentUser == null)
+                    {
+                        Snackbar.Add("User profile not found", Severity.Warning);
+                    }
+                    else
+                    {
+                        await LoadKycSummary();
+                    }
+                }
+            }
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading profile: {ex.Message}", Severity.Error);
+            isLoading = false;
+        }
+    }
+
+    private string? GetCorporateNuit()
+    {
+        if (corporateKyc == null) return null;
+        return !string.IsNullOrWhiteSpace(corporateKyc.BVN_No)
+            ? corporateKyc.BVN_No
+            : (!string.IsNullOrWhiteSpace(corporateKyc.VAT_Registration_No)
+                ? corporateKyc.VAT_Registration_No
+                : corporateKyc.Tax_ID);
+    }
+
+    private async Task LoadKycSummary()
+    {
+        try
+        {
+            if (currentUser == null || string.IsNullOrWhiteSpace(currentUser.Contact_No))
+                return;
+
+            var type = currentUser.AccountType.ToString();
+            if (type == "Corporate" || type == "Company")
+            {
+                corporateKyc = await UnitOfWork.CorporateContactCardService.GetContactCardAsync(currentUser.Contact_No);
+            }
+            else
+            {
+                individualKyc = await UnitOfWork.ContactCardService.GetContactCardAsync(currentUser.Contact_No);
+            }
+            kycSummaryLoadedAt = DateTime.Now;
+        }
+        catch { }
+    }
+
+    private string GetKycStatusText()
+    {
+        var type = currentUser?.AccountType.ToString();
+        if (type == "Corporate" || type == "Company")
+        {
+            if (corporateKyc != null)
+                return !string.IsNullOrWhiteSpace(corporateKyc.Approval_Status) ? corporateKyc.Approval_Status : corporateKyc.Application_Status.ToString();
+            return "n/a";
+        }
+        else
+        {
+            if (individualKyc != null)
+                return !string.IsNullOrWhiteSpace(individualKyc.Approval_Status) ? individualKyc.Approval_Status : individualKyc.Application_Status.ToString();
+            return "n/a";
+        }
+    }
+
+    private string GetKycStatusClass()
+    {
+        var s = (GetKycStatusText() ?? "").ToLowerInvariant();
+        if (s.Contains("approved")) return "status-approved";
+        if (s.Contains("reject")) return "status-rejected";
+        if (s.Contains("pending")) return "status-pending";
+        if (s.Contains("submit")) return "status-submitted";
+        if (s.Contains("open") || s == "n/a") return "status-open";
+        return "status-open";
+    }
+
+    private void EditCorporateSection(string section)
+    {
+        NavigationManager.NavigateTo($"/Corporate_Generalinfo?section={section}");
+    }
+
+    private void EditIndividualSection(string section)
+    {
+        NavigationManager.NavigateTo($"/Individual_Generalinfo?section={section}");
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                await JS.InvokeVoidAsync("navigator.clipboard.writeText", text);
+                Snackbar.Add("Copied to clipboard", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Nothing to copy", Severity.Info);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Copy failed", Severity.Error);
+        }
+    }
+
+    private void NavigateToKyc()
+    {
+        if (currentUser == null)
+        {
+            Snackbar.Add("User profile not loaded", Severity.Warning);
+            return;
+        }
+
+        // Navigate based on account type
+        if (currentUser.AccountType.ToString() == "Corporate")
+        {
+            NavigationManager.NavigateTo("/Corporate_Generalinfo");
+        }
+        else if (currentUser.AccountType.ToString() == "Individual")
+        {
+            NavigationManager.NavigateTo("/Individual_Generalinfo");
+        }
+        else
+        {
+            Snackbar.Add("Unknown account type", Severity.Warning);
+        }
+    }
+
+    private void GoToDocuments()
+    {
+        if (currentUser == null)
+        {
+            Snackbar.Add("User profile not loaded", Severity.Warning);
+            return;
+        }
+        NavigationManager.NavigateTo("/ProfileDocuments");
+    }
+
+    private string GetInitials(string email)
+    {
+        if (string.IsNullOrEmpty(email))
+            return "U";
+
+        var parts = email.Split('@')[0].Split('.');
+        var initials = string.Concat(parts.Select(p => p.FirstOrDefault())).ToUpper();
+        return string.IsNullOrEmpty(initials) ? "U" : initials.Substring(0, Math.Min(2, initials.Length));
+    }
+}

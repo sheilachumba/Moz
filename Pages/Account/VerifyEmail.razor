@@ -1,0 +1,446 @@
+@page "/verify-email/{Id}"
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@layout HomeLayout
+
+<style>
+    .verify-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 12px;
+    }
+
+    .verify-card {
+        background: white;
+        border-radius: 16px;
+        padding: 28px 20px;
+        max-width: 420px;
+        width: 100%;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+        text-align: center;
+        animation: slideIn 0.5s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .verify-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+        animation: bounce 0.6s ease-out;
+    }
+
+    @@keyframes bounce {
+        0% {
+            transform: scale(0.3);
+            opacity: 0;
+        }
+        50% {
+            opacity: 1;
+        }
+        70% {
+            transform: scale(1.05);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .verify-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #17275F;
+        margin-bottom: 8px;
+    }
+
+    .verify-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 16px;
+        line-height: 1.4;
+    }
+
+    .verify-message {
+        font-size: 13px;
+        color: #999;
+        margin-bottom: 16px;
+        line-height: 1.5;
+    }
+
+    .verify-status {
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 16px;
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    .verify-status.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .verify-status.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .verify-status.loading {
+        background: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: #0c5460;
+        animation: spin 0.8s linear infinite;
+        margin-right: 6px;
+        vertical-align: middle;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .button-group {
+        display: flex;
+        gap: 8px;
+        flex-direction: column;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 13px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(255, 153, 0, 0.3);
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #E68A00 0%, #CC7700 100%);
+        box-shadow: 0 6px 20px rgba(255, 153, 0, 0.4);
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background: #f0f0f0;
+        color: #17275F;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary:hover {
+        background: #e0e0e0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .verify-features {
+        display: none; /* hide non-essential section to avoid scrolling */
+    }
+
+    .verify-features h4 {
+        font-size: 13px;
+        font-weight: 700;
+        color: #17275F;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+    }
+
+    .feature-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .feature-icon {
+        color: #FF9900;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .error-details {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 12px;
+        font-size: 12px;
+        color: #856404;
+        text-align: left;
+    }
+</style>
+
+<div class="verify-container">
+    <div class="verify-card">
+        @if (isLoading)
+        {
+            <div class="verify-icon">⏳</div>
+            <h1 class="verify-title">Activating Your Account</h1>
+            <p class="verify-subtitle">Please wait while we activate your account...</p>
+            <div class="verify-status loading">
+                <span class="spinner"></span>
+                Processing verification...
+            </div>
+        }
+        else if (isSuccess)
+        {
+            <div class="verify-icon">✅</div>
+            <h1 class="verify-title">Account Activated!</h1>
+            <p class="verify-subtitle">Congratulations! Your account has been successfully activated.</p>
+            <div class="verify-status success">
+                ✓ Your email has been verified and your account is ready to use.
+            </div>
+            <p class="verify-message">
+                You can now log in to your account and start exploring our insurance products. 
+                Get instant quotes, compare coverage options, and manage your policies online.
+            </p>
+
+            <div class="verify-features">
+                <h4>What You Can Do Now:</h4>
+                <div class="feature-item">
+                    <span class="feature-icon">✓</span>
+                    <span>Get instant insurance quotes</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">✓</span>
+                    <span>Compare multiple coverage options</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">✓</span>
+                    <span>Manage your policies online</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-icon">✓</span>
+                    <span>Access 24/7 customer support</span>
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top: 32px;">
+                <button class="btn btn-primary" @onclick="GoToLogin">
+                    🔐 Log In to Your Account
+                </button>
+                <button class="btn btn-secondary" @onclick="GoToHome">
+                    🏠 Back to Home
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="verify-icon">❌</div>
+            <h1 class="verify-title">Verification Failed</h1>
+            <p class="verify-subtitle">We couldn't activate your account.</p>
+            <div class="verify-status error">
+                @errorMessage
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorDetails))
+            {
+                <div class="error-details">
+                    <strong>Details:</strong> @errorDetails
+                </div>
+            }
+
+            <p class="verify-message">
+                This could happen if:
+                <br />• The verification link has expired
+                <br />• The link was already used
+                <br />• The email address is incorrect
+            </p>
+
+            <div class="button-group">
+                <button class="btn btn-primary" @onclick="GoToLogin">
+                    🔐 Try Logging In
+                </button>
+                <button class="btn btn-secondary" @onclick="GoToHome">
+                    🏠 Back to Home
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string? Id { get; set; }
+
+    private bool isLoading = true;
+    private bool isSuccess = false;
+    private string errorMessage = "Unable to verify your email address.";
+    private string errorDetails = "";
+    private const int VERIFICATION_LINK_EXPIRY_HOURS = 24;
+    private bool hasVerified = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !hasVerified)
+        {
+            hasVerified = true;
+            await VerifyEmailAsync();
+        }
+    }
+
+    private async Task VerifyEmailAsync()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Validate ID parameter
+            if (string.IsNullOrEmpty(Id))
+            {
+                isSuccess = false;
+                errorMessage = "Invalid verification link.";
+                errorDetails = "The verification link is missing the user ID.";
+                Snackbar.Add("❌ Invalid verification link. Please check your email and try again.", Severity.Error);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // Find user by strid
+            MOZ_UPGRADE.Models.Users user = null;
+            try
+            {
+                user = await unitOfWork.userRepository.GetById(Id);
+            }
+            catch (Exception ex)
+            {
+                isSuccess = false;
+                errorMessage = "Database error occurred.";
+                errorDetails = ex.Message;
+                Snackbar.Add("🔴 An error occurred while verifying your account. Please try again later.", Severity.Error);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            if (user == null)
+            {
+                isSuccess = false;
+                errorMessage = "User account not found.";
+                errorDetails = $"No account found with the provided ID.";
+                Snackbar.Add("👤 We couldn't find your account. Please check the verification link and try again.", Severity.Error);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // Check if already verified
+            if (user.IsEmailVerified)
+            {
+                isSuccess = true;
+                errorMessage = "";
+                Snackbar.Add("✅ Your email is already verified! You can now log in.", Severity.Success);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // Check if verification timestamp exists and is within 24 hours
+            if (user.EmailVerificationTimestamp == null)
+            {
+                isSuccess = false;
+                errorMessage = "Verification timestamp not found.";
+                errorDetails = "The verification timestamp is missing. Please request a new verification email.";
+                Snackbar.Add("⏰ Verification timestamp not found. Please request a new verification email.", Severity.Warning);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            TimeSpan timeSinceCreation = DateTime.UtcNow - user.EmailVerificationTimestamp.Value;
+
+            if (timeSinceCreation.TotalHours > VERIFICATION_LINK_EXPIRY_HOURS)
+            {
+                isSuccess = false;
+                errorMessage = "Verification link has expired.";
+                errorDetails = $"The verification link expired after {timeSinceCreation.TotalHours:F1} hours. Please request a new verification email.";
+                Snackbar.Add("⏰ Your verification link has expired. Please request a new one from the registration page.", Severity.Warning);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+
+            // Mark email as verified
+            user.IsEmailVerified = true;
+
+            try
+            {
+                await unitOfWork.userRepository.Update(user);
+                unitOfWork.save();
+                
+                isSuccess = true;
+                isLoading = false;
+                Snackbar.Add("🎉 Your email has been verified successfully! You can now log in to your account.", Severity.Success);
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                isSuccess = false;
+                errorMessage = "Failed to save verification.";
+                errorDetails = ex.Message;
+                Snackbar.Add("💾 Failed to save your verification. Please try again.", Severity.Error);
+                isLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            isSuccess = false;
+            errorMessage = "An error occurred during verification.";
+            errorDetails = ex.Message;
+            Snackbar.Add($"⚠️ An unexpected error occurred: {ex.Message}", Severity.Error);
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void GoToLogin()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private void GoToHome()
+    {
+        NavigationManager.NavigateTo("/");
+    }
+}

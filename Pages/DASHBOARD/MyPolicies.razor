@@ -1,0 +1,1145 @@
+@page "/MyPolicies"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using System.Text.Json
+@using System.Net.Http.Json
+@inject IUnitOfWork UnitOfWork
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject IEmailService EmailService
+@inject IDialogService DialogService
+@inject ILogger<MyPolicies> _logger
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISharePointDocumentService SharePointDocuments
+
+<style>
+    :root {
+        --pol-blue-800: #1F3A7F;
+        --pol-blue-700: #2d488f;
+        --pol-surface: #ffffff;
+        --pol-border: #e2e8f0;
+        --pol-muted: #64748b;
+        --pol-radius: 12px;
+    }
+
+    .file-upload-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        background-color: #f0f4f8;
+        border: 1px solid #cbd5e0;
+        border-radius: 4px;
+        color: #2d3748;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .file-upload-button:hover {
+        background-color: #e2e8f0;
+        border-color: #a0aec0;
+    }
+
+    .file-upload-input {
+        display: none;
+    }
+
+    .pol-page { width: 100%; min-height: 100vh; padding: 14px; background: var(--pol-surface); }
+    .pol-header { background: linear-gradient(135deg, var(--pol-blue-800), var(--pol-blue-700)); color:#fff; border-radius:var(--pol-radius); padding:12px 14px; box-shadow:0 20px 40px -24px rgba(15,70,150,.30); margin-bottom:12px; }
+    .pol-header-title { margin:0; font-size:1.25rem; font-weight:800; }
+    .pol-header-sub { margin-top:4px; opacity:.95; }
+    .pol-card { background:rgba(255,255,255,.96); border:1px solid rgba(148,163,184,.20); border-radius:var(--pol-radius); padding:12px; box-shadow:0 12px 32px -20px rgba(2,6,23,.18); }
+    .pol-summary { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .pol-summary-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; font-size:.85rem; }
+    .pol-badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; border-radius:9999px; padding:3px 10px; font-size:.75rem; }
+    .pol-badge--await { background:#fef3c7; color:#92400e; }
+    .pol-badge--active { background:#dcfce7; color:#166534; }
+    .pol-badge--other { background:#e5e7eb; color:#374151; }
+    .pol-th { background-color: var(--pol-blue-800)!important; color:#fff!important; font-weight:700; }
+    /* Always show required asterisks in red, even when the field is disabled */
+    ::deep .mud-input-label-asterisk {
+        color: #dc2626 !important;
+    }
+</style>
+
+<div class="pol-page">
+    <div class="pol-header">
+        <div class="pol-header-title">@LangService.T("My Policies","Minhas Apólices")</div>
+        <div class="pol-header-sub">@LangService.T("View all policies linked to your account","Veja todas as apólices ligadas à sua conta")</div>
+    </div>
+
+    <div class="pol-card">
+        <div class="pol-summary">
+            <div class="pol-summary-item">@LangService.T("Total","Total"): <strong>@policies.Count</strong></div>
+            <div class="pol-summary-item">@LangService.T("Awaiting Payment","Aguardando Pagamento"): <strong>@policies.Count(p => (p.Policy_Status??"").Equals("Awaiting Payment", StringComparison.OrdinalIgnoreCase))</strong></div>
+            <div class="pol-summary-item">@LangService.T("Live", "Ao vivo"): <strong>@policies.Count(p => (p.Policy_Status ?? "").Equals("Live", StringComparison.OrdinalIgnoreCase))</strong></div>
+        </div>
+
+        <MudTabs Rounded="true" Elevation="0" Dense="true" @bind-ActivePanelIndex="activeTabIndex" Class="mb-2">
+            <MudTabPanel Text="@($"{LangService.T("All","Todas")} ({policies?.Count ?? 0})")" />
+            <MudTabPanel Text="@($"{LangService.T("Live","Ao vivo")} ({LiveCount})")" />
+            <MudTabPanel Text="@($"{LangService.T("Awaiting Payment","Aguardando Pagamento")} ({PendingCount})")" />
+        </MudTabs>
+
+        <MudTable Items="@GetFilteredPolicies()" Dense="true" Hover="true" Striped="true">
+            <HeaderContent>
+                <MudTh Class="pol-th">@LangService.T("POLICY NO","Nº APÓLICE")</MudTh>
+                <MudTh Class="pol-th">@LangService.T("STATUS","ESTADO")</MudTh>
+                <MudTh Class="pol-th">@LangService.T("INSURER","SEGURADORA")</MudTh>
+                <MudTh Class="pol-th">@LangService.T("DESCRIPTION","DESCRIÇÃO")</MudTh>
+                <MudTh Class="pol-th">@LangService.T("PERIOD","PERÍODO")</MudTh>
+                <MudTh Class="pol-th">@LangService.T("SUM INSURED","CAPITAL SEGURO")</MudTh>
+                <MudTh Class="pol-th" style="text-align:center;">@LangService.T("ACTIONS","AÇÕES")</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="POLICY NO">@context.No</MudTd>
+                <MudTd DataLabel="STATUS">
+                    <span class="pol-badge @GetStatusClass(context.Policy_Status)">@context.Policy_Status</span>
+                </MudTd>
+                <MudTd DataLabel="INSURER">@context.Underwriter_Name</MudTd>
+                <MudTd DataLabel="DESCRIPTION">@context.Policy_Description</MudTd>
+                <MudTd DataLabel="PERIOD">@context.From_Date - @context.To_Date</MudTd>
+                <MudTd DataLabel="SUM INSURED">@context.Total_Sum_Insured.ToString("N2")</MudTd>
+                <MudTd DataLabel="ACTIONS" Style="text-align:center;">
+                    <MudStack Direction="Row" Spacing="1" Justify="Justify.Center">
+                        @if (!string.Equals(context.Policy_Status, "Awaiting Payment", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <MudButton Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => OpenRenewDialog(context))">
+                                @LangService.T("Renew","Renovar")
+                            </MudButton>
+                        }
+                        <MudButton Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => OpenClaimModalFromMyPolicies(context))">
+                            @LangService.T("Claim","Sinistro")
+                        </MudButton>
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="@(new int[]{5,10,25,50})" />
+            </PagerContent>
+            <NoRecordsContent>
+                <div style="text-align:center; padding: 40px 10px; color:#64748b;">
+                    @LangService.T("No policies found","Sem apólices")
+                </div>
+            </NoRecordsContent>
+        </MudTable>
+    </div>
+
+    @if (renewConfirmOpen)
+    {
+        <div style="position:fixed; inset:0; background:rgba(15,23,42,0.45); display:flex; align-items:center; justify-content:center; z-index:1300;">
+            <MudPaper Elevation="4" Class="pa-4" Style="max-width:420px; width:100%; margin:0 16px;">
+                <MudText Typo="Typo.h6">@LangService.T("Confirm Renewal","Confirmar Renovação")</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    @LangService.T("Do you want to roll over this policy as it is, or do you need changes on the policy?","Pretende renovar esta apólice tal como está ou precisa de alterações na apólice?")
+                </MudText>
+
+                <MudRadioGroup @bind-SelectedOption="renewRollOverAsIs" Class="mt-3">
+                    <MudRadio Option="true">@LangService.T("Roll over policy as is","Renovar a apólice tal como está")</MudRadio>
+                    <MudRadio Option="false">@LangService.T("I need changes on the policy","Preciso de alterações na apólice")</MudRadio>
+                </MudRadioGroup>
+
+                <div class="mt-4" style="display:flex; justify-content:flex-end; gap:8px;">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => { renewConfirmOpen = false; selectedPolicy = null; })">
+                        @LangService.T("Cancel","Cancelar")
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@OpenKycConfirm">
+                        @LangService.T("Continue","Continuar")
+                    </MudButton>
+                </div>
+            </MudPaper>
+        </div>
+    }
+
+    @if (renewKycConfirmOpen)
+    {
+        <div style="position:fixed; inset:0; background:rgba(15,23,42,0.45); display:flex; align-items:center; justify-content:center; z-index:1300;">
+            <MudPaper Elevation="4" Class="pa-4" Style="max-width:440px; width:100%; margin:0 16px;">
+                <MudText Typo="Typo.h6">@LangService.T("KYC Changes","Alterações de KYC")</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    @LangService.T("During the insurance period, has there been any change in KYC (new shareholder, new PEP, or other KYC updates)?","Durante o período do seguro, houve alguma alteração de KYC (novo acionista, novo PEP ou outras atualizações de KYC)?")
+                </MudText>
+
+                <div class="mt-4" style="display:flex; justify-content:flex-end; gap:8px;">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@HandleKycChangeNo">
+                        @LangService.T("No","Não")
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@HandleKycChangeYes">
+                        @LangService.T("Yes","Sim")
+                    </MudButton>
+                </div>
+            </MudPaper>
+        </div>
+    }
+
+    @if (renewDialogOpen)
+    {
+        <div style="position:fixed; inset:0; background:rgba(15,23,42,0.45); display:flex; align-items:center; justify-content:center; z-index:1300;">
+            <MudPaper Elevation="6" Class="pa-4" Style="max-width:480px; width:100%; margin:0 16px;">
+                <MudText Typo="Typo.h6">@LangService.T("Renew Policy","Renovar Apólice")</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2">
+                    @LangService.T("Adjust the renewal dates before submitting your request.","Ajuste as datas de renovação antes de submeter o pedido.")
+                </MudText>
+
+                <MudStack Spacing="2" Class="mt-3">
+                    <MudTextField T="string" Label="Starting Date (yyyy-MM-dd)" @bind-Value="editStartingDate" Dense="true" />
+                    <MudTextField T="string" Label="Ending Date (yyyy-MM-dd)" @bind-Value="editEndingDate" Dense="true" />
+                </MudStack>
+
+                <div class="mt-4" style="display:flex; justify-content:flex-end; gap:8px;">
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="@(() => { renewDialogOpen = false; selectedPolicy = null; })">
+                        @LangService.T("Cancel","Cancelar")
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@ConfirmRenewalAsync">
+                        @LangService.T("Continue","Continuar")
+                    </MudButton>
+                </div>
+            </MudPaper>
+        </div>
+    }
+
+    <!-- Claim Modal (same flow as QuoteDetails) -->
+    <MudDialog @bind-IsVisible="showClaimModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true }">
+        <TitleContent>
+            <div style="background:#2E5090;color:#fff;padding:10px 14px;">
+                <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">New Claim - Policy @claimSelectedPolicyNo</MudText>
+                <MudText Typo="Typo.body2" Class="sub">Enter claim details below</MudText>
+            </div>
+        </TitleContent>
+        <DialogContent>
+            <MudForm @ref="claimForm" @bind-IsValid="claimFormValid">
+                <div style="display:grid; grid-template-columns:1fr; gap:10px;">
+                    <MudSelect T="string" Value="@claimLossType" ValueChanged="OnLossTypeChanged" Margin="Margin.Dense" Label="Loss Type" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Loss Type is required">
+                        @if (lossTypes != null)
+                        {
+                            @foreach (var lt in lossTypes)
+                            {
+                                <MudSelectItem Value="@lt.Code">@lt.Description (@lt.Code)</MudSelectItem>
+                            }
+                        }
+                    </MudSelect>
+                    <div hidden >
+                                            <MudTextField @bind-Value="claimLossTypeDescription" Margin="Margin.Dense" Label="Loss Type Description" Variant="Variant.Outlined"  />
+
+                    </div>
+                    <MudDatePicker @bind-Date="claimDateNotified" Margin="Margin.Dense" Label="Date Notified" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Date Notified is required" />
+                    <MudTextField @bind-Value="claimStageDescription" Lines="3" Margin="Margin.Dense" Label="Claim  Description" Variant="Variant.Outlined" />
+                    <MudDatePicker @bind-Date="claimDateOfOccurrence" Margin="Margin.Dense" Label="Date of Occurrence" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Date of Occurrence is required" />
+                </div>
+                <div style="margin-top:6px; font-size:11px; color:#6b7280;">
+                    Fields marked with <strong>*</strong> are required in order to submit a claim.
+                </div>
+
+                <div style="margin-top:6px; font-size:11px; color:#4b5563;">
+                    <div style="font-weight:600; margin-bottom:2px;">Requirements summary</div>
+                    <ul style="list-style:none; padding-left:0; margin:0;">
+                        <li style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:@(HasLossType ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasLossType ? "✔" : "•")</span>
+                            <span>Loss Type selected</span>
+                        </li>
+                        <li style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:@(HasLossTypeDescription ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasLossTypeDescription ? "✔" : "•")</span>
+                            <span>Loss Type Description entered</span>
+                        </li>
+                        <li style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:@(HasDateNotified ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasDateNotified ? "✔" : "•")</span>
+                            <span>Date Notified set</span>
+                        </li>
+                        <li style="display:flex; align-items:center; gap:6px;">
+                            <span style="color:@(HasDateOfOccurrence ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasDateOfOccurrence ? "✔" : "•")</span>
+                            <span>Date of Occurrence set</span>
+                        </li>
+                    </ul>
+                </div>
+
+                @if (isLoadingDocuments)
+                {
+                    <div class="d-flex justify-center my-4">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                        <span class="ml-2">Loading required documents...</span>
+                    </div>
+                }
+                else if (filteredClaimDocuments != null && filteredClaimDocuments.Any())
+                {
+                    <div style="margin-bottom: 15px;">
+                        <MudText Typo="Typo.subtitle2" Class="mb-1">Required Documents</MudText>
+                        <MudText Typo="Typo.caption" Class="mb-2" Style="color: var(--mud-palette-text-secondary);">
+                            Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB each)
+                        </MudText>
+                        <MudList Dense="true" DisableGutters="true">
+                            @foreach (var doc in filteredClaimDocuments)
+                            {
+                                <MudListItem>
+                                    <div style="display: flex; align-items: center; width: 100%;">
+                                        <MudChip Color="@(doc.Required ? Color.Error : Color.Default)" 
+                                               Variant="Variant.Filled" 
+                                               Size="Size.Small"
+                                               Class="mr-2">
+                                            @(doc.Required ? "Required" : "Optional")
+                                        </MudChip>
+                                        <div style="flex-grow: 1;">
+                                            @doc.Document_Name
+                                            @if (!string.IsNullOrEmpty(doc.Document_Path))
+                                            {
+                                                <MudTooltip Text="View document template">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Link" 
+                                                                Href="@doc.Document_Path" 
+                                                                Target="_blank"
+                                                                Size="Size.Small"
+                                                                Class="ml-1"
+                                                                Color="Color.Primary" />
+                                                </MudTooltip>
+                                            }
+                                        </div>
+                                        @if (doc.Received)
+                                        {
+                                            <MudChip Color="Color.Success" 
+                                                   Variant="Variant.Outlined" 
+                                                   Size="Size.Small"
+                                                   Class="mr-2">
+                                                Uploaded
+                                            </MudChip>
+                                        }
+                                        else
+                                        {
+                                            <div style="display: flex; align-items: center; gap: 8px;">
+                                                <label class="file-upload-button" style="margin: 0; padding: 4px 8px;">
+                                                    <span>Choose File</span>
+                                                    <InputFile OnChange="@(e => OnFileUploaded(e, doc.Document_No))" 
+                                                             accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" 
+                                                             class="file-upload-input" 
+                                                             style="display: none;" />
+                                                </label>
+                                                <MudText Typo="Typo.body2" Style="font-size: 0.75rem; color: var(--mud-palette-text-secondary);">
+                                                    No file selected
+                                                </MudText>
+                                            </div>
+                                        }
+                                    </div>
+                                    @if (uploadedFiles.ContainsKey(doc.Document_No))
+                                    {
+                                        <div style="display: flex; align-items: center; margin-top: 4px; font-size: 0.75rem;">
+                                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                                            <span style="flex-grow: 1; margin-right: 8px;">
+                                                @uploadedFiles[doc.Document_No].Name 
+                                                <span style="color: var(--mud-palette-text-secondary);">
+                                                    (@(uploadedFiles[doc.Document_No].Size / 1024) KB)
+                                                </span>
+                                            </span>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Refresh" 
+                                                         Size="Size.Small" 
+                                                         Color="Color.Primary"
+                                                         OnClick="@(() => {
+                                                             // Clear current file
+                                                             RemoveFile(doc.Document_No);
+                                                             // Trigger click on file input
+                                                             // This will be handled by the browser's file picker
+                                                             StateHasChanged();
+                                                         })"
+                                                         Class="mr-1"
+                                                         Title="Change file" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                                         Size="Size.Small" 
+                                                         Color="Color.Error"
+                                                         OnClick="() => RemoveFile(doc.Document_No)"
+                                                         Title="Remove file" />
+                                        </div>
+                                    }
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </div>
+                }
+                
+            </MudForm>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="CloseClaimModal">Cancel</MudButton>
+            <MudButton 
+                Variant="Variant.Filled" 
+                Color="Color.Primary" 
+                OnClick="SubmitClaimFromMyPolicies" 
+                Disabled="@(claimSubmitting ? true : false)">
+                @(claimSubmitting ? "Submitting..." : "Submit Claim")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+
+    <!-- Payment complaint modal when user indicates they have already paid but ERP has not been updated -->
+    <MudDialog @bind-IsVisible="showPaymentComplaintModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true }">
+        <TitleContent>
+            <div style="background:#1F2937;color:#fff;padding:10px 14px;">
+                <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">Payment Complaint</MudText>
+                <MudText Typo="Typo.body2" Class="sub">Tell us about the payment you have already made so our team can verify and activate your cover.</MudText>
+            </div>
+        </TitleContent>
+        <DialogContent>
+            <MudForm @ref="paymentComplaintForm" @bind-IsValid="paymentComplaintValid">
+                <MudTextField @bind-Value="paymentComplaintDescription"
+                              Margin="Margin.Dense"
+                              Lines="4"
+                              Label="Describe your payment (amount, date, bank, reference, etc.)"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              Immediate="true"
+                              RequiredError="Please describe the payment you have already made." />
+            </MudForm>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="ClosePaymentComplaintModal">Cancel</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitPaymentComplaintAsync">
+                Submit Complaint
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</div>
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    private List<PolicyCardItem> policies = new();
+    private int activeTabIndex = 0; // 0 = Live (Active), 1 = Pending (Awaiting Payment)
+    private PolicyCardItem selectedPolicy;
+    private bool renewConfirmOpen;     // step 1: roll-over vs changes
+    private bool renewKycConfirmOpen;  // step 2: KYC changes question
+    private bool renewDialogOpen;      // step 3: date form
+    private bool renewRollOverAsIs = true; // radio choice in first modal
+    private string renewalPayloadPreview;
+
+    // Editable renewal fields
+    private string editQuoteNo;
+    private string editInsuredNo;
+    private string editName;
+    private string editPolicyType;
+    private string editPolicyDescription;
+    private string editAgentName;
+    private string editStartingDate;
+    private string editEndingDate;
+    private string editDiscount;
+    private string editPremium;
+    private string editSumInsured;
+    private string editCoverType;
+    private string editPaymentMode;
+    private string editPolicyNumber;
+
+    // Claim state (mirrors QuoteDetails but works from MyPolicies list)
+    private bool showClaimModal = false;
+    private string claimSelectedPolicyNo;
+    private PolicyCardItem claimSelectedPolicy;
+    private List<LossTypeItem> lossTypes = new();
+    private string claimLossType = string.Empty;
+    private string claimLossTypeDescription = string.Empty;
+    private List<ClaimDocument> allClaimDocuments = new();
+    private List<ClaimDocument> filteredClaimDocuments = new();
+    private Dictionary<string, IBrowserFile> uploadedFiles = new();
+    private bool isDocumentsLoading = false;
+    private bool isLoadingDocuments = false;
+    private DateTime? claimDateNotified;
+    private string claimStageDescription;
+    private DateTime? claimDateOfOccurrence;
+    private bool claimSubmitting = false;
+    private MudForm claimForm;
+    private bool claimFormValid;
+    private List<IBrowserFile> claimAttachments = new();
+
+    // Payment complaint flow when claims are blocked due to missing/outstanding payment
+    private bool showPaymentStatusQuestion = false;
+    private bool showPaymentComplaintModal = false;
+    private string paymentStatusQuestionTitle;
+    private string paymentStatusQuestionMessage;
+    private string paymentComplaintDescription;
+    private MudForm paymentComplaintForm;
+    private bool paymentComplaintValid;
+
+    private bool HasLossType => !string.IsNullOrWhiteSpace(claimLossType);
+    private bool HasLossTypeDescription => !string.IsNullOrWhiteSpace(claimLossTypeDescription);
+    private bool HasDateNotified => claimDateNotified.HasValue;
+    private bool HasDateOfOccurrence => claimDateOfOccurrence.HasValue;
+
+    // File handling methods
+    private void RemoveFile(string documentNo)
+    {
+        if (uploadedFiles.ContainsKey(documentNo))
+        {
+            uploadedFiles.Remove(documentNo);
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadAllClaimDocuments()
+    {
+        try
+        {
+            isLoadingDocuments = true;
+            StateHasChanged();
+            
+            // Fetch all claim documents
+            allClaimDocuments = await UnitOfWork.ClaimsService.GetClaimDocumentsByCategoryAsync("");
+            filteredClaimDocuments = new List<ClaimDocument>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading claim documents");
+            Snackbar.Add("Error loading claim documents. Please try again later.", Severity.Error);
+        }
+        finally
+        {
+            isLoadingDocuments = false;
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            // Resolve logged-in user's Contact_No
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            string contactNo = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                var user = await UnitOfWork.userRepository.GetById(userId);
+                contactNo = user?.Contact_No;
+
+                // Capture account type for KYC navigation (Individual vs Corporate)
+                if (user != null)
+                {
+                    _accountType = user.AccountType.ToString();
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(contactNo))
+            {
+                policies = new List<PolicyCardItem>();
+                Snackbar.Add("No contact not  found..", Severity.Error);
+            }
+
+            // Fetch ContactCard by Contact_No and get Insured_Number
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(contactNo);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                policies = new List<PolicyCardItem>();
+                Snackbar.Add("No contact card  found..", Severity.Error);
+            }
+
+            // Load policies filtered by Insured_No (Insured_Number from ContactCard)
+            policies = await UnitOfWork.PolicyCardService.GetPoliciesByInsuredNoAsync(contactCard.Insured_Number);
+            
+            // Load all claim documents on initialization
+            await LoadAllClaimDocuments();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading policies: {ex.Message}", Severity.Error);
+            policies = new();
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private IEnumerable<PolicyCardItem> GetFilteredPolicies()
+    {
+        if (policies == null || policies.Count == 0)
+            return Enumerable.Empty<PolicyCardItem>();
+
+        // 0: All, 1: Live (Active), 2: Pending (Awaiting Payment)
+        return activeTabIndex switch
+        {
+            0 => policies, // Show all policies
+            1 => policies.Where(p => (p.Policy_Status ?? string.Empty)
+                .Equals("Live", StringComparison.OrdinalIgnoreCase)),
+            2 => policies.Where(p => (p.Policy_Status ?? string.Empty)
+                .Equals("Awaiting Payment", StringComparison.OrdinalIgnoreCase)),
+            _ => policies
+        };
+    }
+
+    private int LiveCount =>
+        policies?.Count(p => (p.Policy_Status ?? string.Empty)
+            .Equals("Live", StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+    private int PendingCount =>
+        policies?.Count(p => (p.Policy_Status ?? string.Empty)
+            .Equals("Awaiting Payment", StringComparison.OrdinalIgnoreCase)) ?? 0;
+
+    private string GetStatusClass(string status)
+    {
+        status = status ?? string.Empty;
+        if (status.Equals("Awaiting Payment", StringComparison.OrdinalIgnoreCase)) return "pol-badge--await";
+        if (status.Equals("Active", StringComparison.OrdinalIgnoreCase)) return "pol-badge--active";
+        return "pol-badge--other";
+    }
+
+    private string _accountType;
+
+    private void OpenRenewDialog(PolicyCardItem policy)
+    {
+        selectedPolicy = policy;
+        // First show a small confirmation modal; only if user continues
+        // will we open the detailed date form.
+        renewRollOverAsIs = true;
+        renewConfirmOpen = true;
+    }
+
+    private void OpenKycConfirm()
+    {
+        // Move from first modal to KYC-change modal
+        renewConfirmOpen = false;
+        renewKycConfirmOpen = true;
+    }
+
+    private void HandleKycChangeYes()
+    {
+        // User indicated there were KYC changes – redirect to appropriate KYC page
+        renewKycConfirmOpen = false;
+        renewDialogOpen = false;
+
+        if (string.Equals(_accountType, KycType.Corporate.ToString(), StringComparison.OrdinalIgnoreCase))
+        {
+            NavigationManager.NavigateTo("/Corporate_Generalinfo");
+        }
+        else
+        {
+            // Default to individual KYC when in doubt
+            NavigationManager.NavigateTo("/Individual_Generalinfo");
+        }
+
+        selectedPolicy = null;
+    }
+
+    private void HandleKycChangeNo()
+    {
+        // No KYC changes – continue to date form
+        renewKycConfirmOpen = false;
+        if (renewRollOverAsIs == false)
+        {
+            // User needs changes on the policy; send them to Products to pick a new policy.
+            renewConfirmOpen = false;
+            renewDialogOpen = false;
+
+            var oldPolicyNo = selectedPolicy?.No ?? string.Empty;
+            selectedPolicy = null;
+
+            try
+            {
+                UnitOfWork?.PlanSelectionService?.SetRenewalContext(new RenewalContext
+                {
+                    IsRenewal = true,
+                    OldPolicyNo = oldPolicyNo
+                });
+            }
+            catch
+            {
+                // ignore: renewal context is best-effort only
+            }
+
+            NavigationManager.NavigateTo("/Products_Upgrade_V3");
+            return;
+        }
+
+        StartRenewalForm();
+    }
+
+    private void StartRenewalForm()
+    {
+        if (selectedPolicy == null)
+        {
+            renewConfirmOpen = false;
+            return;
+        }
+
+        renewConfirmOpen = false;
+        if (selectedPolicy != null)
+        {
+            var today = DateTime.Today;
+            DateTime? from = null;
+            DateTime? to = null;
+
+            if (DateTime.TryParse(selectedPolicy.From_Date, out var fromParsed))
+                from = fromParsed.Date;
+            if (DateTime.TryParse(selectedPolicy.To_Date, out var toParsed))
+                to = toParsed.Date;
+
+            var safeStart = from ?? today;
+            if (safeStart < today)
+                safeStart = today;
+
+            DateTime safeEnd;
+            if (from.HasValue && to.HasValue && to.Value > from.Value)
+            {
+                var span = to.Value - from.Value;
+                safeEnd = safeStart.Add(span);
+            }
+            else
+            {
+                safeEnd = safeStart.AddYears(1);
+            }
+
+            // Seed editable fields
+            editQuoteNo = selectedPolicy.Quotation_No ?? string.Empty;
+            editInsuredNo = selectedPolicy.Insured_No ?? string.Empty;
+            editName = selectedPolicy.Insured_Name ?? string.Empty;
+            editPolicyType = selectedPolicy.Policy_Type ?? string.Empty;
+            editPolicyDescription = selectedPolicy.Policy_Description ?? string.Empty;
+            editAgentName = "SYSTEM";
+            editStartingDate = safeStart.ToString("yyyy-MM-dd");
+            editEndingDate = safeEnd.ToString("yyyy-MM-dd");
+            editDiscount = "0";
+            editPremium = "0";
+            editSumInsured = selectedPolicy.Total_Sum_Insured.ToString();
+            editCoverType = "2";
+            editPaymentMode = "BANK_";
+            editPolicyNumber = selectedPolicy.No ?? string.Empty;
+
+            RefreshRenewalPreview();
+        }
+        renewDialogOpen = true;
+    }
+
+    private void RefreshRenewalPreview()
+    {
+        // Keep preview JSON in sync with current editable fields
+        decimal.TryParse(editDiscount, out var discountVal);
+        decimal.TryParse(editPremium, out var premiumVal);
+        decimal.TryParse(editSumInsured, out var sumInsuredVal);
+        int.TryParse(editCoverType, out var coverTypeVal);
+
+        var payload = new
+        {
+            quote_Noa46 = editQuoteNo ?? string.Empty,
+            insured_Noa46 = editInsuredNo ?? string.Empty,
+            name = editName ?? string.Empty,
+            policy_Type = editPolicyType ?? string.Empty,
+            policy_Description = editPolicyDescription ?? string.Empty,
+            agenta39s_Name = editAgentName ?? string.Empty,
+            starting_Date = editStartingDate ?? string.Empty,
+            ending_Date = editEndingDate ?? string.Empty,
+            discount = discountVal,
+            premium = premiumVal,
+            sum_Insured = sumInsuredVal,
+            insurance_Cover_Typea46 = coverTypeVal,
+            payment_mode = editPaymentMode ?? string.Empty,
+            policy_Number = editPolicyNumber ?? string.Empty
+        };
+
+        renewalPayloadPreview = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private async Task ConfirmRenewalAsync()
+    {
+        if (selectedPolicy == null)
+        {
+            renewDialogOpen = false;
+            return;
+        }
+
+        try
+        {
+            Layout?.OpenLoading();
+
+            // If user indicates they need changes, we still let them post with their edited details.
+            // So we always respect the edited fields for the payload.
+
+            // Apply edited fields back to the selected policy where relevant
+            if (selectedPolicy != null)
+            {
+                selectedPolicy.Quotation_No = editQuoteNo;
+                selectedPolicy.Insured_No = editInsuredNo;
+                selectedPolicy.Insured_Name = editName;
+                selectedPolicy.Policy_Type = editPolicyType;
+                selectedPolicy.Policy_Description = editPolicyDescription;
+                selectedPolicy.From_Date = editStartingDate;
+                selectedPolicy.To_Date = editEndingDate;
+
+                if (decimal.TryParse(editSumInsured, out var sumInsuredVal))
+                {
+                    selectedPolicy.Total_Sum_Insured = sumInsuredVal;
+                }
+            }
+
+            var (success, errorMessage) = await UnitOfWork.PolicyCardService.SubmitPolicyRenewalAsync(selectedPolicy);
+            if (success)
+            {
+                Snackbar.Add(LangService.T("Renewal request submitted successfully.","Pedido de renovação submetido com sucesso."), Severity.Success);
+                // Refresh the policies list to show the updated status
+                await OnInitializedAsync();
+            }
+            else
+            {
+                var errorText = string.IsNullOrWhiteSpace(errorMessage) 
+                    ? LangService.T("Could not submit renewal request. Please try again.", "Não foi possível submeter o pedido de renovação. Tente novamente.")
+                    : errorMessage;
+                
+                Snackbar.Add(errorText, Severity.Error);
+                _logger?.LogWarning("Policy renewal failed: {ErrorMessage}", errorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            var errorMessage = $"Error submitting renewal: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
+            _logger?.LogError(ex, errorMessage);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+            renewDialogOpen = false;
+            selectedPolicy = null;
+        }
+    }
+
+    private async Task OpenClaimModalFromMyPolicies(PolicyCardItem policy)
+    {
+        try
+        {
+            claimSelectedPolicyNo = policy.No;
+            claimSelectedPolicy = policy;
+            claimDateNotified = DateTime.Today;
+            claimDateOfOccurrence = null;
+            claimLossType = null;
+            claimLossTypeDescription = null;
+            claimStageDescription = null;
+            lossTypes = await UnitOfWork.ClaimsService.GetLossTypesAsync();
+            showClaimModal = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening claim modal: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CloseClaimModal()
+    {
+        showClaimModal = false;
+    }
+
+    private void HandleClaimFilesSelected(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            if (e == null)
+                return;
+
+            var files = e.GetMultipleFiles(10);
+            claimAttachments = files?.ToList() ?? new List<IBrowserFile>();
+            
+            if (claimAttachments.Any())
+            {
+                foreach (var file in claimAttachments)
+                {
+                    Snackbar.Add($"Selected additional file: {file.Name} ({file.Size / 1024} KB)", Severity.Info);
+                }
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling file selection");
+            Snackbar.Add("Error selecting files. Please try again.", Severity.Error);
+        }
+    }
+
+    private void RemoveClaimAttachment(IBrowserFile file)
+    {
+        try
+        {
+            if (file == null || claimAttachments == null)
+                return;
+
+            var fileName = file.Name;
+            claimAttachments.Remove(file);
+            Snackbar.Add($"Removed file: {fileName}", Severity.Info);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing file");
+            Snackbar.Add("Error removing file. Please try again.", Severity.Error);
+        }
+    }
+
+    private async Task OnLossTypeChanged(string value)
+    {
+        try
+        {
+            claimLossType = value;
+            claimLossTypeDescription = value; // Set the description to the same value as the code for now
+            
+            if (string.IsNullOrEmpty(value))
+            {
+                filteredClaimDocuments = new List<ClaimDocument>();
+                return;
+            }
+
+            // Show loading state
+            isDocumentsLoading = true;
+            StateHasChanged();
+            
+            // Fetch documents for the selected category
+            var documents = await UnitOfWork.ClaimsService.GetClaimDocumentsByCategoryAsync(value);
+            
+            // Update the documents list
+            allClaimDocuments = documents;
+            filteredClaimDocuments = documents;
+            
+            // Reset uploaded files for the new documents
+            uploadedFiles = new Dictionary<string, IBrowserFile>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching claim documents for category: {Category}", value);
+            Snackbar.Add($"Error loading required documents: {ex.Message}", Severity.Error);
+            filteredClaimDocuments = new List<ClaimDocument>();
+        }
+        finally
+        {
+            isDocumentsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnFileUploaded(InputFileChangeEventArgs e, string documentNo)
+    {
+        try
+        {
+            var file = e.File;
+            if (file == null) return;
+            
+            // Validate file size (10MB max)
+            const int maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (file.Size > maxFileSize)
+            {
+                Snackbar.Add($"File '{file.Name}' exceeds 10MB limit", Severity.Error);
+                return;
+            }
+
+            // Validate file type
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx" };
+            var fileExtension = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!allowedExtensions.Contains(fileExtension))
+            {
+                Snackbar.Add($"Invalid file type for '{file.Name}'. Please upload PDF, JPG, PNG, or Word documents.", Severity.Error);
+                return;
+            }
+            
+            // Store the file reference
+            uploadedFiles[documentNo] = file;
+            
+            // Show success message
+            Snackbar.Add($"Selected: {file.Name} ({(file.Size / 1024):N0} KB)", Severity.Success);
+            
+            // Update UI
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling file selection");
+            Snackbar.Add("Error selecting file. Please try again.", Severity.Error);
+        }
+    }
+
+    private string GetFileIcon(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+            return Icons.Material.Filled.InsertDriveFile;
+            
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        return extension switch
+        {
+            ".pdf" => Icons.Material.Filled.PictureAsPdf,
+            ".jpg" or ".jpeg" or ".png" or ".gif" => Icons.Material.Filled.Image,
+            ".doc" or ".docx" => Icons.Material.Filled.Description,
+            ".xls" or ".xlsx" => Icons.Material.Filled.TableChart,
+            _ => Icons.Material.Filled.InsertDriveFile
+        };
+    }
+
+    private async Task SubmitClaimFromMyPolicies()
+    {
+        try
+        {
+            claimSubmitting = true;
+            
+            // Validate form
+            await claimForm.Validate();
+            if (!claimFormValid || !claimForm.IsValid)
+            {
+                Snackbar.Add("Please complete all required fields before submitting.", Severity.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(claimSelectedPolicyNo))
+            {
+                Snackbar.Add("Missing policy number", Severity.Error);
+                return;
+            }
+
+            var req = new ClaimCreateRequest
+            {
+                Policy_No = claimSelectedPolicyNo,
+                Loss_Type = claimLossType,
+                Loss_Type_Description = claimLossTypeDescription,
+                Date_Notified = (claimDateNotified ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                Claim_Loss_Description = claimStageDescription,
+                Date_of_Occurence = (claimDateOfOccurrence ?? DateTime.Today).ToString("yyyy-MM-dd")
+            };
+
+            var createdClaimNo = await UnitOfWork.ClaimsService.CreateClaimAsync(req);
+
+            try
+            {
+                await UploadClaimFilesToSharePointAsync(createdClaimNo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading claim documents to SharePoint");
+                Snackbar.Add("Claim submitted but document upload to SharePoint failed.", Severity.Warning);
+            }
+
+            Snackbar.Add(string.IsNullOrWhiteSpace(createdClaimNo)
+                ? "Claim submitted successfully!"
+                : $"Claim submitted successfully! Claim No: {createdClaimNo}", Severity.Success);
+            showClaimModal = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting claim: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            claimSubmitting = false;
+        }
+    }
+
+    private async Task UploadClaimFilesToSharePointAsync(string? createdClaimNo)
+    {
+        var claimFolderKey = string.IsNullOrWhiteSpace(createdClaimNo)
+            ? $"POL_{claimSelectedPolicyNo}_{DateTime.UtcNow:yyyyMMdd_HHmmss}"
+            : createdClaimNo;
+
+        if (uploadedFiles != null)
+        {
+            foreach (var kvp in uploadedFiles)
+            {
+                var documentNo = kvp.Key;
+                var file = kvp.Value;
+                if (file == null) continue;
+
+                var bytes = await ReadBrowserFileAsync(file);
+                await SharePointDocuments.UploadKycDocumentAsync("Claims", claimFolderKey, documentNo, bytes, file.Name);
+            }
+        }
+
+        if (claimAttachments != null)
+        {
+            for (var i = 0; i < claimAttachments.Count; i++)
+            {
+                var file = claimAttachments[i];
+                if (file == null) continue;
+
+                var docCode = $"ATT_{i + 1}";
+                var bytes = await ReadBrowserFileAsync(file);
+                await SharePointDocuments.UploadKycDocumentAsync("Claims", claimFolderKey, docCode, bytes, file.Name);
+            }
+        }
+    }
+
+    private static async Task<byte[]> ReadBrowserFileAsync(IBrowserFile file)
+    {
+        const long maxFileSize = 10 * 1024 * 1024;
+        await using var stream = file.OpenReadStream(maxFileSize);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();
+    }
+
+    private void ClosePaymentComplaintModal()
+    {
+        showPaymentComplaintModal = false;
+        paymentComplaintDescription = string.Empty;
+    }
+
+    private async Task SubmitPaymentComplaintAsync()
+    {
+        try
+        {
+            // Here you would typically submit the payment complaint
+            // For example:
+            // var response = await Http.PostAsJsonAsync("api/payment-complaints", new { 
+            //     PolicyNo = claimSelectedPolicyNo,
+            //     Description = paymentComplaintDescription 
+            // });
+            
+            Snackbar.Add("Your payment complaint has been submitted. We will review it shortly.", Severity.Success);
+            ClosePaymentComplaintModal();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting payment complaint: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task ShowPaymentAlertAndRedirectFromMyPolicies(string title, string message)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            DisableBackdropClick = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true
+        };
+
+        await DialogService.ShowMessageBox(title, (MarkupString)$"<p>{message}</p>", yesText: "OK", cancelText: null, options: options);
+
+        NavigationManager.NavigateTo("/MyPyments");
+    }
+
+    private async Task<bool> AskUserIfHasMadePaymentAsync(decimal outstandingAmount, bool hasNoLedger)
+    {
+        try
+        {
+            var title = hasNoLedger
+                ? "Have you already made any payment for this policy?"
+                : "Have you already paid the outstanding balance for this policy?";
+
+            var body = hasNoLedger
+                ? "<p>We cannot see any payment recorded yet for this policy. Have you already made a payment that might still be pending approval or processing?</p>"
+                : $"<p>There is still an outstanding premium balance of {outstandingAmount:N2} for this policy. Have you already paid this amount and are waiting for processing?</p>";
+
+            var options = new DialogOptions
+                {
+                    CloseOnEscapeKey = true,
+                    DisableBackdropClick = true,
+                    MaxWidth = MaxWidth.ExtraSmall,
+                    FullWidth = true
+                };
+
+            var result = await DialogService.ShowMessageBox(
+                title,
+                (MarkupString)body,
+                yesText: "Yes, I have paid",
+                cancelText: "No, I have not paid",
+                options: options);
+
+            // Return true only if the user explicitly clicked "Yes, I have paid"
+            return result == true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in AskUserIfHasMadePaymentAsync");
+            return false; // Default to false in case of error
+        }
+    }
+    }
+}

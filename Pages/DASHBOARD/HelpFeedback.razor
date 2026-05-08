@@ -1,0 +1,325 @@
+@page "/HelpFeedback"
+ @attribute [Authorize] 
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<div style="background:linear-gradient(135deg,#f5f7fb,#e5edff); border-radius:18px; padding:16px 20px; margin-bottom:16px;">
+    <MudStack Spacing="1">
+        <MudText Typo="Typo.h5" Style="font-weight:700;">
+            @LangService.T("Support / Complaints","Suporte / Reclamações")
+        </MudText>
+        <MudText Typo="Typo.body2" Style="color:#64748b;">
+            @LangService.T("Chat with us about requests, complaints, enquiries and more.","Fale connosco sobre pedidos, reclamações, dúvidas e muito mais.")
+        </MudText>
+    </MudStack>
+</div>
+
+<MudPaper Class="pa-4" Elevation="1" Style="height:100%; border-radius:18px; background-color:#f9fafb;">
+    <MudGrid Class="h-100">
+        <!-- Left column: list of complaints -->
+        <MudItem xs="12" md="8" Style="max-height:100%; overflow-y:auto; border-right: 1px solid #eee;">
+           
+              
+
+                <!-- Interaction type tabs with built-in badges -->
+                <MudTabs ActivePanelIndex="@activeInteractionTabIndex" ActivePanelIndexChanged="OnInteractionTabChanged" Rounded="true" Border="false" Class="mb-2">
+                    @for (var i = 0; i < interactionTypes.Length; i++)
+                    {
+                        var type = interactionTypes[i];
+                        var count = GetComplaintCountForType(type);
+                        var isActive = i == activeInteractionTabIndex;
+
+                        <MudTabPanel Text="@type"
+                                     BadgeData="@count.ToString()"
+                                     BadgeColor="@(isActive ? Color.Primary : Color.Default)"
+                                     BadgeVariant="@(isActive ? Variant.Filled : Variant.Outlined)">
+                        </MudTabPanel>
+                    }
+                </MudTabs>
+
+                @if (isLoading)
+                {
+                    <MudProgressCircular Indeterminate="true" />
+                }
+                else
+                {
+                    var filteredList = GetFilteredComplaints().OrderByDescending(x => x.Date_and_Time).ToList();
+
+                    if (filteredList.Count == 0)
+                    {
+                        <MudText Color="Color.Secondary">@LangService.T("No complaints yet.","Sem reclamações ainda.")</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Spacing="3">
+                            @foreach (var c in filteredList)
+                            {
+                                <MudPaper Elevation="25" Class="pa-2" Style="border:1px solid #e5e7eb; border-radius:10px;">
+                                    <MudStack Spacing="1">
+                                        <!-- Customer message header (avatar + name on left, short date on right) -->
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                <MudAvatar Size="Size.Small" Color="Color.Info">@GetClientInitial()</MudAvatar>
+                                                <MudText Typo="Typo.subtitle2" Style="font-weight:600;">
+                                                    @currentClientName
+                                                </MudText>
+                                            </MudStack>
+                                            <div style="font-size:x-small;color:gray">
+                                                @FormatDateShort(c.Date_and_Time)
+                                            </div>
+                                        </MudStack>
+
+                                        <!-- Customer message body with short time on the right -->
+                                        @if (!string.IsNullOrWhiteSpace(c.Interaction_Resol_Desc))
+                                        {
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="1">
+                                            <div style="font-size:small;color:gray;font-family:calibri;margin-left:28px;font-weight:bold">
+                                                    @c.Interaction_Resol_Desc
+                                                </div>
+                                                <div style="font-size:x-small;color:gray">
+                                                    @FormatTimeShort(c.Date_and_Time)
+                                                </div>
+                                            </MudStack>
+                                        }
+
+                                        <!-- Reviewer reply bubble with left border, label + short date, message + short time at end -->
+                                        @if (!string.IsNullOrWhiteSpace(c.Reviewing_Officer_Remarks) || !string.IsNullOrWhiteSpace(c.Reopening_Remarks))
+                                        {
+                                            <MudPaper Elevation="0" Class="mt-2" Style="margin-left:18px; padding:8px 12px; background-color:#f9fafb; border-radius:0px; border-left:5px solid #3b82f6;">
+                                                <MudStack Spacing="1">
+                                                    <!-- Reviewer label on left, short date on right -->
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="1">
+                                                        <MudText Typo="Typo.caption" Color="Color.Primary" Style="font-weight:600;">
+                                                            Reviewer
+                                                        </MudText>
+                                                         <div style="font-size:x-small;color:gray">
+                                                            @FormatDateShort(c.Last_Updated_Date_and_Time)
+                                                        </div>
+                                                    </MudStack>
+
+                                                    @if (!string.IsNullOrWhiteSpace(c.Reviewing_Officer_Remarks))
+                                                    {
+                                                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="1">
+                                                            <div style="font-size:small;color:gray;font-family:calibri;font-weight:bold" >
+                                                                @c.Reviewing_Officer_Remarks
+                                                            </div>
+                                                            <div style="font-size:x-small;color:gray">
+                                                                @FormatTimeShort(c.Last_Updated_Date_and_Time)
+                                                            </div>
+                                                        </MudStack>
+                                                    }
+
+                                                    @if (!string.IsNullOrWhiteSpace(c.Reopening_Remarks))
+                                                    {
+                                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                            Reopened note: @c.Reopening_Remarks
+                                                        </MudText>
+                                                    }
+                                                </MudStack>
+                                            </MudPaper>
+                                        }
+                                    </MudStack>
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                }
+           
+        </MudItem>
+
+        <!-- Right column: posting form -->
+        <MudItem xs="12" md="4" Class="pl-4" Style="max-height:100%; overflow-y:auto;">
+            <MudPaper Class="pa-3" Elevation="0">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">@($"New {currentInteractionType} ")</MudText>
+                <MudForm @ref="newComplaintForm" @bind-IsValid="newComplaintValid">
+                    <MudSelect @bind-Value="newIssueCategory" Variant="Variant.Outlined" Label="@IssueCategoryLabel" Required="true">
+                        <MudSelectItem Value="@("General")">General</MudSelectItem>
+                        <MudSelectItem Value="@("Contact")">Contact</MudSelectItem>
+                        <MudSelectItem Value="@("Quote")">Quote</MudSelectItem>
+                        <MudSelectItem Value="@("Payment")">Payment</MudSelectItem>
+                        <MudSelectItem Value="@("Incomplete Statements")">Incomplete Statements</MudSelectItem>
+                        <MudSelectItem Value="@("Claims")">Claims</MudSelectItem>
+                        <MudSelectItem Value="@("Complain About Insurer")">Complain About Insurer</MudSelectItem>
+                    </MudSelect>
+                    <br />
+                    <MudTextField @bind-Value="newDescription" Label="@DescriptionLabel" Variant="Variant.Outlined" Required="true" Lines="3" />
+
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-2"  OnClick="SubmitNewComplaint">
+                        @LangService.T("Submit","Submeter")
+                    </MudButton>
+                </MudForm>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    private List<ComplainCardItem> complaints;
+    private bool isLoading = true;
+
+    private MudForm newComplaintForm;
+    private bool newComplaintValid;
+    private string newInteractionType;
+    private string newIssueCategory;
+    private string newRiskType;
+    private string newTimeline;
+    private string newDescription;
+
+    private string currentClientNo;
+    private string currentClientName;
+
+    private readonly string[] interactionTypes = new[] { "Request", "Complaint", "Enquiry", "Observation" };
+    private int activeInteractionTabIndex = 0;
+
+    private string currentInteractionType =>
+        (activeInteractionTabIndex >= 0 && activeInteractionTabIndex < interactionTypes.Length)
+            ? interactionTypes[activeInteractionTabIndex]
+            : interactionTypes[0];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentClientAsync();
+        await LoadComplaintsAsync();
+        newInteractionType = currentInteractionType;
+    }
+
+    private async Task LoadCurrentClientAsync()
+    {
+        var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return;
+        }
+
+        var user = await UnitOfWork.userRepository.GetById(userId);
+        if (user != null)
+        {
+            currentClientNo = user.Contact_No;
+            currentClientName = user.FullName;
+        }
+    }
+
+    private void OnInteractionTabChanged(int index)
+    {
+        activeInteractionTabIndex = index;
+        newInteractionType = currentInteractionType;
+    }
+
+    private IEnumerable<ComplainCardItem> GetFilteredComplaints()
+    {
+        var source = complaints ?? new List<ComplainCardItem>();
+        if (string.IsNullOrWhiteSpace(currentInteractionType))
+            return source;
+
+        return source.Where(x => string.Equals(x.Interaction_Type, currentInteractionType, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private int GetComplaintCountForType(string interactionType)
+    {
+        if (complaints == null || string.IsNullOrWhiteSpace(interactionType))
+            return 0;
+
+        return complaints.Count(x => string.Equals(x.Interaction_Type, interactionType, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task LoadComplaintsAsync()
+    {
+        isLoading = true;
+        try
+        {
+            complaints = await UnitOfWork.ComplainService.GetComplaintsAsync(currentClientNo);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SubmitNewComplaint()
+    {
+        if (newComplaintForm != null)
+        {
+            await newComplaintForm.Validate();
+            if (!newComplaintValid)
+            {
+                return;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(currentClientNo))
+        {
+            Snackbar.Add(LangService.T("Unable to identify client.","Não foi possível identificar o cliente."), Severity.Error);
+            return;
+        }
+
+        var code = GenerateInteractionCode();
+
+        var item = new ComplainCardItem
+        {
+            Interact_Code = code,
+            Client_Type = "Customer",
+            Client_No = currentClientNo,
+            Client_Name = currentClientName,
+            Interaction_Type = newInteractionType,
+            Issue_Category = newIssueCategory,
+            Risk_Type = newRiskType,
+            Timeline = newTimeline,
+            Interaction_Resol_Desc = newDescription,
+            Current_Status = "Logged",
+            Overall_Level_Duration = 0
+        };
+
+        var result = await UnitOfWork.ComplainService.CreateComplaintAsync(item);
+        if (!result.Success)
+        {
+            var err = string.IsNullOrWhiteSpace(result.Error)
+                ? LangService.T("Failed to submit complaint.","Falha ao submeter reclamação.")
+                : result.Error;
+            Snackbar.Add(err, Severity.Error);
+            return;
+        }
+
+        Snackbar.Add(LangService.T("Complaint submitted successfully.","Reclamação submetida com sucesso."), Severity.Success);
+        await LoadComplaintsAsync();
+    }
+
+    private string GenerateInteractionCode()
+    {
+        var guid = Guid.NewGuid().ToString("N");
+        return guid.Substring(0, 10).ToUpperInvariant();
+    }
+
+    private string FormatDateShort(DateTime? dt)
+    {
+        return dt.HasValue ? dt.Value.ToString("dd MMM") : string.Empty;
+    }
+
+    private string FormatDateLong(DateTime? dt)
+    {
+        return dt.HasValue ? dt.Value.ToString("dd MMM yyyy HH:mm") : string.Empty;
+    }
+
+    private string FormatTimeShort(DateTime? dt)
+    {
+        return dt.HasValue ? dt.Value.ToString("hh:mm tt") : string.Empty;
+    }
+
+    private string GetClientInitial()
+    {
+        if (!string.IsNullOrWhiteSpace(currentClientName))
+            return currentClientName.Trim()[0].ToString().ToUpperInvariant();
+
+        return "U";
+    }
+
+    private string InteractionTypeLabel => LangService.T("Interaction Type","Tipo de Interação");
+    private string IssueCategoryLabel => LangService.T("Issue Category","Categoria do Problema");
+    private string RiskTypeLabel => LangService.T("Risk Type","Tipo de Risco");
+    private string TimelineLabel => LangService.T("Timeline","Prazo");
+    private string DescriptionLabel => LangService.T("Description","Descrição");
+}

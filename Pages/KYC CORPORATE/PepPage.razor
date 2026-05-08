@@ -1,0 +1,712 @@
+@page "/PepPage"
+@attribute [Authorize]
+@using System.Security.Claims
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject IUnitOfWork UnitOfWork
+@inject ISharePointDocumentService SharePointDocuments
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@layout MainLayout
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+
+<style>
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --border: #e2e8f0;
+        --surface: #ffffff;
+        --shadow: 0 24px 60px -28px rgba(15,70,150,.20);
+    }
+
+    .page { width: 100%; min-height: 100vh; padding: 10px; background: var(--surface); }
+    .container { width:100%; max-width:none; margin:0; }
+    .container-fluid { width:100%; max-width:none; margin:0; padding-left:0; padding-right:0; }
+    .kyc-header {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+        color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 20px 40px -24px rgba(15,70,150,.30);
+        margin-bottom: 12px; display:flex; justify-content: space-between; align-items:center; gap:10px;
+        backdrop-filter: saturate(140%) blur(6px);
+    }
+    .kyc-header .title { margin:0; font-weight:800; font-size:1.05rem; }
+    .kyc-header .subtitle { margin:4px 0 0 0; opacity:.95; font-size:.9rem; }
+    .content-card { background: rgba(255,255,255,.92); border:1px solid rgba(148,163,184,.20); border-radius:12px; padding:10px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .content-grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; align-items:start; }
+    .sidebar-card { background: rgba(255,255,255,.92); border:1px solid rgba(148,163,184,.20); border-radius:12px; padding:10px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .sidebar-title { font-weight:700; color: var(--blue-700); margin-bottom:8px; }
+    .guide-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#475569; font-size:.9rem; }
+    .guide-icon { color:#283A79; }
+    .sidebar-row { display:flex; justify-content:space-between; margin-bottom:6px; color:#475569; }
+    .table-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+    .add-btn { border-radius:9999px; height:34px; padding:0 14px; display:inline-flex; align-items:center; gap:8px; background: var(--blue-800); color:#fff; border:1px solid rgba(40,58,121,.18); box-shadow:0 6px 16px rgba(31,58,127,.16); font-weight:700; }
+    .add-btn:hover { background: var(--blue-900); box-shadow:0 8px 18px rgba(31,58,127,.22); }
+    .th-blue { background-color: var(--blue-800) !important; color:#fff !important; font-weight:700; }
+    .nav-actions { margin-top:14px; display:flex; gap:8px; justify-content:space-between; }
+    .nav-btn { border-radius:9999px; padding:8px 14px; font-weight:700; }
+    .nav-btn--prev { background:transparent; border:1px solid var(--blue-600); color:var(--blue-800); box-shadow:0 4px 10px rgba(31,58,127,.12); }
+    .nav-btn--prev:hover { background:#e8edf9; }
+    .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; box-shadow:0 8px 18px rgba(31,58,127,.25); }
+    .name-cell { display:flex; align-items:center; gap:10px; }
+    .name-cell .avatar { width:28px; height:28px; font-size:.75rem; }
+    .name-text { font-weight:600; letter-spacing:.2px; color:#1e293b; }
+    .chip { height:22px; padding:0 8px; }
+    .btn-pill { border-radius:9999px; height:28px; padding:0 10px; font-weight:600; }
+    .icon-btn { border-radius:9999px; }
+    .icon-btn:hover { background-color:#EEF2FF; }
+
+    /* Modal header */
+    .modal-header-blue { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; padding:12px 16px; border-top-left-radius: inherit; border-top-right-radius: inherit; margin:0; box-shadow:0 6px 16px rgba(31,58,127,.18); }
+    .modal-header-blue .sub { opacity:.9; font-size:.9rem; }
+    .mud-dialog .mud-dialog-title { padding:0 !important; }
+    .mud-dialog .mud-paper { overflow:hidden; }
+
+    @@media (max-width: 600px) {
+        .page { padding:8px; }
+        .kyc-header { padding: 8px 10px; margin-bottom: 8px; }
+        .kyc-header .title { font-size: 1rem; }
+        .kyc-header .subtitle { font-size: .85rem; margin-top: 2px; }
+        .nav-actions { flex-direction:column; }
+        .nav-actions > * { width:100%; }
+        .content-grid { grid-template-columns: 1fr; }
+        .content-card { padding: 8px; }
+        .sidebar-card { padding: 8px; }
+
+        /* Toolbar stacks and compacts */
+        .table-toolbar { flex-direction: column; align-items: stretch; gap: 6px; }
+        .add-btn { width: 100%; height: 32px; padding: 0 12px; font-size: .9rem; }
+
+        /* Table compaction */
+        .content-card .mud-table thead th { font-size: 11px; padding: 6px 6px; }
+        .content-card .mud-table td, .content-card .mud-table th { padding: 6px 6px; }
+        .name-cell { gap: 8px; }
+        .name-cell .avatar { width:24px; height:24px; font-size:.7rem; }
+        .name-text { font-size: .93rem; }
+        .chip { height: 20px; padding: 0 6px; font-size: .85rem; }
+        .btn-pill { height: 26px; padding: 0 8px; font-size: .85rem; }
+    }
+</style>
+
+
+
+<div class="page">
+  <div class="container-fluid">
+    <div class="kyc-header">
+      <div>
+        <div class="title">@LangService.T("Politically Exposed Persons (PEPs)","Pessoas Politicamente Expostas (PEPs)")</div>
+        <div class="subtitle">@LangService.T("List of PEPs linked to the corporate entity","Lista de PEPs associadas à entidade")</div>
+      </div>
+      <div class="actions"></div>
+    </div>
+        <StepIndicator CurrentStep="2" />
+    <div class="content-grid">
+    <div class="content-card">
+      <div class="table-toolbar" style="justify-content:flex-end;">
+        <MudTooltip Text="@LangService.T("Add new PEP","Adicionar nova PEP")">
+          <MudButton Class="add-btn" Variant="Variant.Filled" OnClick="@OpenAddPepModal" StartIcon="@Icons.Material.Filled.PersonAdd">+ @LangService.T("New PEP","Nova PEP")</MudButton>
+        </MudTooltip>
+      </div>
+
+      <MudTable Items="@FilteredPeps" Hover="true" Striped="true" Dense="true" Style="margin-bottom: 0;">
+        <HeaderContent>
+          <MudTh Class="th-blue">@LangService.T("NAME","NOME")</MudTh>
+          <MudTh Class="th-blue">@LangService.T("OFFICE HELD","CARGO")</MudTh>
+          <MudTh Class="th-blue">@LangService.T("RELATIONSHIP","RELACIONAMENTO")</MudTh>
+          <MudTh Class="th-blue">@LangService.T("ACTION","AÇÃO")</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+          <MudTd DataLabel="NAME">
+            <div class="name-cell">
+              <MudAvatar Class="avatar" Color="Color.Primary">@GetInitials(context.Name)</MudAvatar>
+              <div class="name-text">@context.Name</div>
+            </div>
+          </MudTd>
+          <MudTd DataLabel="OFFICE HELD">@context.Office_Held</MudTd>
+          <MudTd DataLabel="RELATIONSHIP"><MudChip Class="chip" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">@context.Relationship</MudChip></MudTd>
+          <MudTd DataLabel="ACTION">
+            <MudButton Class="btn-pill" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => OpenPepDocumentsModal(context))">@LangService.T("Documents","Documentos")</MudButton>
+            <MudIconButton Class="icon-btn" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditPep(context))" />
+            <MudIconButton Class="icon-btn" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeletePep(context))" />
+          </MudTd>
+        </RowTemplate>
+        <PagerContent>
+          <MudTablePager PageSizeOptions="@(new int[]{5,10,25,50})" />
+        </PagerContent>
+        <NoRecordsContent>
+          <div style="text-align:center; padding: 40px 10px;">
+            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Style="font-size: 52px; color: #d4d7de; margin-bottom: 12px;" />
+            <div style="font-size: 15px; color: #666; margin: 6px 0;">@LangService.T("No PEPs yet","Sem PEPs ainda")</div>
+            <div style="font-size: 13px; color: #8b8f99;">@LangService.T("Click \"+ New PEP\" to add your first Politically Exposed Person","Clique \"+ Nova PEP\" para adicionar a primeira Pessoa Politicamente Exposta")</div>
+          </div>
+        </NoRecordsContent>
+      </MudTable>
+
+      <div class="nav-actions" style="margin-top:12px;">
+        <MudButton Class="nav-btn nav-btn--prev" Variant="Variant.Outlined" OnClick="@(()=>navigate.NavigateTo("ShareHoldersPage"))" StartIcon="@Icons.Material.Filled.ArrowBack">@LangService.T("Previous","Anterior")</MudButton>
+        <MudButton Class="nav-btn nav-btn--next" Variant="Variant.Filled" OnClick="@(()=>navigate.NavigateTo("GeneralDocumemtsPage"))" EndIcon="@Icons.Material.Filled.ArrowForward">@LangService.T("Next: Documents","Seguinte: Documentos")</MudButton>
+      </div>
+    </div>
+
+    <!-- Sidebar Guidance -->
+    <aside class="sidebar-card">
+      <div class="sidebar-title">Guidance</div>
+      <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Security" /> Verify identity and public office details.</div>
+      <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Groups" /> Include close and business associates when applicable.</div>
+      <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Description" /> Attach relevant documents for each PEP.</div>
+      <MudDivider Class="my-2" />
+      <div class="sidebar-title">Summary</div>
+      <div class="sidebar-row"><span>Total PEPs</span><strong>@peps.Count</strong></div>
+      <div class="sidebar-row"><span>Relationships used</span><strong>@peps.Select(p=>p.Relationship).Where(r=>!string.IsNullOrWhiteSpace(r)).Distinct().Count()</strong></div>
+    </aside>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit PEP Modal -->
+<MudDialog @bind-IsVisible="showPepModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true }">
+  <TitleContent>
+    <div class="modal-header-blue">
+      <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">@(isEditingPep ? LangService.T("Edit PEP","Editar PEP") : LangService.T("Add New PEP","Adicionar Nova PEP"))</MudText>
+      <MudText Typo="Typo.body2" Class="sub">@(isEditingPep ? LangService.T("Update Politically Exposed Person details","Atualizar detalhes da PEP") : LangService.T("Add new Politically Exposed Person into the system","Adicionar nova PEP ao sistema"))</MudText>
+    </div>
+  </TitleContent>
+  <DialogContent>
+    <MudForm @ref="pepForm">
+      <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom: 10px;">
+        <MudAutocomplete T="string"
+                         @bind-Value="currentPep.Name"
+                         Margin="Margin.Dense"
+                         Placeholder="@LangService.T("Full Name","Nome Completo")"
+                         Variant="Variant.Outlined"
+                         Required="true"
+                         RequiredError="@LangService.T("Full Name is required","Nome completo é obrigatório")"
+                         SearchFunc="@SearchShareholderNames"
+                         Clearable="true"
+                         Dense="true" />
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                <MudTextField @bind-Value="currentPep.Office_Held" Margin="Margin.Dense" Placeholder="@LangService.T("Office Held","Cargo")" Variant="Variant.Outlined" Required="true" RequiredError="@LangService.T("Office Held is required","Cargo é obrigatório")" />
+                <MudSelect @bind-Value="currentPep.Relationship" Margin="Margin.Dense" Placeholder="@LangService.T("Select Role","Selecionar Função")" Variant="Variant.Outlined">
+          <MudSelectItem Value="@("Business Associate")">@LangService.T("Business Associate","Associado Empresarial")</MudSelectItem>
+          <MudSelectItem Value="@("Family Member")">@LangService.T("Family Member","Membro da Família")</MudSelectItem>
+          <MudSelectItem Value="@("Close Associate")">@LangService.T("Close Associate","Associado Próximo")</MudSelectItem>
+          <MudSelectItem Value="@("Government Official")">@LangService.T("Government Official","Funcionário Público")</MudSelectItem>
+          <MudSelectItem Value="@("Other")">@LangService.T("Other","Outro")</MudSelectItem>
+        </MudSelect>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:10px;">
+        <MudTextField @bind-Value="pepAdditionalInfo"Margin="Margin.Dense" Placeholder="@LangService.T("Additional information","Informação adicional")" Variant="Variant.Outlined" Lines="4" />
+      </div>
+    </MudForm>
+  </DialogContent>
+  <DialogActions>
+        <MudButton OnClick="ClosePepModal">@LangService.T("Cancel","Cancelar")</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="@SavePep">@(isEditingPep ? "+ " + LangService.T("Update PEP","Atualizar PEP") : "+ " + LangService.T("Add PEP","Adicionar PEP"))</MudButton>
+  </DialogActions>
+</MudDialog>
+
+<!-- PEP Documents Modal -->
+<MudDialog @bind-IsVisible="showPepDocumentsModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Medium, DisableBackdropClick = true }">
+  <TitleContent>
+    <div class="modal-header-blue">
+      <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">@LangService.T("Documents for","Documentos de") @selectedPepForDocuments?.Name</MudText>
+      <MudText Typo="Typo.body2" Class="sub">@LangService.T("Upload and manage PEP documents","Carregar e gerir documentos de PEP")</MudText>
+    </div>
+  </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Style="margin-bottom: 20px;">
+            Only PDF files are allowed - Resolution: 200dpi, Compression Type: Standard (Max 5MB)
+        </MudAlert>
+
+        <!-- Uploaded Documents Section -->
+        @if (pepUploadedDocuments != null && pepUploadedDocuments.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2" Style="font-weight: 600; margin-bottom: 10px;">@LangService.T("Uploaded Documents","Documentos Carregados") (@pepUploadedDocuments.Count)</MudText>
+            <MudTable Items="@pepUploadedDocuments" Dense="true" Style="margin-bottom: 20px;">
+                <HeaderContent>
+                    <MudTh Class="th-blue">@LangService.T("FILE NAME","NOME DO FICHEIRO")</MudTh>
+                    <MudTh Class="th-blue">@LangService.T("UPLOADED","CARREGADO")</MudTh>
+                    <MudTh Class="th-blue">@LangService.T("ACTION","AÇÃO")</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="FILE NAME">@context.FileName</MudTd>
+                    <MudTd DataLabel="UPLOADED">
+                        <MudChip Color="Color.Success" Size="Size.Small">✓ @LangService.T("Uploaded","Carregado")</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="ACTION">
+                        <MudButton Class="btn-pill" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(async () => await ViewPepDocument(context))" StartIcon="@Icons.Material.Filled.Visibility">@LangService.T("View","Ver")</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        <!-- Upload New Document Section -->
+        <MudText Typo="Typo.subtitle2" Style="font-weight: 600; margin-bottom: 10px;">@LangService.T("Upload New Document","Carregar Novo Documento")</MudText>
+        <MudTable Items="@pepRequiredDocuments" Dense="true" Style="margin-bottom: 20px;">
+            <HeaderContent>
+                <MudTh Class="th-blue">@LangService.T("DOCUMENT","DOCUMENTO")</MudTh>
+                <MudTh Class="th-blue">@LangService.T("FILE","FICHEIRO")</MudTh>
+                <MudTh Class="th-blue">@LangService.T("ACTION","AÇÃO")</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="DOCUMENT">@context.DocumentName</MudTd>
+                <MudTd DataLabel="FILE">
+                    <span style="color: #999; font-size: 12px;">@(context.FileName ?? LangService.T("No file chosen","Nenhum ficheiro selecionado"))</span>
+                </MudTd>
+                <MudTd DataLabel="ACTION">
+                    <InputFile id="@($"pep_file_{context.No}")" OnChange="@((InputFileChangeEventArgs e) => OnPepFileSelected(e, context))" accept=".pdf" style="display: none;" />
+                    <MudButton Class="btn-pill" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(async () => await ClickPepFileInput(context))">@LangService.T("Choose File","Escolher Ficheiro")</MudButton>
+                    @if (!string.IsNullOrEmpty(context.FileName))
+                    {
+                        <MudButton Class="btn-pill" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => UploadPepDocument(context))" StartIcon="@Icons.Material.Filled.CloudUpload" Disabled="@isUploadingPepDocument">
+                            @(isUploadingPepDocument ? LangService.T("Uploading...","A carregar...") : LangService.T("Upload","Carregar"))
+                        </MudButton>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(context.UploadedUrl))
+                    {
+                        <MudButton Class="btn-pill" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewPepUploadedDocument(context))" StartIcon="@Icons.Material.Filled.Visibility">@LangService.T("View","Ver")</MudButton>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="ClosePepDocumentsModal">@LangService.T("Close","Fechar")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    public MainLayout Layout { get; set; }
+
+    private NavigationManager navigationManager;
+    private List<PepDto> peps = new();
+    private List<ShareholderDto> shareholderDtos = new();
+    private List<RequiredDocument> pepRequiredDocuments = new();
+    private List<PepDocumentDto> pepUploadedDocuments = new();
+    private PepDto currentPep = new();
+    private PepDto selectedPepForDocuments;
+    private string searchTerm = "";
+    private string currentUserContactNo = "";
+    private string pepAdditionalInfo = "";
+    
+    private bool showPepModal = false;
+    private bool showPepDocumentsModal = false;
+    private bool isEditingPep = false;
+    private bool isUploadingPepDocument = false;
+    private MudForm pepForm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            
+            // Get current user contact number
+            await GetCurrentUserContactNo();
+
+            // Load PEPs
+            await LoadPeps();
+
+            // Load Shareholders for autocomplete of PEP names
+            await LoadShareholders();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing page: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private async Task ViewPepUploadedDocument(RequiredDocument document)
+    {
+        if (!string.IsNullOrWhiteSpace(document.UploadedUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("open", document.UploadedUrl, "_blank");
+            return;
+        }
+
+        Snackbar.Add("No uploaded document link found. Please re-upload.", Severity.Warning);
+    }
+
+    private async Task LoadShareholders()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(currentUserContactNo))
+            {
+                shareholderDtos = await UnitOfWork.ShareholderService.GetShareholdersAsync(currentUserContactNo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading shareholders for PEP autocomplete: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task GetCurrentUserContactNo()
+    {
+        try
+        {
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    // Get user from database
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(email);
+                    if (dbUser != null)
+                    {
+                        currentUserContactNo = dbUser.Contact_No;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+    }
+
+    private async Task LoadPeps()
+    {
+        try
+        {
+            peps = await UnitOfWork.PepService.GetPepsAsync(currentUserContactNo);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading PEPs: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private List<PepDto> FilteredPeps => peps.Where(p => 
+        string.IsNullOrEmpty(searchTerm) ||
+        p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+        p.Office_Held.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+    ).ToList();
+
+    private Task<IEnumerable<string>> SearchShareholderNames(string value)
+    {
+        IEnumerable<string> names = shareholderDtos
+            .Select(s => s.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            names = names.Where(n => n.Contains(value, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return Task.FromResult(names);
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0,1).ToUpperInvariant();
+        return ($"{parts[0][0]}{parts[^1][0]}").ToUpperInvariant();
+    }
+
+    private void OpenAddPepModal()
+    {
+        isEditingPep = false;
+        currentPep = new PepDto();
+        showPepModal = true;
+    }
+
+    private void EditPep(PepDto pep)
+    {
+        isEditingPep = true;
+        currentPep = new PepDto 
+        { 
+            No = pep.No,
+            Name = pep.Name,
+            Office_Held = pep.Office_Held,
+            Relationship = pep.Relationship
+        };
+        showPepModal = true;
+    }
+
+    private async Task SavePep()
+    {
+        await pepForm.Validate();
+        if (!pepForm.IsValid)
+            return;
+
+        try
+        {
+            Layout?.OpenLoading();
+
+            if (isEditingPep)
+            {
+                await UnitOfWork.PepService.UpdatePepAsync(currentUserContactNo, currentPep.No, currentPep);
+                Snackbar.Add("PEP updated successfully", Severity.Success);
+            }
+            else
+            {
+                await UnitOfWork.PepService.CreatePepAsync(currentUserContactNo, currentPep);
+                Snackbar.Add("PEP created successfully", Severity.Success);
+            }
+
+            ClosePepModal();
+            await LoadPeps();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving PEP: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private async Task DeletePep(PepDto pep)
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            await UnitOfWork.PepService.DeletePepAsync(currentUserContactNo, pep.No);
+            Snackbar.Add("PEP deleted successfully", Severity.Success);
+            await LoadPeps();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting PEP: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private void ClosePepModal()
+    {
+        showPepModal = false;
+        currentPep = new PepDto();
+        pepAdditionalInfo = "";
+    }
+
+    private async Task OpenPepDocumentsModal(PepDto pep)
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            selectedPepForDocuments = pep;
+            
+            // Initialize with one empty document slot for upload
+            pepRequiredDocuments = new List<RequiredDocument>
+            {
+                new RequiredDocument 
+                { 
+                    No = 1, 
+                    DocumentName = "PEP Document",
+                    IsUploaded = false
+                }
+            };
+
+            // Load existing documents
+            await LoadPepDocuments();
+            
+            showPepDocumentsModal = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening documents modal: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private async Task LoadPepDocuments()
+    {
+        try
+        {
+            // This will fetch documents from BC for the selected PEP
+            // For now, initialize as empty - BC endpoint integration needed
+            pepUploadedDocuments = new List<PepDocumentDto>();
+        }
+        catch (Exception ex)
+        {
+            pepUploadedDocuments = new List<PepDocumentDto>();
+        }
+    }
+
+    private async Task RefreshPepDocuments()
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            await LoadPepDocuments();
+            StateHasChanged();
+            Snackbar.Add("Documents refreshed", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error refreshing documents: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private async Task ViewPepDocument(PepDocumentDto document)
+    {
+        try
+        {
+            Layout?.OpenLoading();
+            Snackbar.Add("Viewing PEP documents is not configured for SharePoint links on this screen.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error viewing document: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout?.CloseLoading();
+        }
+    }
+
+    private void ClosePepDocumentsModal()
+    {
+        showPepDocumentsModal = false;
+        selectedPepForDocuments = null;
+        pepRequiredDocuments = new List<RequiredDocument>();
+        StateHasChanged();
+    }
+
+    private async Task ClickPepFileInput(RequiredDocument document)
+    {
+        var fileInputId = $"pep_file_{document.No}";
+        await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{fileInputId}').click();");
+    }
+
+    private async Task OnPepFileSelected(InputFileChangeEventArgs e, RequiredDocument document)
+    {
+        try
+        {
+            var file = e.GetMultipleFiles().FirstOrDefault();
+            if (file != null)
+            {
+                // Validate file type
+                if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    Snackbar.Add("Only PDF files are allowed", Severity.Error);
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.Size > 5 * 1024 * 1024)
+                {
+                    Snackbar.Add("File size must not exceed 5MB", Severity.Error);
+                    return;
+                }
+
+                document.FileName = file.Name;
+                document.FileData = await ReadFileAsync(file);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting file: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<byte[]> ReadFileAsync(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();
+    }
+
+    private async Task UploadPepDocument(RequiredDocument document)
+    {
+        if (document.FileData == null || document.FileData.Length == 0)
+        {
+            Snackbar.Add("Please select a file first", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            isUploadingPepDocument = true;
+            Layout?.OpenLoading();
+
+            // Get PEP number from selected PEP
+            var pepNo = selectedPepForDocuments.No;
+
+            var spDocCode = $"PEP_{pepNo}_DOC022";
+            var url = await SharePointDocuments.UploadKycDocumentAsync(
+                "Pep",
+                currentUserContactNo,
+                spDocCode,
+                document.FileData,
+                document.FileName
+            );
+
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                document.UploadedUrl = url;
+                KycUploadContext.CorporateDocumentUrlsByCode[spDocCode] = url;
+            }
+
+            // Mark as uploaded
+            document.IsUploaded = true;
+            document.UploadedFileName = document.FileName;
+            document.FileData = null;
+            document.FileName = null;
+
+            // Refresh documents list
+            await LoadPepDocuments();
+
+            Snackbar.Add($"Document uploaded successfully!", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading document: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isUploadingPepDocument = false;
+            Layout?.CloseLoading();
+        }
+    }
+
+    public class RequiredDocument
+    {
+        public int No { get; set; }
+        public string DocumentName { get; set; }
+        public string FileName { get; set; }
+        public byte[] FileData { get; set; }
+        public bool IsUploaded { get; set; } = false;
+        public string UploadedFileName { get; set; }
+        public string UploadedUrl { get; set; }
+    }
+
+    public class PepDocumentDto
+    {
+        public int No { get; set; }
+        public string FileName { get; set; }
+        public string DocumentCode { get; set; }
+        public DateTime UploadedDate { get; set; }
+        public string Status { get; set; }
+    }
+}

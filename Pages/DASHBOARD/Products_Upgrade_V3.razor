@@ -1,0 +1,227 @@
+@page "/Products_Upgrade_V3"
+@attribute [Authorize]
+@using MudBlazor
+@using MOZ_UPGRADE.Models
+@using System.Linq
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+
+<style>
+    .products-v3-page { padding: 20px; }
+    .products-v3-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 20px 24px; margin-bottom: 16px; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #e5e7eb; }
+    .products-v3-hero-title { display:flex; align-items:center; gap:8px; font-size: 18px; font-weight: 700; color: #1f2937; }
+    .products-v3-hero-sub { margin-top: 4px; color: #6b7280; font-size: 13px; max-width: 720px; }
+    .products-v3-badge { display:inline-flex; align-items:center; gap:6px; background:#fff; color:#2E5090; padding:4px 10px; border:1px solid #eaeefb; border-radius:999px; font-weight:600; font-size:11px; }
+    .products-v3-search-bar { margin-bottom: 16px; }
+    .products-v3-search-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .products-v3-search-grow { flex:1 1 260px; }
+    .products-v3-search-actions { display:flex; gap:8px; }
+</style>
+
+<div class="products-v3-page">
+    <div class="products-v3-hero">
+        <div class="products-v3-badge">📦 @LangService.T("Product Classes","Classes de Produto")</div>
+        <div class="products-v3-hero-title">@LangService.T("Available Product Classes","Classes de produto disponíveis")</div>
+        <div class="products-v3-hero-sub">
+            @* @LangService.T(
+                "Browse product classes coming from the same Business Central OData endpoint.",
+                "Veja as classes de produto vindas do mesmo endpoint OData do Business Central.") *@
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div style="display:flex; align-items:center; justify-content:center; height:calc(100vh - 220px);">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <MudPaper Class="pa-4" Elevation="1">
+            @if (productClasses == null || productClasses.Count == 0)
+            {
+                <div style="text-align:center; padding:40px 0;">
+                    <MudText Typo="Typo.h6" Color="Color.Secondary">@LangService.T("No product classes found.","Nenhuma classe de produto encontrada.")</MudText>
+                </div>
+            }
+            else
+            {
+                <div class="products-v3-search-bar">
+                    <MudGrid GutterSize="2">
+                        <MudItem xs="12" md="8">
+                            <MudTextField @bind-Value="searchText"
+                                          Label='@LangService.T("Advanced search","Pesquisa avançada")'
+                                          Placeholder='@LangService.T("Search by name, code, description...","Pesquise por nome, código, descrição...")'
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Immediate="true"
+                                          OnKeyUp="OnSearchKeyUp" />
+                        </MudItem>
+                        <MudItem xs="12" md="4" Style="display:flex; justify-content:flex-end; align-items:flex-end; gap:8px;">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearSearch">
+                                @LangService.T("Clear","Limpar")
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </div>
+
+                <MudTable Items="filteredProductClasses"
+                          Dense="true"
+                          Hover="true"
+                          Bordered="true"
+                          Striped="true"
+                          RowsPerPage="pageSize">
+                    <HeaderContent>
+                        <MudTh>@LangService.T("Name","Nome")</MudTh>
+                        <MudTh>@LangService.T("Description","Descrição")</MudTh>
+                        <MudTh></MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="@LangService.T("Name","Nome")">@context.Name</MudTd>
+                        <MudTd DataLabel="@LangService.T("Description","Descrição")">@context.ProductDescription</MudTd>
+                        
+                        <MudTd>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="() => OnSelectClass(context)">
+                                @LangService.T("Select","Selecionar")
+                            </MudButton>
+                        </MudTd>
+
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                           Color="Color.Primary"
+                                           Size="Size.Small"
+                                           OnClick="() => ShowDescription(context)" />
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="pageSizeOptions" />
+                    </PagerContent>
+                </MudTable>
+            }
+        </MudPaper>
+    }
+</div>
+
+@code {
+    private List<ProductClass> productClasses = new();
+    private List<ProductClass> filteredProductClasses = new();
+    private bool isLoading = true;
+
+    private string searchText = string.Empty;
+    private int pageSize = 10;
+    private int[] pageSizeOptions = new[] { 5, 10, 20, 50 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductClassesAsync();
+    }
+
+    private async Task LoadProductClassesAsync()
+    {
+        isLoading = true;
+        try
+        {
+            productClasses = await UnitOfWork.UnderwriterPolicyService.GetProductClassesAsync() ?? new List<ProductClass>();
+            ApplySearch();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(LangService.T("Error loading product classes.","Erro ao carregar classes de produto."), Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void OnSearchKeyUp(KeyboardEventArgs _)
+    {
+        ApplySearch();
+    }
+
+    private void ClearSearch()
+    {
+        searchText = string.Empty;
+        ApplySearch();
+    }
+
+    private void ApplySearch()
+    {
+        if (productClasses == null)
+        {
+            filteredProductClasses = new List<ProductClass>();
+            return;
+        }
+
+        var query = productClasses.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var term = searchText.Trim();
+            query = query.Where(pc =>
+                (!string.IsNullOrWhiteSpace(pc.Name) && pc.Name.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(pc.ProductClassNo) && pc.ProductClassNo.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(pc.ProductDescription) && pc.ProductDescription.Contains(term, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        filteredProductClasses = query
+            .OrderBy(pc => pc.Name ?? pc.ProductClassNo)
+            .ToList();
+    }
+
+    private async Task ShowDescription(ProductClass productClass)
+    {
+        if (productClass == null)
+            return;
+
+        var desc = productClass.Description1;
+        if (string.IsNullOrWhiteSpace(desc))
+        {
+            desc = LangService.T("No additional description is available for this product class.",
+                                 "Nenhuma descrição adicional está disponível para esta classe de produto.");
+        }
+
+        var parameters = new DialogParameters
+        {
+            { "ContentText", desc },
+            { "ButtonText", LangService.T("Close","Fechar") },
+            { "Color", Color.Primary }
+        };
+
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+
+        await DialogService.ShowMessageBox(
+            LangService.T("Product details","Detalhes do produto"),
+            desc,
+            yesText: LangService.T("Close","Fechar"),
+            cancelText: null,
+            options: options);
+    }
+
+    private void OnSelectClass(ProductClass productClass)
+    {
+        if (productClass == null)
+            return;
+
+        // Use the product class NAME in the route (for display and plan filtering)
+        var className = productClass.Name ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(className))
+        {
+            Snackbar.Add(LangService.T("Product class name is missing.","Nome da classe de produto em falta."), Severity.Warning);
+            return;
+        }
+
+        var encodedClass = Uri.EscapeDataString(className);
+        var classCode = productClass.ProductClassNo ?? string.Empty;
+        var encodedCode = Uri.EscapeDataString(classCode ?? string.Empty);
+        var schedule = productClass.ScheduleLine ?? string.Empty;
+        var encodedSchedule = Uri.EscapeDataString(schedule);
+        var url = $"/risk-listing-v3/{encodedClass}/{encodedSchedule}?classCode={encodedCode}";
+        NavigationManager.NavigateTo(url);
+    }
+}

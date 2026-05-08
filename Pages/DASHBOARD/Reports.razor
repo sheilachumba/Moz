@@ -1,0 +1,939 @@
+@page "/Reports"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Utils
+@using System.Text.Json
+@using MudBlazor.Charts
+@using MudBlazor
+@using MOZ_UPGRADE.Pages.DASHBOARD.Components
+@using MOZ_UPGRADE.Services.Export
+@inject IUnitOfWork UnitOfWork
+@inject NavigationManager NavigationManager
+@inject LanguageService LangService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject IPdfExportService PdfExportService
+@inject IExcelExportService ExcelExportService
+
+<style>
+    .reports-container {
+        padding: 1.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .report-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    
+    .report-header {
+        background: linear-gradient(135deg, #1F3A7F 0%, #2d488f 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        padding: 1rem;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        padding: 1rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1F3A7F;
+        margin: 0.5rem 0;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+    }
+</style>
+
+<div class="reports-container">
+    <div class="report-card">
+        <div class="report-header">
+            <div>
+                <h3 style="margin: 0; font-weight: 600;">@LangService.T("Reports & Analytics", "Relatórios e Análises")</h3>
+                <p style="margin: 0.25rem 0 0; opacity: 0.9; font-size: 0.9rem;">
+                    @LangService.T("Comprehensive view of your insurance portfolio", "Visão abrangente da sua carteira de seguros")
+                </p>
+            </div>
+        </div>
+        
+        <MudTabs Rounded="true" Elevation="0" Dense="true" @bind-ActivePanelIndex="activeTabIndex" Class="mb-2">
+            <MudTabPanel Text="@($"{LangService.T("Policies", "Apólices")} ({policyStats.Total})")" />
+            <MudTabPanel Text="@($"{LangService.T("Payments", "Pagamentos")} ({paymentStats.Total})")" />
+            <MudTabPanel Text="@($"{LangService.T("Receipts", "Recibos")} ({receiptStats.Total})")" />
+            <MudTabPanel Text="@($"{LangService.T("Claims", "Sinistros")} ({claimStats.Total})")" />
+            <MudTabPanel Text="@($"{LangService.T("Quotes", "Cotações")} ({quoteStats.Total})")" />
+        </MudTabs>
+        
+        <MudPaper Class="pa-4">
+            @if (isLoading)
+            {
+                <div class="d-flex justify-center align-center" style="height: 300px;">
+                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                </div>
+            }
+            else
+            {
+               if (activeTabIndex == 0)
+                {
+                    <ReportTable 
+                        Title="@LangService.T("Policies", "Apólices")"
+                        Items="policies"
+                        Columns="policyColumns"
+                        ExportToPdf="@(() => ExportToPdf<PolicyReportItem>("Policies", policyColumns, policies))"
+                        ExportToExcel="@(() => ExportToExcel<PolicyReportItem>("Policies", policyColumns, policies))"
+                        LangService="@LangService" />
+                }
+                else if (activeTabIndex == 1)
+                {
+                    <ReportTable 
+                        Title="@LangService.T("Payments", "Pagamentos")"
+                        Items="payments"
+                        Columns="paymentColumns"
+                        ExportToPdf="@(() => ExportToPdf<PaymentReportItem>("Payments", paymentColumns, payments))"
+                        ExportToExcel="@(() => ExportToExcel<PaymentReportItem>("Payments", paymentColumns, payments))"
+                        LangService="@LangService" />
+                }
+                else if (activeTabIndex == 2)
+                {
+                    <ReportTable 
+                        Title="@LangService.T("Receipts", "Recibos")"
+                        Items="receipts"
+                        Columns="receiptColumns"
+                        ExportToPdf="@(() => ExportToPdf<ReceiptReportItem>("Receipts", receiptColumns, receipts))"
+                        ExportToExcel="@(() => ExportToExcel<ReceiptReportItem>("Receipts", receiptColumns, receipts))"
+                        LangService="@LangService" />
+                }
+                else if (activeTabIndex == 3)
+                {
+                    <ReportTable 
+                        Title="@LangService.T("Claims", "Sinistros")"
+                        Items="claims"
+                        Columns="claimColumns"
+                        ExportToPdf="@(() => ExportToPdf<ClaimReportItem>("Claims", claimColumns, claims))"
+                        ExportToExcel="@(() => ExportToExcel<ClaimReportItem>("Claims", claimColumns, claims))"
+                        LangService="@LangService" />
+                }
+                else if (activeTabIndex == 4)
+                {
+                    <ReportTable 
+                        Title="@LangService.T("Quotes", "Cotações")"
+                        Items="quotes"
+                        Columns="quoteColumns"
+                        ExportToPdf="@(() => ExportToPdf<QuoteReportItem>("Quotes", quoteColumns, quotes))"
+                        ExportToExcel="@(() => ExportToExcel<QuoteReportItem>("Quotes", quoteColumns, quotes))"
+                        LangService="@LangService" />
+                }
+            }
+        </MudPaper>
+    </div>
+</div>
+
+@code {
+    private int activeTabIndex = 0;
+    private bool isLoading = true;
+    
+    // Stats objects
+    private ReportStats policyStats = new();
+    private ReportStats paymentStats = new();
+    private ReportStats receiptStats = new();
+    private ReportStats claimStats = new();
+    private ReportStats quoteStats = new();
+    
+    // Data lists
+    private List<PolicyReportItem> policies = new();
+    private List<PaymentReportItem> payments = new();
+    private List<ReceiptReportItem> receipts = new();
+    private List<ClaimReportItem> claims = new();
+    private List<QuoteReportItem> quotes = new();
+    
+    // Column definitions
+    private List<ReportColumn> policyColumns = new();
+    private List<ReportColumn> paymentColumns = new();
+    private List<ReportColumn> receiptColumns = new();
+    private List<ReportColumn> claimColumns = new();
+    private List<ReportColumn> quoteColumns = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            // Initialize columns
+            InitializeColumns();
+            
+            // Load data in parallel
+            var loadTasks = new List<Task>
+            {
+                LoadPolicies(),
+                LoadPayments(),
+                LoadReceipts(),
+                LoadClaims(),
+                LoadQuotes()
+            };
+            
+            await Task.WhenAll(loadTasks);
+            
+            // Calculate statistics
+            CalculateStats();
+            
+            // Initialize charts after data is loaded
+            InitializeCharts();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading reports: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+    
+    private void CalculateStats()
+    {
+        // Calculate policy stats
+        policyStats = new ReportStats
+        {
+            Total = policies.Count,
+            Active = policies.Count(p => p.Status == "Active"),
+            Pending = policies.Count(p => p.Status == "Pending"),
+            Expired = policies.Count(p => p.Status == "Expired"),
+            TotalAmount = policies.Sum(p => p.Premium)
+        };
+        
+        // Calculate payment stats
+        paymentStats = new ReportStats
+        {
+            Total = payments.Count,
+            ThisMonth = payments.Count(p => p.PaymentDate.Month == DateTime.Now.Month && p.PaymentDate.Year == DateTime.Now.Year),
+            TotalAmount = payments.Sum(p => p.Amount),
+            ThisMonthAmount = payments
+                .Where(p => p.PaymentDate.Month == DateTime.Now.Month && p.PaymentDate.Year == DateTime.Now.Year)
+                .Sum(p => p.Amount)
+        };
+        
+        // Calculate receipt stats
+        receiptStats = new ReportStats
+        {
+            Total = receipts.Count,
+            ThisMonth = receipts.Count(r => r.IssueDate.Month == DateTime.Now.Month && r.IssueDate.Year == DateTime.Now.Year),
+            TotalAmount = receipts.Sum(r => r.Amount),
+            ThisMonthAmount = receipts
+                .Where(r => r.IssueDate.Month == DateTime.Now.Month && r.IssueDate.Year == DateTime.Now.Year)
+                .Sum(r => r.Amount)
+        };
+        
+        // Calculate claim stats
+        claimStats = new ReportStats
+        {
+            Total = claims.Count,
+            Open = claims.Count(c => c.Status == "Open"),
+            Closed = claims.Count(c => c.Status == "Closed"),
+            TotalAmount = claims.Sum(c => c.AmountClaimed),
+            ThisMonthAmount = claims
+                .Where(c => c.DateReported.Month == DateTime.Now.Month && c.DateReported.Year == DateTime.Now.Year)
+                .Sum(c => c.AmountClaimed)
+        };
+        
+        // Calculate quote stats
+        quoteStats = new ReportStats
+        {
+            Total = quotes.Count,
+            Converted = quotes.Count(q => q.Status == "Converted"),
+            Pending = quotes.Count(q => q.Status == "Pending"),
+            Expired = quotes.Count(q => q.ExpiryDate < DateTime.Now)
+        };
+    }
+    
+    private void InitializeColumns()
+    {
+        // Policy columns
+        policyColumns = new List<ReportColumn>
+        {
+            new() { Property = "PolicyNumber", Header = LangService.T("Policy #", "Nº da Apólice") },
+            new() { Property = "PolicyType", Header = LangService.T("Type", "Tipo") },
+            new() { Property = "Status", Header = LangService.T("Status", "Status") },
+            new() { Property = "StartDate", Header = LangService.T("Start Date", "Data de Início"), Format = "d" },
+            new() { Property = "EndDate", Header = LangService.T("End Date", "Data de Término"), Format = "d" },
+            new() { Property = "Premium", Header = LangService.T("Premium", "Prêmio"), Format = "N2" },
+            new() { Property = "SumInsured", Header = LangService.T("Sum Insured", "Valor Segurado"), Format = "N2" }
+        };
+        
+        // Payment columns
+        paymentColumns = new List<ReportColumn>
+        {
+            new() { Property = "ReceiptNo", Header = LangService.T("Receipt #", "Nº do Recibo") },
+            new() { Property = "PolicyNumber", Header = LangService.T("Policy #", "Nº da Apólice") },
+            new() { Property = "PaymentDate", Header = LangService.T("Date", "Data"), Format = "d" },
+            new() { Property = "Amount", Header = LangService.T("Amount", "Valor"), Format = "N2" },
+            new() { Property = "PaymentMethod", Header = LangService.T("Method", "Método") },
+            new() { Property = "Status", Header = LangService.T("Status", "Status") }
+        };
+        
+        // Receipt columns (similar structure as payments)
+        receiptColumns = new List<ReportColumn>
+        {
+            new() { Property = "ReceiptNo", Header = LangService.T("Receipt #", "Nº do Recibo") },
+            new() { Property = "PolicyNumber", Header = LangService.T("Policy #", "Nº da Apólice") },
+            new() { Property = "IssueDate", Header = LangService.T("Issue Date", "Data de Emissão"), Format = "d" },
+            new() { Property = "Amount", Header = LangService.T("Amount", "Valor"), Format = "N2" },
+            new() { Property = "PaymentMethod", Header = LangService.T("Method", "Método") },
+            new() { Property = "Status", Header = LangService.T("Status", "Status") }
+        };
+        
+        // Claim columns
+        claimColumns = new List<ReportColumn>
+        {
+            new() { Property = "ClaimNo", Header = LangService.T("Claim #", "Nº do Sinistro") },
+            new() { Property = "PolicyNumber", Header = LangService.T("Policy #", "Nº da Apólice") },
+            new() { Property = "DateReported", Header = LangService.T("Date Reported", "Data de Ocorrência"), Format = "d" },
+            new() { Property = "ClaimType", Header = LangService.T("Type", "Tipo") },
+            new() { Property = "Status", Header = LangService.T("Status", "Status") },
+            new() { Property = "AmountClaimed", Header = LangService.T("Amount Claimed", "Valor Reclamado"), Format = "N2" },
+            new() { Property = "AmountPaid", Header = LangService.T("Amount Paid", "Valor Pago"), Format = "N2" }
+        };
+        
+        // Quote columns
+        quoteColumns = new List<ReportColumn>
+        {
+            new() { Property = "QuoteNo", Header = LangService.T("Quote #", "Nº da Cotação") },
+            new() { Property = "PolicyType", Header = LangService.T("Type", "Tipo") },
+            new() { Property = "DateCreated", Header = LangService.T("Date Created", "Data de Criação"), Format = "d" },
+            new() { Property = "ExpiryDate", Header = LangService.T("Expiry Date", "Data de Validade"), Format = "d" },
+            new() { Property = "Status", Header = LangService.T("Status", "Status") },
+            new() { Property = "Premium", Header = LangService.T("Premium", "Prêmio"), Format = "N2" },
+            new() { Property = "SumInsured", Header = LangService.T("Sum Insured", "Valor Segurado"), Format = "N2" }
+        };
+    }
+    
+    private async Task LoadPolicies()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // 1. Get current user's ID
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                Snackbar.Add("User not found. Please log in again.", Severity.Error);
+                policies = new List<PolicyReportItem>();
+                return;
+            }
+
+            // 2. Get user's contact number
+            var user = await UnitOfWork.userRepository.GetById(userId);
+            if (user == null || string.IsNullOrWhiteSpace(user.Contact_No))
+            {
+                Snackbar.Add("User contact information not found.", Severity.Error);
+                policies = new List<PolicyReportItem>();
+                return;
+            }
+
+            // 3. Get contact card to find insured number
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(user.Contact_No);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                Snackbar.Add("Insured number not found for this user.", Severity.Error);
+                policies = new List<PolicyReportItem>();
+                return;
+            }
+
+            // 4. Fetch policies from Business Central
+            var bcPolicies = await UnitOfWork.PolicyCardService.GetPoliciesByInsuredNoAsync(contactCard.Insured_Number);
+            
+            // 5. Map to report items
+            policies = bcPolicies.Select(p => new PolicyReportItem
+            {
+                PolicyNumber = p.No,
+                PolicyType = p.Policy_Type,
+                Status = MapPolicyStatus(p.Policy_Status),
+                StartDate = ParseDate(p.From_Date) ?? DateTime.MinValue,
+                EndDate = ParseDate(p.To_Date) ?? DateTime.MinValue,
+                Premium = p.Total_Sum_Insured, // Using Total_Sum_Insured as the premium amount
+                SumInsured = p.Total_Sum_Insured
+            }).ToList();
+
+            // 6. Update statistics
+            policyStats = new ReportStats
+            {
+                Total = policies.Count,
+                Active = policies.Count(p => p.Status == LangService.T("Active", "Ativa") || 
+                                          p.Status == LangService.T("Live", "Ativa")),
+                Pending = policies.Count(p => p.Status == LangService.T("Pending", "Pendente") || 
+                                            p.Status == LangService.T("Awaiting Payment", "Aguardando Pagamento")),
+                TotalAmount = policies.Sum(p => p.Premium)
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading policies: {ex.Message}", Severity.Error);
+            policies = new List<PolicyReportItem>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Helper method to map policy status
+    private string MapPolicyStatus(string status)
+    {
+        if (string.IsNullOrEmpty(status)) 
+            return LangService.T("Unknown", "Desconhecido");
+        
+        return status.ToLower() switch
+        {
+            "active" or "live" => LangService.T("Active", "Ativa"),
+            "pending" or "awaiting payment" or "awaiting_payment" => LangService.T("Pending", "Pendente"),
+            "expired" => LangService.T("Expired", "Expirada"),
+            "cancelled" or "canceled" => LangService.T("Cancelled", "Cancelada"),
+            _ => status
+        };
+    }
+
+    // Helper method to parse dates from Business Central
+    private DateTime? ParseDate(string dateStr)
+    {
+        if (string.IsNullOrEmpty(dateStr) || dateStr.Length < 10) 
+            return null;
+        
+        if (DateTime.TryParseExact(
+            dateStr.Substring(0, 10), 
+            "yyyy-MM-dd", 
+            System.Globalization.CultureInfo.InvariantCulture, 
+            System.Globalization.DateTimeStyles.None, 
+            out var date))
+        {
+            return date;
+        }
+        return null;
+    }
+    
+    private async Task LoadPayments()
+    {
+        try
+        {
+            Console.WriteLine("1. Starting LoadPayments...");
+            isLoading = true;
+            StateHasChanged();
+
+            // 1. Get current user's ID
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            Console.WriteLine($"2. User ID: {userId ?? "null"}");
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                var error = "User not found. Please log in again.";
+                Console.WriteLine(error);
+                Snackbar.Add(error, Severity.Error);
+                payments = new List<PaymentReportItem>();
+                return;
+            }
+
+            // 2. Get user's contact number
+            var user = await UnitOfWork.userRepository.GetById(userId);
+            Console.WriteLine($"3. User found: {user != null}, Contact No: {user?.Contact_No ?? "null"}");
+
+            if (user == null || string.IsNullOrWhiteSpace(user.Contact_No))
+            {
+                var error = "User contact information not found.";
+                Console.WriteLine(error);
+                Snackbar.Add(error, Severity.Error);
+                payments = new List<PaymentReportItem>();
+                return;
+            }
+
+            // 3. Get contact card to find insured number
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(user.Contact_No);
+            Console.WriteLine($"4. Contact card found: {contactCard != null}, Insured Number: {contactCard?.Insured_Number ?? "null"}");
+
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                var error = "Insured number not found for this user.";
+                Console.WriteLine(error);
+                Snackbar.Add(error, Severity.Error);
+                payments = new List<PaymentReportItem>();
+                return;
+            }
+
+            // 4. Fetch debit notes (payments) from Business Central
+            Console.WriteLine("5. Fetching debit notes...");
+            var debitNotes = await UnitOfWork.DebitNoteService.GetDebitNotesByInsuredNoAsync(contactCard.Insured_Number);
+            Console.WriteLine($"6. Retrieved {debitNotes?.Count ?? 0} debit notes");
+
+            if (debitNotes == null || !debitNotes.Any())
+            {
+                Console.WriteLine("No debit notes found for the insured number");
+                payments = new List<PaymentReportItem>();
+                return;
+            }
+
+            // 5. Map to report items
+            var validDebitNotes = debitNotes
+                
+                .ToList();
+
+            Console.WriteLine($"7. {debitNotes.Count} debit notes before mapping to payments");
+
+            payments = (debitNotes ?? new List<DebitNoteItem>())
+                .Select(dn => new PaymentReportItem
+                    {
+                        ReceiptNo = dn.No,
+                        PolicyNumber = dn.Policy_No,
+                        PaymentDate = ParseDate(dn.Document_Date) ?? DateTime.MinValue,
+                        Amount = dn.Total_Premium_Amount,
+                        Status = MapPaymentStatus(dn.Pay_Status),
+                        PaymentMethod = GetPaymentMethod(dn.Pay_Status)
+                    })
+                .OrderByDescending(p => p.PaymentDate)
+                .ToList();
+
+            Console.WriteLine($"8. Mapped {payments.Count} payment items");
+
+            // 6. Update statistics
+            var today = DateTime.Today;
+            paymentStats = new ReportStats
+                {
+                    Total = payments.Count,
+                    TotalAmount = payments.Sum(p => p.Amount),
+                    ThisMonth = payments.Count(p => p.PaymentDate.Year == today.Year && p.PaymentDate.Month == today.Month),
+                    ThisMonthAmount = payments
+                        .Where(p => p.PaymentDate.Year == today.Year && p.PaymentDate.Month == today.Month)
+                        .Sum(p => p.Amount)
+                };
+
+            Console.WriteLine("9. Payment stats updated");
+            Console.WriteLine($"   - Total: {paymentStats.Total}");
+            Console.WriteLine($"   - Total Amount: {paymentStats.TotalAmount}");
+        }
+        catch (Exception ex)
+        {
+            var error = $"Error loading payments: {ex.Message}";
+            Console.WriteLine(error);
+            Console.WriteLine(ex.StackTrace);
+            Snackbar.Add(error, Severity.Error);
+            payments = new List<PaymentReportItem>();
+        }
+        finally
+        {
+            isLoading = false;
+            Console.WriteLine("10. LoadPayments completed");
+            StateHasChanged();
+        }
+    }
+
+    private string MapPaymentStatus(string status)
+    {
+        if (string.IsNullOrEmpty(status))
+            return LangService.T("Unknown", "Desconhecido");
+
+        return status.ToLower() switch
+        {
+            "paid" or "pago" => LangService.T("Paid", "Pago"),
+            "pending" or "pendente" => LangService.T("Pending", "Pendente"),
+            "open" or "aberto" => LangService.T("Open", "Aberto"),
+            "cancelled" or "canceled" or "cancelado" => LangService.T("Cancelled", "Cancelado"),
+            "rejected" or "rejeitado" => LangService.T("Rejected", "Rejeitado"),
+            _ => status
+        };
+    }
+
+    private string GetPaymentMethod(string status)
+    {
+        if (string.IsNullOrEmpty(status))
+            return LangService.T("Not Specified", "Não Especificado");
+
+        // Map status to payment method if needed, or return the status as is
+        return status;
+    }
+    private async Task LoadReceipts()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // 1. Get current user's ID
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                Snackbar.Add("User not found. Please log in again.", Severity.Error);
+                receipts = new List<ReceiptReportItem>();
+                return;
+            }
+
+            // 2. Get user's contact number
+            var user = await UnitOfWork.userRepository.GetById(userId);
+            if (user == null || string.IsNullOrWhiteSpace(user.Contact_No))
+            {
+                Snackbar.Add("User contact information not found.", Severity.Error);
+                receipts = new List<ReceiptReportItem>();
+                return;
+            }
+
+            // 3. Get contact card to find account number (using Contact_No as Account_No)
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(user.Contact_No);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                Snackbar.Add("Account information not found for this user.", Severity.Error);
+                receipts = new List<ReceiptReportItem>();
+                return;
+            }
+
+            // 4. Fetch posted receipts from Business Central
+            var postedReceipts = await UnitOfWork.PostedReceiptService.GetPostedReceiptsByAccountAsync(contactCard.Insured_Number);
+            
+            // 5. Map to report items
+            receipts = postedReceipts
+                .Where(r => !string.IsNullOrEmpty(r.Posting_Date))
+                .Select(r => new ReceiptReportItem
+                {
+                    ReceiptNo = r.Receipt_No,
+                    PolicyNumber = r.On_Behalf_Of ?? "N/A", // Using On_Behalf_Of as fallback for PolicyNumber
+                    IssueDate = ParseDate(r.Posting_Date) ?? DateTime.MinValue,
+                    Amount = r.Amount_LCY > 0 ? r.Amount_LCY : r.Total_Amount,
+                    PaymentMethod = GetPaymentMethod(r.Pay_Mode ?? ""), // Using Pay_Mode instead of Payment_Method_Code
+                    Status = r.Posted ? LangService.T("Posted", "Lançado") : LangService.T("Pending", "Pendente")
+                })
+                .OrderByDescending(r => r.IssueDate)
+                .ToList();
+
+            // 6. Update statistics
+            var today = DateTime.Today;
+            receiptStats = new ReportStats
+            {
+                Total = receipts.Count,
+                TotalAmount = receipts.Sum(r => r.Amount),
+                ThisMonth = receipts.Count(r => r.IssueDate.Year == today.Year && r.IssueDate.Month == today.Month),
+                ThisMonthAmount = receipts
+                    .Where(r => r.IssueDate.Year == today.Year && r.IssueDate.Month == today.Month)
+                    .Sum(r => r.Amount)
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading receipts: {ex.Message}", Severity.Error);
+            receipts = new List<ReceiptReportItem>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+    
+    private async Task LoadClaims()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // 1. Get current user's ID
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                Snackbar.Add("User not found. Please log in again.", Severity.Error);
+                claims = new List<ClaimReportItem>();
+                return;
+            }
+
+            // 2. Get user's contact number
+            var user = await UnitOfWork.userRepository.GetById(userId);
+            if (user == null || string.IsNullOrWhiteSpace(user.Contact_No))
+            {
+                Snackbar.Add("User contact information not found.", Severity.Error);
+                claims = new List<ClaimReportItem>();
+                return;
+            }
+
+            // 3. Get contact card to find insured number
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(user.Contact_No);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                Snackbar.Add("Insured number not found for this user.", Severity.Error);
+                claims = new List<ClaimReportItem>();
+                return;
+            }
+
+            // 4. Fetch claims from Business Central
+            var bcClaims = await UnitOfWork.ClaimsService.GetClaimsAsync(contactCard.Insured_Number);
+            
+            // 5. Map to report items
+            claims = bcClaims
+                .Where(c => !string.IsNullOrEmpty(c.Claim_No))
+                .Select(c => new ClaimReportItem
+                {
+                    ClaimNo = c.Claim_No,
+                    PolicyNumber = c.Policy_No,
+                    DateReported = !string.IsNullOrEmpty(c.Date_Notified) ? 
+                        (ParseDate(c.Date_Notified) ?? DateTime.MinValue) : DateTime.MinValue,
+                    ClaimType = c.Loss_Type_Description,
+                    Status = MapClaimStatus(c.Claim_Status),
+                    AmountClaimed = c.Estimated_Amount,
+                    AmountPaid = c.Amount_Settled
+                })
+                .OrderByDescending(c => c.DateReported)
+                .ToList();
+
+            // 6. Update statistics
+            claimStats = new ReportStats
+            {
+                Total = claims.Count,
+                Open = claims.Count(c => c.Status != LangService.T("Closed", "Fechado") && 
+                                       c.Status != LangService.T("Rejected", "Rejeitado")),
+                Closed = claims.Count(c => c.Status == LangService.T("Closed", "Fechado")),
+                TotalAmount = claims.Sum(c => c.AmountClaimed)
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading claims: {ex.Message}", Severity.Error);
+            claims = new List<ClaimReportItem>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string MapClaimStatus(string status)
+    {
+        if (string.IsNullOrEmpty(status)) 
+            return LangService.T("Unknown", "Desconhecido");
+        
+        return status.ToLower() switch
+        {
+            "open" or "aberto" => LangService.T("Open", "Aberto"),
+            "in progress" or "em andamento" => LangService.T("In Progress", "Em Andamento"),
+            "pending" or "pendente" => LangService.T("Pending", "Pendente"),
+            "approved" or "aprovado" => LangService.T("Approved", "Aprovado"),
+            "paid" or "pago" => LangService.T("Paid", "Pago"),
+            "closed" or "fechado" => LangService.T("Closed", "Fechado"),
+            "rejected" or "rejeitado" => LangService.T("Rejected", "Rejeitado"),
+            _ => status
+        };
+    }
+    
+    private async Task LoadQuotes()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            // 1. Get current user's ID
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                Snackbar.Add("User not found. Please log in again.", Severity.Error);
+                quotes = new List<QuoteReportItem>();
+                return;
+            }
+
+            // 2. Get user's contact number
+            var user = await UnitOfWork.userRepository.GetById(userId);
+            if (user == null || string.IsNullOrWhiteSpace(user.Contact_No))
+            {
+                Snackbar.Add("User contact information not found.", Severity.Error);
+                quotes = new List<QuoteReportItem>();
+                return;
+            }
+
+            // 3. Get contact card to find insured number
+            var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(user.Contact_No);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                Snackbar.Add("Insured number not found for this user.", Severity.Error);
+                quotes = new List<QuoteReportItem>();
+                return;
+            }
+
+            // 4. Fetch quotes from Business Central
+            var bcQuotes = await UnitOfWork.InsurerQuoteService.GetInsurerQuotesAsync(contactCard.Insured_Number);
+            
+            // 5. Map to report items
+            quotes = bcQuotes
+                .Where(q => !string.IsNullOrEmpty(q.No))
+                .Select(q => new QuoteReportItem
+                {
+                    QuoteNo = q.No,
+                    PolicyType = q.Class_Name, // Using Class_Name as PolicyType
+                    Status = MapQuoteStatus(q.Status),
+                    DateCreated = ParseDate(q.Document_Date) ?? DateTime.MinValue,
+                    // Using 1 year from creation date as default expiry date since Expiry_Date is not available
+                    ExpiryDate = ParseDate(q.Document_Date)?.AddYears(1) ?? DateTime.Today.AddYears(1),
+                    // Using a default premium value since Total_Premium_Amount is not available
+                    Premium = 0, // You might want to calculate or get this from another property
+                    SumInsured = q.Total_Sum_Insured
+                })
+                .OrderByDescending(q => q.DateCreated)
+                .ToList();
+
+            // 6. Update statistics
+            var today = DateTime.Today;
+            quoteStats = new ReportStats
+            {
+                Total = quotes.Count,
+                Pending = quotes.Count(q => q.Status == LangService.T("Pending", "Pendente")),
+                Converted = quotes.Count(q => q.Status == LangService.T("Converted", "Convertido")),
+                Expired = quotes.Count(q => q.ExpiryDate < today)
+            };
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading quotes: {ex.Message}", Severity.Error);
+            quotes = new List<QuoteReportItem>();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string MapQuoteStatus(string status)
+    {
+        if (string.IsNullOrEmpty(status)) 
+            return LangService.T("Draft", "Rascunho");
+        
+        return status.ToLower() switch
+        {
+            "draft" or "rascunho" => LangService.T("Draft", "Rascunho"),
+            "pending" or "pendente" => LangService.T("Pending", "Pendente"),
+            "approved" or "aprovado" => LangService.T("Approved", "Aprovado"),
+            "rejected" or "rejeitado" => LangService.T("Rejected", "Rejeitado"),
+            "converted" or "convertido" => LangService.T("Converted", "Convertido"),
+            "expired" or "expirado" => LangService.T("Expired", "Expirado"),
+            _ => status
+        };
+    }
+    
+    private async Task ExportToPdf<T>(string reportName, List<ReportColumn> columns, List<T> data) where T : class
+    {
+        try
+        {
+            var fileContent = await PdfExportService.ExportToPdf(reportName, columns, data);
+            await DownloadFile(fileContent, $"{reportName.ToLower().Replace(" ", "_")}.pdf", "application/pdf");
+            Snackbar.Add($"{reportName} exported to PDF successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting {reportName} to PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportToExcel<T>(string reportName, List<ReportColumn> columns, List<T> data) where T : class
+    {
+        try
+        {
+            var fileContent = await ExcelExportService.ExportToExcel(reportName, columns, data);
+            await DownloadFile(fileContent, $"{reportName.ToLower().Replace(" ", "_")}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add($"{reportName} exported to Excel successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting {reportName} to Excel: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportOverviewToPdf()
+    {
+        try
+        {
+            var fileContent = await PdfExportService.ExportOverviewToPdf(policyStats, paymentStats, receiptStats, claimStats, quoteStats);
+            await DownloadFile(fileContent, "insurance_overview.pdf", "application/pdf");
+            Snackbar.Add("Overview exported to PDF successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting overview to PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ExportOverviewToExcel()
+    {
+        try
+        {
+            var fileContent = await ExcelExportService.ExportOverviewToExcel(policyStats, paymentStats, receiptStats, claimStats, quoteStats);
+            await DownloadFile(fileContent, "insurance_overview.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            Snackbar.Add("Overview exported to Excel successfully!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error exporting overview to Excel: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private List<ChartSeries> _barChartSeries = new();
+    private List<ChartSeries> _pieChartSeries = new();
+    private string[] _xAxisLabels = Array.Empty<string>();
+
+    private void InitializeCharts()
+    {
+        // Bar chart data
+        _barChartSeries = new List<ChartSeries>
+        {
+            new() { Name = LangService.T("Active", "Ativas"), Data = new double[] { 45, 52, 65, 55, 47, 60 } },
+            new() { Name = LangService.T("Pending", "Pendentes"), Data = new double[] { 15, 20, 12, 18, 25, 22 } },
+            new() { Name = LangService.T("Expired", "Expiradas"), Data = new double[] { 5, 8, 3, 7, 5, 8 } }
+        };
+        _xAxisLabels = new[] { "Jan", "Fev", "Mar", "Abr", "Mai", "Jun" };
+
+        // Pie chart data
+        _pieChartSeries = new List<ChartSeries>
+        {
+            new() { Name = LangService.T("Auto", "Automóvel"), Data = new double[] { 45 } },
+            new() { Name = LangService.T("Home", "Casa"), Data = new double[] { 25 } },
+            new() { Name = LangService.T("Health", "Saúde"), Data = new double[] { 20 } },
+            new() { Name = LangService.T("Life", "Vida"), Data = new double[] { 10 } }
+        };
+    }
+
+    private async Task DownloadFile(byte[] fileContent, string fileName, string contentType)
+    {
+        var base64 = Convert.ToBase64String(fileContent);
+        await JSRuntime.InvokeVoidAsync("downloadFromBase64", fileName, base64, contentType);
+    }
+}
+
+
+

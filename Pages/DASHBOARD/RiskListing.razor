@@ -1,0 +1,1053 @@
+@page "/risk-listing/{PlanNo}/{UnderwriterCode}/{PlanClass}/{Description}/{PremiumRate:decimal}/{ScheduleLine}"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using System.Globalization
+@using System.IO
+@inject IUnitOfWork unitOfWork
+@inject NavigationManager navigationManager
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+<div class="container-fluid" style=" margin: 0 auto; padding: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <button class="nav-btn nav-btn--prev" style="padding:6px 12px; font-size:12px;" @onclick="GoBack">@LangService.T("← Back","← Voltar")</button>
+    </div>
+    <div class="hero">
+        <div class="hero-title">@LangService.T("Add Coverage","Adicionar Cobertura")</div>
+        <div class="hero-sub">@LangService.T("Specify the individuals to be covered under this plan.","Especifique os indivíduos a serem cobertos por este plano.")</div>
+    </div>
+
+    <h2 style="font-weight:700; margin-bottom: 8px;">@LangService.T("Risk Listing","Lista de Risco")</h2>
+    <p style="color:#64748b; margin-bottom:16px;">@LangService.T("Add one or more individuals, then continue to review and submit the quote.","Adicione um ou mais indivíduos e continue para rever e submeter a cotação.")</p>
+  
+    <!-- Stepper -->
+    <div class="step-indicator" style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+        <div class="step active" style="display:flex; align-items:center; gap:8px;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#2E5090; color:white; font-weight:700;">1</div>
+            <div class="step-label" style="font-size:12px; color:#2E5090; font-weight:600;">@LangService.T("Coverage","Cobertura")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; flex:1;"></div>
+        <div class="step" style="display:flex; align-items:center; gap:8px; opacity:0.6;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700;">2</div>
+            <div class="step-label" style="font-size:12px; color:#475569;">@LangService.T("Summary","Resumo")</div>
+        </div>
+    </div>
+
+    <div class="header-card" style="margin-bottom:16px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="chip">@LangService.T("Plan:","Plano:") @Description</div>
+            <div class="chip">@LangService.T("Underwriter:","Seguradora:") @(string.IsNullOrWhiteSpace(_underwriterName) ? UnderwriterCode : _underwriterName)</div>
+            <div class="chip">@LangService.T("Class:","Classe:") @(string.IsNullOrWhiteSpace(_className) ? PlanClass : _className)</div>
+        </div>
+    </div>
+
+    <style>
+        :root { --blue-900:#1F3A7F; --blue-800:#283A79; --blue-700:#2d488f; --blue-600:#3657a6; --blue-100:#e8edf9; --surface:#ffffff; --border: rgba(148,163,184,.20); }
+
+        .container { background: var(--surface); min-height:100vh; }
+        .step-indicator .step-number { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .step-indicator .active .step-number { box-shadow: 0 8px 20px rgba(46,80,144,0.25); }
+
+        .hero { background: linear-gradient(135deg, var(--blue-800), var(--blue-700)); color:#fff; border-radius:12px; padding:12px 14px; margin-bottom:12px; box-shadow: 0 20px 40px -24px rgba(15,70,150,.30); }
+        .hero-title { font-weight:800; letter-spacing:.2px; margin:0 0 4px 0; font-size:1.05rem; }
+        .hero-sub { opacity:.95; font-size:.9rem; }
+
+        .header-card { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); padding:10px; }
+        .header-card .chip { background: #f1f5f9; color:#0f172a; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+
+        .page-grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; align-items:start; }
+
+        .form-card { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); }
+        .row { gap: 12px; }
+        label { font-size: 12px; color: #64748b; font-weight:700; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; display:block; }
+        .form-control, .form-select { width:100%; padding:10px 12px; background:#fff; border:1px solid var(--border); border-radius:10px; font-size:14px; color:#0f172a; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .form-control:focus, .form-select:focus { outline:none; border-color: var(--blue-600); box-shadow: 0 0 0 3px rgba(19,97,201,.10); }
+
+        h4 { color:#0f172a; margin: 14px 0 6px; font-size: 15px; font-weight: 800; }
+
+        .info-panel { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); display:flex; flex-direction:column; gap:10px; }
+        .badge { background:#eef2ff; color: var(--blue-800); padding:6px 10px; border-radius:999px; font-weight:700; font-size:11px; border:1px solid #e5e7eb; }
+
+        .risk-line-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #e5e7eb; }
+        .risk-line-item:last-child { border-bottom:none; }
+        .risk-line-details { font-size:14px; color:#0f172a; }
+        .risk-line-actions { display:flex; gap:6px; }
+
+        .action-bar { margin-top:12px; }
+        .nav-btn { border-radius:9999px; padding:10px 14px; font-weight:700; border:none; cursor:pointer; }
+        .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; box-shadow:0 8px 18px rgba(31,58,127,.25); }
+
+        @@media (max-width: 768px) { .page-grid { grid-template-columns:1fr; } }
+    </style>
+
+    <div class="page-grid">
+        <!-- Left: Quote header + risk line form -->
+        <EditForm Model="@newRiskLine" OnValidSubmit="AddRiskLine">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+          
+            @if (MedicalVisible || LifeVisible)
+            {
+                <div class="form-card" style="margin-bottom: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+                    <h4 style="color: #1e40af; margin-top: 0;">@LangService.T("Bulk Upload (CSV)","Carregamento em Lote (CSV)")</h4>
+                    
+                    <div style="background-color: #eff6ff; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <p style="margin: 0 0 8px 0; font-weight: 500; color: #1e40af;">
+                            <i class="fas fa-info-circle" style="margin-right: 6px;"></i>
+                            @LangService.T("When to use bulk upload:", "Quando usar o carregamento em lote:")
+                        </p>
+                        <ul style="margin: 0 0 0 16px; padding: 0; color: #334155; font-size: 14px;">
+                            <li>@LangService.T("Adding multiple items at once", "Adicionar vários itens de uma só vez")</li>
+                            <li>@LangService.T("Importing data from another system", "Importar dados de outro sistema")</li>
+                            <li>@LangService.T("Updating existing information in bulk", "Atualizar informações existentes em lote")</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <p style="font-size: 14px; color: #475569; margin: 0 0 8px 0;">
+                            @LangService.T("Step 1: Download our template to ensure proper formatting", "Passo 1: Descarregue o nosso modelo para garantir a formatação correta")
+                        </p>
+                        <a href="templates/RiskLinesTemplate.csv" download
+                           class="nav-btn" 
+                           style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none; padding: 6px 12px; font-size: 13px;">
+                            <i class="fas fa-file-download"></i>
+                            @LangService.T("Download CSV Template", "Descarregar Modelo CSV")
+                        </a>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                        <p style="font-size: 14px; color: #475569; margin: 0 0 8px 0;">
+                            @LangService.T("Step 2: Fill in your data and upload the file", "Passo 2: Preencha os seus dados e carregue o ficheiro")
+                        </p>
+                        <InputFile OnChange="OnFileSelected" accept=".csv" 
+                                 style="display: block; margin-bottom: 6px;" />
+                        <small style="display: block; color: #64748b; font-size: 12px; margin-bottom: 8px;">
+                            @LangService.T("Accepted format: .csv (Max 5MB)", "Formato aceite: .csv (Máx. 5MB)")
+                        </small>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(uploadMessage))
+                    {
+                        <div style="padding: 8px 12px; background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 4px; margin-top: 8px;">
+                            <p style="margin: 0; color: #166534; font-size: 13px;">@uploadMessage</p>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="form-card">
+            <h4>@LangService.T("Quote Details","Detalhes da Cotação")</h4>
+            <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                <div>
+                    <label>@LangService.T("Start Date *","Data de Início *")</label>
+                    <InputDate TValue="DateTime" class="form-control" @bind-Value="startingDate" />
+                </div>
+                <div hidden>
+                    <label>@LangService.T("Policy Type","Tipo de Apólice")</label>
+                    <InputText class="form-control" @bind-Value="policyType" />
+                </div>
+                <div style="grid-column:1 / -1;">
+                    <label>@LangService.T("Insured Address","Endereço do Segurado")</label>
+                    <InputText class="form-control" @bind-Value="insuredAddress" />
+                </div>
+            </div>
+
+            <h4>@LangService.T("Enter Details","Inserir Detalhes")</h4>
+
+            @if (CoreCoverVisible)
+            {
+                    <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+                        <div style="grid-column:1 / -1;">
+                            <label>@LangService.T("Description","Descrição")</label>
+                            <InputText class="form-control" @bind-Value="newRiskLine.Cover_Description" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Sum Insured *","Capital Segurado *")</label>
+                            <input type="number" 
+                                   class="form-control" 
+                                   @bind="newRiskLine.Sum_Insured"
+                                   @oninput="(e) => OnSumInsuredChanged(e)" 
+                                   step="0.01" 
+                                   min="0" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Gross Premium *","Prémio Bruto *")</label>
+                            <InputNumber TValue="decimal" class="form-control" readonly @bind-Value="newRiskLine.Gross_Premium"  />
+                        </div>
+                    </div>
+                }
+
+                @if (IsPersonSchedule)
+                {
+                    <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div>
+                            <label>@LangService.T("First Name *","Nome *")</label>
+                            <InputText class="form-control" @bind-Value="newRiskLine.First_Names" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Family Name *","Apelido *")</label>
+                            <InputText class="form-control" @bind-Value="newRiskLine.Family_Name" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Other Names","Outros Nomes")</label>
+                            <InputText class="form-control" @bind-Value="newRiskLine.Other_Names" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Age *","Idade *")</label>
+                            <InputNumber TValue="int" class="form-control" @bind-Value="newRiskLine.Ages" />
+                        </div>
+                        <div>
+                            <label>@LangService.T("Gender *","Género *")</label>
+                            <InputSelect class="form-select" @bind-Value="newRiskLine.GenderToken">
+                                <option value="0">@LangService.T("Male","Masculino")</option>
+                                <option value="1">@LangService.T("Female","Feminino")</option>
+                            </InputSelect>
+                        </div>
+                        <div>
+                            <label>@LangService.T("Relationship","Relação")</label>
+                            <InputText class="form-control" @bind-Value="newRiskLine.Relationship_to_Applicant" />
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                      
+                        @if (VehicleVisible)
+                        {
+                            <div>
+                                <label>@LangService.T("Registration No.","Nº de Matrícula")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.RegistrationNo" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Make","Marca")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Make" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Model","Modelo")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Model" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Colour","Cor")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Colour" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Chassis No.","Nº do Chassis")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.ChassisNo" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Engine No.","Nº do Motor")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.EngineNo" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Cubic Capacity (cc)","Cilindrada (cc)")</label>
+                                <InputNumber TValue="int" class="form-control" @bind-Value="newRiskLine.CubicCapacity" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Carrying Capacity","Capacidade de Carga")</label>
+                                <InputNumber TValue="int" class="form-control" @bind-Value="newRiskLine.CarryingCapacity" />
+                            </div>
+                            <div style="grid-column:1 / -1;">
+                                <label>@LangService.T("Vehicle Usage","Utilização do Veículo")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.VehicleUsage" />
+                            </div>
+                        }
+                       
+                        else if (PropertyVisible)
+                        {
+                            <div>
+                                <label>@LangService.T("Property Category","Categoria do Imóvel")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PropertyCategory" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Property Details","Detalhes do Imóvel")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PropertyDetails" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Property Value","Valor do Imóvel")</label>
+                                <InputNumber TValue="decimal" class="form-control" @bind-Value="newRiskLine.PropertyValue" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Permanent / Non-permanent","Permanente / Não permanente")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PropertyPermanent" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Occupied / Not-occupied","Ocupado / Não ocupado")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PropertyOccupied" />
+                            </div>
+                            <div style="grid-column:1 / -1;">
+                                <label>@LangService.T("Business on Premise?","Negócio no Local?")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.BusinessOnPremise" />
+                            </div>
+                        }
+                      
+                        else if (TravelVisible)
+                        {
+                            <div>
+                                <label>@LangService.T("Travel Category","Categoria de Viagem")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.TravelCategory" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Passport Number","Número do Passaporte")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PassportNumber" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Destination Country","País de Destino")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.DestinationCountry" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Country Zone","Zona do País")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.CountryZone" />
+                            </div>
+                            <div style="grid-column:1 / -1;">
+                                <label>@LangService.T("Purpose of Travel","Motivo da Viagem")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PurposeOfTravel" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Plan","Plano")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Plan" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Passenger Policy Holder","Tomador do Seguro do Passageiro")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PassengerPolicyHolder" />
+                            </div>
+                        }
+                       
+                        else if (MarineVisible || GitVisible)
+                        {
+                            <div>
+                                <label>@LangService.T("Marine Category","Categoria Marítima")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.MarineCategory" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Port of Origin","Porto de Origem")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PortOfOrigin" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Port of Destination","Porto de Destino")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.PortOfDestination" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Invoice Value","Valor da Fatura")</label>
+                                <InputNumber TValue="decimal" class="form-control" @bind-Value="newRiskLine.InvoiceValue" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Tax Identification No","NIF")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.TaxIdentificationNo" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Cargo Type","Tipo de Carga")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.CargoType" />
+                            </div>
+                            <div>
+                                <label>@LangService.T("Charter Type","Tipo de Afretamento")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.CharterType" />
+                            </div>
+                            <div style="grid-column:1 / -1;">
+                                <label>@LangService.T("Conditions","Condições")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Conditions" />
+                            </div>
+                        }
+                       
+                        else
+                        {
+                            <div style="grid-column:1 / -1;">
+                                <label>@LangService.T("Cover Description","Descrição da Cobertura")</label>
+                                <InputText class="form-control" @bind-Value="newRiskLine.Cover_Description" />
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="action-bar">
+                    <button type="submit" class="nav-btn nav-btn--next">@LangService.T("Add Item","Adicionar Item")</button>
+                </div>
+
+               
+            </div>
+        </EditForm>
+
+        <!-- Right: Cart of coverage items -->
+        <div class="info-panel">
+            <div class="badge">@LangService.T("Your Coverage","Sua Cobertura")</div>
+            @if (riskLines.Any())
+            {
+                <div style="max-height: 320px; overflow-y:auto;">
+                    @foreach (var line in riskLines)
+                    {
+                        <div class="risk-line-item">
+                            <div class="risk-line-details">
+                               
+                                @if (!string.IsNullOrWhiteSpace(line.First_Names) || !string.IsNullOrWhiteSpace(line.Family_Name))
+                                {
+                                    <div><strong>@($"{line.First_Names} {line.Family_Name} ({line.Ages} {LangService.T("yrs","anos")}")</strong></div>
+                                }
+                                <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                                    <span>@LangService.T("Sum Insured:", "Capital Segurado:") @line.Sum_Insured.ToString("N2")</span>
+                                    <span>@LangService.T("Premium:", "Prémio:") @line.Gross_Premium.ToString("N2")</span>
+                                </div>
+                               
+                                 @if (!string.IsNullOrWhiteSpace(line.RegistrationNo) || !string.IsNullOrWhiteSpace(line.Make) || !string.IsNullOrWhiteSpace(line.Model))
+                                {
+                                    <strong>@($"{line.RegistrationNo} {line.Make} {line.Model}")</strong>
+                                }
+                               
+                                else if (!string.IsNullOrWhiteSpace(line.PropertyCategory) || !string.IsNullOrWhiteSpace(line.PropertyDetails))
+                                {
+                                    <strong>@line.PropertyCategory</strong><br />
+                                    <span>@line.PropertyDetails</span>
+                                }
+                               
+                                else if (!string.IsNullOrWhiteSpace(line.TravelCategory) || !string.IsNullOrWhiteSpace(line.DestinationCountry))
+                                {
+                                    <strong>@line.TravelCategory</strong><br />
+                                    <span>@line.DestinationCountry</span>
+                                }
+                               
+                                else if (!string.IsNullOrWhiteSpace(line.MarineCategory) || !string.IsNullOrWhiteSpace(line.PortOfOrigin) || !string.IsNullOrWhiteSpace(line.PortOfDestination))
+                                {
+                                    <strong>@line.MarineCategory</strong><br />
+                                    <span>@($"{line.PortOfOrigin} → {line.PortOfDestination}")</span>
+                                }
+                                
+                                else
+                                {
+                                    <strong>@line.Cover_Description</strong>
+                                }
+
+                                <br />
+                                <small>@LangService.T("Sum Insured:","Capital Segurado:") @line.Sum_Insured.ToString("N2")</small>
+                            </div>
+                            <div class="risk-line-actions">
+                                <button class="nav-btn" style="padding:4px 8px; font-size:12px; background:#e5e7eb;" @onclick="(() => RemoveRiskLine(line))">@LangService.T("Remove","Remover")</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="action-bar" style="display:flex; justify-content:flex-end;">
+                    <button type="button" class="nav-btn nav-btn--next" @onclick="GoToSummary">@LangService.T("Next: Summary →","Seguinte: Resumo →")</button>
+                </div>
+            }
+            else
+            {
+                <p style="color:#64748b; font-size:13px;">@LangService.T("No items added yet.","Nenhum item adicionado ainda.")</p>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string PlanNo { get; set; } = string.Empty;
+    [Parameter] public string UnderwriterCode { get; set; } = string.Empty;
+    [Parameter] public string PlanClass { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public decimal PremiumRate { get; set; }
+    [Parameter] public string ScheduleLine { get; set; } = string.Empty;
+    
+    protected override void OnParametersSet()
+    {
+        Console.WriteLine($"Parameters set - PremiumRate: {PremiumRate}");
+        // Recalculate premium when parameters are set
+        CalculatePremium();
+    }
+
+    private bool VehicleVisible { get; set; }
+    private bool OtherVisible { get; set; }
+    private bool WorkmenVisible { get; set; }
+    private bool MedicalVisible { get; set; }
+    private bool PropertyVisible { get; set; }
+    private bool TravelVisible { get; set; }
+    private bool MarineVisible { get; set; }
+    private bool GitVisible { get; set; }
+    private bool LifeVisible { get; set; }
+    private bool BurglaryVisible { get; set; }
+    private bool BondVisible { get; set; }
+    private bool EmployersLiabilityVisible { get; set; }
+    private bool PersonalAccidentVisible { get; set; }
+    private bool MoneyVisible { get; set; }
+    private bool GroupPersonalVisible { get; set; }
+    private bool CoreCoverVisible { get; set; }
+
+    private DateTime startingDate = DateTime.Today;
+    private string paymentMode = "CASH";
+    private string policyType = string.Empty;
+    private int sourceOfBusiness = 0;
+    private string insuredAddress = string.Empty;
+
+    private QuoteRiskLine newRiskLine = new();
+    private List<QuoteRiskLine> riskLines = new();
+
+    private string uploadMessage = string.Empty;
+    private const long MaxUploadSize = 5 * 1024 * 1024; // 5 MB
+
+    private string _underwriterName = string.Empty;
+    private string _className = string.Empty;
+
+    private bool IsPersonSchedule =>
+        // Only medical-style schedules (Medical, Life, Health) use person fields.
+        MedicalVisible ||
+        LifeVisible;
+
+    protected override void OnInitialized()
+    {
+        newRiskLine.Cover_Description = Description;
+
+        ApplyScheduleVisibility();
+
+        var existing = unitOfWork.QuoteContextService.GetQuote();
+        if (existing != null && !string.IsNullOrWhiteSpace(existing.PlanNo) && existing.PlanNo == PlanNo)
+        {
+            startingDate = existing.StartingDate;
+            paymentMode = existing.PaymentMode;
+            policyType = existing.PolicyType;
+            sourceOfBusiness = existing.SourceOfBusiness;
+            insuredAddress = existing.InsuredAddress;
+            riskLines = new List<QuoteRiskLine>(existing.RiskLines ?? new List<QuoteRiskLine>());
+        }
+        else
+        {
+            // Default Policy Type to the selected plan code (e.g. UPT03)
+            policyType = PlanNo;
+        }
+    }
+
+    private void ApplyScheduleVisibility()
+    {
+        // Reset all flags
+        VehicleVisible = OtherVisible = WorkmenVisible = MedicalVisible = PropertyVisible = TravelVisible =
+            MarineVisible = GitVisible = LifeVisible = BurglaryVisible = BondVisible = EmployersLiabilityVisible =
+            PersonalAccidentVisible = MoneyVisible = GroupPersonalVisible = CoreCoverVisible = false;
+
+        if (string.IsNullOrWhiteSpace(ScheduleLine))
+        {
+            return;
+        }
+
+        var key = ScheduleLine.Replace(" ", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        switch (key.ToLowerInvariant())
+        {
+            case "vehicle":
+                VehicleVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "other":
+                OtherVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "workmen":
+                WorkmenVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "medical":
+                MedicalVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "property":
+                PropertyVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "travel":
+                TravelVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "marine":
+                MarineVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "git":
+                GitVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "goodsintransit":
+                // Goods in Transit uses only the core cover block (no extra right-hand fields)
+                CoreCoverVisible = true;
+                break;
+            case "life":
+                LifeVisible = true;
+                MedicalVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "health":
+                MedicalVisible = true;
+                CoreCoverVisible = true;
+                break;
+            case "fidelity":
+                CoreCoverVisible = true;
+                break;
+            case "burglary":
+            case "bond":
+            case "employersliability":
+            case "personalaccident":
+            case "money":
+            case "grouppersonal":
+                CoreCoverVisible = true;
+                break;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        Console.WriteLine($"PremiumRate on init: {PremiumRate}");
+        CalculatePremium(); // Calculate premium on initialization if there's a default value
+
+        try
+        {
+            var insurers = await unitOfWork.UnderwriterPolicyService.GetInsurersAsync();
+            var ins = insurers?.FirstOrDefault(i => i.No == UnderwriterCode);
+            if (ins != null && !string.IsNullOrWhiteSpace(ins.Name))
+                _underwriterName = ins.Name;
+
+            var classes = await unitOfWork.UnderwriterPolicyService.GetProductClassesAsync();
+            var cls = classes?.FirstOrDefault(c => c.ProductClassNo == PlanClass);
+            if (cls != null && !string.IsNullOrWhiteSpace(cls.Name))
+                _className = cls.Name;
+
+            StateHasChanged();
+        }
+        catch
+        {
+            // Fallback to codes if lookup fails
+        }
+    }
+
+    private void CalculatePremium()
+    {
+        Console.WriteLine($"CalculatePremium called. Sum_Insured: {newRiskLine.Sum_Insured}, PremiumRate: {PremiumRate}");
+        
+        try
+        {
+            if (newRiskLine.Sum_Insured > 0 && PremiumRate > 0)
+            {
+                // Calculate premium as Sum Insured * Premium Rate
+                newRiskLine.Gross_Premium = Math.Round(newRiskLine.Sum_Insured * PremiumRate, 2);
+                Console.WriteLine($"Calculated premium: {newRiskLine.Gross_Premium}");
+            }
+            else
+            {
+                newRiskLine.Gross_Premium = 0;
+                Console.WriteLine($"Premium set to 0 - Sum_Insured: {newRiskLine.Sum_Insured}, PremiumRate: {PremiumRate}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in CalculatePremium: {ex.Message}");
+            newRiskLine.Gross_Premium = 0;
+        }
+        
+        // Force UI update
+        StateHasChanged();
+    }
+    
+    private void OnSumInsuredChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null && decimal.TryParse(e.Value.ToString(), out decimal value))
+        {
+            newRiskLine.Sum_Insured = value;
+            Console.WriteLine($"Sum_Insured changed to: {value}");
+            CalculatePremium();
+        }
+    }
+
+    private void AddRiskLine()
+    {
+        if (IsPersonSchedule)
+        {
+            if (string.IsNullOrWhiteSpace(newRiskLine.First_Names) || string.IsNullOrWhiteSpace(newRiskLine.Family_Name))
+            {
+                Snackbar.Add(LangService.T("First and family names are required.","Nome e apelido são obrigatórios."), Severity.Error);
+                return;
+            }
+            if (newRiskLine.Ages <= 0)
+            {
+                Snackbar.Add(LangService.T("Age must be positive.","A idade deve ser positiva."), Severity.Error);
+                return;
+            }
+        }
+
+        if (newRiskLine.Sum_Insured <= 0 || newRiskLine.Gross_Premium <= 0)
+        {
+            Snackbar.Add(LangService.T("Sum insured and gross premium must be positive.","Capital segurado e prémio bruto devem ser positivos."), Severity.Error);
+            return;
+        }
+
+        riskLines.Add(new QuoteRiskLine
+        {
+            Family_Name = newRiskLine.Family_Name,
+            First_Names = newRiskLine.First_Names,
+            Other_Names = newRiskLine.Other_Names,
+            Ages = newRiskLine.Ages,
+            GenderToken = newRiskLine.GenderToken,
+            Relationship_to_Applicant = newRiskLine.Relationship_to_Applicant,
+            Cover_Description = newRiskLine.Cover_Description,
+            Sum_Insured = newRiskLine.Sum_Insured,
+            Gross_Premium = newRiskLine.Gross_Premium
+        });
+
+        Snackbar.Add(LangService.T("Item added successfully.","Item adicionado com sucesso."), Severity.Success);
+        
+        // Create a new risk line with default values and preserve the description
+        newRiskLine = new QuoteRiskLine 
+        { 
+            Cover_Description = Description,
+            First_Names = string.Empty,
+            Family_Name = string.Empty,
+            Other_Names = string.Empty,
+            Ages = 0,
+            GenderToken = 0,
+            Relationship_to_Applicant = string.Empty,
+            Sum_Insured = 0,
+            Gross_Premium = 0,
+            // Add other fields as needed
+        };
+        
+        // Force UI update
+        StateHasChanged();
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        uploadMessage = string.Empty;
+
+        var file = e.File;
+        if (file == null)
+        {
+            Snackbar.Add(LangService.T("No file selected.","Nenhum ficheiro selecionado."), Severity.Warning);
+            return;
+        }
+
+        if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add(LangService.T("Please upload a .csv file.","Por favor carregue um ficheiro .csv."), Severity.Error);
+            return;
+        }
+
+        try
+        {
+            using var stream = file.OpenReadStream(MaxUploadSize);
+            using var reader = new StreamReader(stream);
+            var content = await reader.ReadToEndAsync();
+
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                Snackbar.Add(LangService.T("The uploaded file is empty.","O ficheiro carregado está vazio."), Severity.Error);
+                return;
+            }
+
+            // Normalize line endings in a very tolerant way so Excel CSVs are parsed correctly
+            var rawLines = content
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n')
+                .Split('\n');
+
+            var lines = rawLines
+                .Select(l => l.TrimEnd('\r'))
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .ToArray();
+            if (lines.Length <= 1)
+            {
+                Snackbar.Add(LangService.T("The CSV must contain a header row and at least one data row.","O CSV deve conter uma linha de cabeçalho e pelo menos uma linha de dados."), Severity.Error);
+                return;
+            }
+
+            var header = lines[0];
+            var delimiter = header.Contains(';') ? ';' : ',';
+            var headerParts = header.Split(delimiter).Select(h => h.Trim()).ToArray();
+
+            // Helper to find column index with flexible name matching
+            int FindColumnIndex(string[] possibleNames, out string matchedName)
+            {
+                matchedName = string.Empty;
+                foreach (var name in possibleNames)
+                {
+                    var idx = Array.FindIndex(headerParts, h => 
+                        string.Equals(h.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
+                    
+                    if (idx >= 0)
+                    {
+                        matchedName = name;
+                        return idx;
+                    }
+                }
+                return -1;
+            }
+
+            // Track which required columns are missing
+            var missingColumns = new List<string>();
+            
+            // Debug: Log the headers we found
+            Console.WriteLine("Headers found in CSV: " + string.Join(", ", headerParts));
+            
+            // Make column matching more flexible by trying multiple possible names
+            var idxFirst = FindColumnIndex(new[] { "First_Names", "First Name", "FirstName" }, out _);
+            var idxFamily = FindColumnIndex(new[] { "Family_Name", "Family Name", "FamilyName", "Surname" }, out _);
+            var idxAge = FindColumnIndex(new[] { "Ages", "Age" }, out _);
+            var idxSum = FindColumnIndex(new[] { "Sum_Insured", "Sum Insured", "SumInsured", "Cover Amount" }, out _);
+            var idxOther = FindColumnIndex(new[] { "Other_Names", "Other Names", "OtherNames" }, out _);
+            var idxRel = FindColumnIndex(new[] { "Relationship_to_Applicant", "Relationship", "Relation" }, out _);
+            var idxGender = FindColumnIndex(new[] { "Gender", "Sex" }, out _);
+            
+            // Check for missing required columns
+            if (idxFirst < 0) missingColumns.Add("First_Names (or First Name)");
+            if (idxFamily < 0) missingColumns.Add("Family_Name (or Family Name/Surname)");
+            if (idxAge < 0) missingColumns.Add("Ages (or Age)");
+            if (idxSum < 0) missingColumns.Add("Sum_Insured (or Sum Insured)");
+            
+            // If we're missing any columns, show a helpful error with the actual headers found
+            if (missingColumns.Count > 0)
+            {
+                var errorMsg = new System.Text.StringBuilder();
+                errorMsg.AppendLine("CSV format issue. Please check your column headers.");
+                errorMsg.AppendLine();
+                errorMsg.AppendLine("Expected columns (case insensitive):");
+                errorMsg.AppendLine("- First_Names (or First Name)");
+                errorMsg.AppendLine("- Family_Name (or Family Name/Surname)");
+                errorMsg.AppendLine("- Ages (or Age)");
+                errorMsg.AppendLine("- Sum_Insured (or Sum Insured)");
+                errorMsg.AppendLine();
+                errorMsg.AppendLine("Found columns in your file:");
+                errorMsg.AppendLine(string.Join("\n", headerParts.Select(h => $"- {h}")));
+                
+                Snackbar.Add(errorMsg.ToString(), Severity.Error);
+                return;
+            }
+
+            if (missingColumns.Count > 0)
+            {
+                var errorMessage = $"Missing required column{(missingColumns.Count > 1 ? "s" : "")}: {string.Join(", ", missingColumns)}";
+                errorMessage += $"\n\nFound columns in your file:\n{string.Join(", ", headerParts)}";
+                errorMessage += $"\n\nRequired columns (case insensitive):\n- First Name\n- Surname\n- Age\n- Sum Insured";
+                
+                Snackbar.Add(errorMessage, Severity.Error);
+                return;
+            }
+
+            int added = 0;
+            int skipped = 0;
+            int duplicateCount = 0;
+            
+            // Track names in the current CSV to find duplicates within the file
+            var csvNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var duplicateNames = new List<string>();
+            
+            // First pass: collect all names to find duplicates within the CSV
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                
+                var parts = lines[i].Split(delimiter).Select(p => p.Trim()).ToArray();
+                if (parts.Length < headerParts.Length) continue;
+                
+                var firstName = parts[idxFirst];
+                var familyName = parts[idxFamily];
+                
+                if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(familyName)) continue;
+                
+                var fullName = $"{firstName.Trim()} {familyName.Trim()}".ToLowerInvariant();
+                if (!csvNames.Add(fullName))
+                {
+                    // This is a duplicate within the CSV
+                    var displayName = $"{firstName} {familyName}";
+                    if (!duplicateNames.Contains(displayName, StringComparer.OrdinalIgnoreCase))
+                    {
+                        duplicateNames.Add(displayName);
+                    }
+                }
+            }
+            
+            // If there are duplicates within the CSV, show an error and abort
+            if (duplicateNames.Count > 0)
+            {
+                var duplicateList = string.Join(", ", duplicateNames.Take(5));
+                if (duplicateNames.Count > 5)
+                {
+                    duplicateList += "...";
+                }
+                
+                Snackbar.Add(
+                    $"{LangService.T("Duplicate names found in CSV", "Nomes duplicados encontrados no ficheiro")}: {duplicateList}", 
+                    Severity.Error);
+                return;
+            }
+
+            // Process the CSV and add non-duplicate records
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                var parts = line.Split(delimiter).Select(p => p.Trim()).ToArray();
+                if (parts.Length < headerParts.Length)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                try
+                {
+                    var firstName = parts[idxFirst];
+                    var familyName = parts[idxFamily];
+
+                    if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(familyName))
+                    {
+                        skipped++;
+                        continue;
+                    }
+                    
+                    // Check for duplicates in both existing and new records
+                    var fullName = $"{firstName.Trim()} {familyName.Trim()}".ToLowerInvariant();
+                    bool isDuplicate = riskLines.Any(r => 
+                        string.Equals($"{r.First_Names} {r.Family_Name}".ToLowerInvariant(), fullName, StringComparison.OrdinalIgnoreCase));
+                        
+                    if (isDuplicate)
+                    {
+                        duplicateCount++;
+                        continue;
+                    }
+
+                    if (!int.TryParse(parts[idxAge], NumberStyles.Integer, CultureInfo.InvariantCulture, out var age) || age <= 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    if (!decimal.TryParse(parts[idxSum], NumberStyles.Number, CultureInfo.InvariantCulture, out var sumInsured) || sumInsured <= 0)
+                    {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Calculate Gross Premium using the PremiumRate
+                    var grossPremium = Math.Round(sumInsured * (PremiumRate / 100m), 2);
+
+                    // Set default gender to Male (0)
+                    int genderToken = 0;
+                    
+                    // If Gender column exists and has a value
+                    if (idxGender >= 0 && idxGender < parts.Length)
+                    {
+                        var genderValue = parts[idxGender]?.Trim() ?? string.Empty;
+                        if (!string.IsNullOrEmpty(genderValue))
+                        {
+                            if (int.TryParse(genderValue, out var parsedGender) && (parsedGender == 0 || parsedGender == 1))
+                            {
+                                genderToken = parsedGender;
+                            }
+                            else if (genderValue.Equals("Female", StringComparison.OrdinalIgnoreCase) || 
+                                    genderValue.Equals("F", StringComparison.OrdinalIgnoreCase))
+                            {
+                                genderToken = 1;
+                            }
+                        }
+                    }
+
+                    var otherNames = idxOther >= 0 ? parts[idxOther] : string.Empty;
+                    var rel = idxRel >= 0 ? parts[idxRel] : string.Empty;
+
+                    riskLines.Add(new QuoteRiskLine
+                    {
+                        First_Names = firstName,
+                        Family_Name = familyName,
+                        Other_Names = otherNames,
+                        Ages = age,
+                        GenderToken = genderToken,
+                        Relationship_to_Applicant = rel,
+                        Cover_Description = string.IsNullOrWhiteSpace(Description) ? newRiskLine.Cover_Description : Description,
+                        Sum_Insured = sumInsured,
+                        Gross_Premium = grossPremium
+                    });
+
+                    added++;
+                }
+                catch
+                {
+                    skipped++;
+                }
+            }
+
+            if (added > 0)
+            {
+                var successMessage = string.Empty;
+                if (added > 0)
+                {
+                    successMessage = string.Format(CultureInfo.InvariantCulture,
+                        LangService.T("Successfully added {0} new items.", "Foram adicionados com sucesso {0} novos itens."), 
+                        added);
+                }
+                
+                if (duplicateCount > 0)
+                {
+                    if (!string.IsNullOrEmpty(successMessage)) successMessage += " ";
+                    successMessage += string.Format(CultureInfo.InvariantCulture,
+                        LangService.T("Skipped {0} duplicate names.", "{0} nomes duplicados foram ignorados."), 
+                        duplicateCount);
+                }
+                
+                Snackbar.Add(successMessage, Severity.Success);
+            }
+
+            if (skipped > 0)
+            {
+                Snackbar.Add(string.Format(CultureInfo.InvariantCulture,
+                    LangService.T("Skipped {0} rows due to validation errors.", "{0} linhas ignoradas devido a erros de validação."), 
+                    skipped), 
+                    Severity.Warning);
+            }
+
+            uploadMessage = string.Format(CultureInfo.InvariantCulture,
+                LangService.T("CSV upload complete. Added {0} lines, skipped {1}.", "Carregamento CSV concluído. {0} linhas adicionadas, {1} ignoradas."), 
+                added, 
+                skipped);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(LangService.T("Failed to process CSV file.","Falha ao processar o ficheiro CSV."), Severity.Error);
+            uploadMessage = ex.Message;
+        }
+    }
+
+    private void RemoveRiskLine(QuoteRiskLine line)
+    {
+        riskLines.Remove(line);
+    }
+
+    private void GoToSummary()
+    {
+        if (!riskLines.Any())
+        {
+            Snackbar.Add(LangService.T("Please add at least one risk line.","Adicione pelo menos uma linha de risco."), Severity.Error);
+            return;
+        }
+        var ctx = new QuoteContext
+        {
+            PlanNo = PlanNo,
+            UnderwriterCode = UnderwriterCode,
+            PlanClass = PlanClass,
+            Description = Description,
+            PremiumRate = PremiumRate,
+            ScheduleLine = ScheduleLine,
+            StartingDate = startingDate,
+            PaymentMode = paymentMode,
+            PolicyType = policyType,
+            SourceOfBusiness = sourceOfBusiness,
+            InsuredAddress = insuredAddress,
+            RiskLines = new List<QuoteRiskLine>(riskLines)
+        };
+
+        unitOfWork.QuoteContextService.SetQuote(ctx);
+        navigationManager.NavigateTo("/quote-summary");
+    }
+
+    private void GoBack()
+    {
+        // Navigate back to product updates listing
+        navigationManager.NavigateTo("/Productsa_updates");
+    }
+}

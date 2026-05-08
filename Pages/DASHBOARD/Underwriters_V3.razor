@@ -1,0 +1,689 @@
+@page "/underwriters-v3/{ClassName}"
+@attribute [Authorize]
+@using MudBlazor
+@using MOZ_UPGRADE.Models
+@using System.Linq
+@using System.Text
+@using System.Text.Json
+@using MOZ_UPGRADE.Utils
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+
+<style>
+    .underwriters-page { padding: 20px; }
+    .underwriters-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 18px 22px; margin-bottom: 16px; background: linear-gradient(135deg, #0f172a 0%, #1d3557 35%, #2E5090 70%, #4f46e5 100%); color: #e5e7eb; box-shadow: 0 14px 28px rgba(15, 23, 42, 0.35); border: 1px solid rgba(148, 163, 184, 0.35); }
+    .underwriters-hero-grid { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; justify-content:space-between; }
+    .underwriters-hero-left { display:flex; flex-direction:column; gap:6px; max-width: 520px; }
+    .underwriters-hero-title { display:flex; align-items:center; gap:8px; font-size: 20px; font-weight: 800; letter-spacing: .02em; color:#f9fafb; }
+    .underwriters-hero-sub { font-size: 13px; color:#e2e8f0; max-width: 520px; }
+    .underwriters-hero-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(15,23,42,0.6); padding:4px 10px; border-radius:999px; border:1px solid rgba(148, 163, 184, 0.65); font-size:11px; font-weight:600; color:#e5e7eb; }
+    .underwriters-hero-metrics { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .underwriters-hero-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(15,23,42,0.65); border:1px solid rgba(129, 140, 248, 0.75); font-size:11px; font-weight:600; color:#e5e7eb; }
+    .underwriters-hero-chip-label { opacity:0.8; text-transform:uppercase; letter-spacing:.06em; font-size:9px; }
+    .underwriters-hero-chip-value { font-size:12px; }
+    .underwriters-hero-actions { display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+    .underwriters-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+    .underwriter-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border-radius: 16px; border: 1px solid rgba(229, 229, 231, 0.6); overflow: hidden; transition: transform .25s ease, box-shadow .25s ease; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; height: 100%; }
+    .underwriter-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06); }
+    .underwriter-card-header { background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%); padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .underwriter-name { font-size: 15px; font-weight: 700; color: white; }
+    .underwriter-badge { font-size: 24px; }
+    .underwriter-card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .uw-field { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: linear-gradient(135deg, rgba(46, 80, 144, 0.05) 0%, rgba(31, 58, 127, 0.03) 100%); border-radius: 10px; border: 1px solid rgba(46, 80, 144, 0.08); }
+    .uw-field-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; }
+    .uw-field-value { font-size: 13px; font-weight: 600; color: #1f2937; }
+</style>
+
+<div class="underwriters-page">
+    <div class="underwriters-hero">
+        <div class="underwriters-hero-grid">
+            <div class="underwriters-hero-left">
+                <div class="underwriters-hero-badge">
+                    <span>🛡️</span>
+                    <span>@LangService.T("Available Underwriters","Seguradoras Disponíveis")</span>
+                </div>
+                <div class="underwriters-hero-title">
+                    <span>@LangService.T("Underwriters for this product class","Seguradoras para esta classe de produto")</span>
+                </div>
+                <div class="underwriters-hero-sub">
+                    @LangService.T(
+                        "The plans below are shown automatically for the selected product class.",
+                        "Os planos abaixo são mostrados automaticamente para a classe de produto selecionada.")
+                </div>
+                <div class="underwriters-hero-metrics">
+                    <div class="underwriters-hero-chip">
+                        <div class="underwriters-hero-chip-label">@LangService.T("Class","Classe")</div>
+                        <div class="underwriters-hero-chip-value">@ClassName</div>
+                    </div>
+                    <div class="underwriters-hero-chip">
+                        <div class="underwriters-hero-chip-label">@LangService.T("Total Sum Insured","Capital Segurado Total")</div>
+                        <div class="underwriters-hero-chip-value">@totalSumInsured.ToString("N2")</div>
+                    </div>
+                    <div class="underwriters-hero-chip">
+                        <div class="underwriters-hero-chip-label">@LangService.T("Risk Items","Itens de Risco")</div>
+                        <div class="underwriters-hero-chip-value">@totalRiskLines</div>
+                    </div>
+                </div>
+            </div>
+            <div class="underwriters-hero-actions" style="align-items:flex-start;">
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowBack"
+                           OnClick="GoBack">
+                    @LangService.T("Back","Voltar")
+                </MudButton>
+                <MudText Typo="Typo.caption" Style="color:#cbd5f5; max-width:260px; text-align:left;">
+                    @LangService.T("Review the available plans. When you click 'Get Quote', the system will submit a quote to all listed underwriters.","Revise os planos disponíveis. Ao clicar em 'Obter Cotação', o sistema submete a cotação para todas as seguradoras listadas.")
+                </MudText>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div style="display:flex; justify-content:center; padding:40px;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else if (filteredPlans == null || filteredPlans.Count == 0)
+    {
+        <div style="text-align:center; padding:40px 0;">
+            <MudText Typo="Typo.h6" Color="Color.Secondary">
+                @LangService.T("No plans found for this class.","Nenhum plano encontrado para esta classe.")
+            </MudText>
+        </div>
+    }
+    else
+    {
+        <MudPaper Class="pa-3" Elevation="1">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <MudCheckBox T="bool"
+                             Checked="selectAllUnderwriters"
+                             CheckedChanged="ToggleSelectAll"
+                             Color="Color.Default"
+                             Label="@LangService.T("Select all underwriters","Selecionar todas as seguradoras")" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @selectedUnderwriters.Count @LangService.T("selected","selecionadas")
+                </MudText>
+            </div>
+            <MudAlert Severity="Severity.Info">
+                <MudText Typo="Typo.caption">
+                    @LangService.T("Choose one or more underwriters that you would like to receive  the quote from.", "Escolha uma ou mais seguradoras para as quais deseja enviar  cotação.")
+                </MudText>
+            </MudAlert>
+           
+
+            <div class="underwriters-grid">
+                @foreach (var plan in filteredPlans)
+                {
+                    <div class="underwriter-card">
+                        <div class="underwriter-card-header" style="display:flex; align-items:center; gap:10px;">
+                            <!-- Left: checkbox + name -->
+                            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
+                                <MudCheckBox T="bool"
+                                             Style="color:white"
+                                             Checked="selectedUnderwriters.Contains(plan.Underwriter_Code)"
+                                             CheckedChanged="v => ToggleUnderwriterSelection(plan, v)"
+                                             Color="Color.Inherit" />
+                                <div class="underwriter-name">
+                                    @GetInsurerName(plan.Underwriter_Code)
+                                </div>
+                            </div>
+
+                        </div>
+                        <div class="underwriter-card-body">
+                            <div class="uw-field">
+                                <div>
+                                    <div class="uw-field-label">@LangService.T("Total Sum Insured","Capital Segurado Total")</div>
+                                    <div class="uw-field-value">@totalSumInsured.ToString("N2")</div>
+                                </div>
+                            </div>
+                            <div class="uw-field">
+                                <div>
+                                    <div class="uw-field-label">@LangService.T("Premium Rate","Taxa de Prémio")</div>
+                                    <div class="uw-field-value">@plan.Premium_Rate %</div>
+                                </div>
+                            </div>
+                            <div class="uw-field">
+                                <div>
+                                    <div class="uw-field-label">@LangService.T("Estimated Gross Premium","Prémio Bruto Estimado")</div>
+                                    <div class="uw-field-value">
+                                        @if (totalSumInsured > 0 && plan.Premium_Rate > 0)
+                                        {
+                                            @((totalSumInsured * plan.Premium_Rate).ToString("N2"))
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(plan.Underwriter_Code)
+                                && limitsByInsurer.TryGetValue(plan.Underwriter_Code, out var planLimits)
+                                && planLimits.Any())
+                            {
+                                <div class="uw-field">
+                                    <div>
+                                        <div class="uw-field-label">@LangService.T("Limit Details","Detalhes de Limites")</div>
+                                        <div class="uw-field-value" style="font-size:12px; font-weight:400;">
+                                            @foreach (var limit in planLimits.Take(3))
+                                            {
+                                                <div>@limit.Description (@limit.Actual_Value)</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(plan.Underwriter_Code)
+                                && deductiblesByInsurer.TryGetValue(plan.Underwriter_Code, out var planDeductibles)
+                                && planDeductibles.Any())
+                            {
+                                <div class="uw-field">
+                                    <div>
+                                        <div class="uw-field-label">@LangService.T("Deductibles","Franquias")</div>
+                                        <div class="uw-field-value" style="font-size:12px; font-weight:400;">
+                                            @foreach (var ded in planDeductibles.Take(3))
+                                            {
+                                                <div>@ded.Description (@ded.Actual_Value)</div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                            <div style="margin-top:4px; display:flex; justify-content:flex-end;">
+                               
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </MudPaper>
+    }
+    <div style="margin-top:16px; display:flex; justify-content:flex-end;">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(filteredPlans == null || !filteredPlans.Any() || selectedUnderwriters == null || selectedUnderwriters.Count == 0)" OnClick="OpenQuoteModal">
+            @LangService.T("Get Quote","Obter Cotação")
+        </MudButton>
+    </div>
+</div>
+
+<MudDialog @bind-IsVisible="showQuoteModal" Options="new DialogOptions { DisableBackdropClick = true, CloseOnEscapeKey = false, FullWidth = true, MaxWidth = MaxWidth.Small }">
+    <TitleContent>
+        <div style="background:#2E5090;color:#fff;padding:10px 14px;">
+            <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">
+                @LangService.T("Confirm Quote Details","Confirmar Detalhes da Cotação")
+            </MudText>
+            <MudText Typo="Typo.body2" Style="color:#e5e7eb;">
+                @LangService.T("Review the summary below before submitting your quote.","Revise o resumo abaixo antes de submeter a sua cotação.")
+            </MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <div style="padding:12px 14px;">
+            <MudPaper Class="pa-3" Elevation="0" Style="background:#f9fafb;">
+                <MudText Typo="Typo.subtitle2" Style="font-weight:600; margin-bottom:8px;">
+                    @LangService.T("Step 1 Summary","Resumo do Passo 1")
+                </MudText>
+                <div style="display:grid; grid-template-columns: 140px 1fr; gap:6px; font-size:13px;">
+                    <div style="font-weight:600; color:#64748b;">@LangService.T("Product Class","Classe de Produto")</div>
+                    <div>@ClassName</div>
+
+                    <div style="font-weight:600; color:#64748b;">@LangService.T("Total Sum Insured","Capital Segurado Total")</div>
+                    <div>@totalSumInsured.ToString("N2")</div>
+
+                    <div style="font-weight:600; color:#64748b;">@LangService.T("Number of Items","Número de Itens")</div>
+                    <div>@totalRiskLines</div>
+
+                    <div style="font-weight:600; color:#64748b;">@LangService.T("Insured Address","Endereço do Segurado")</div>
+                    <div>@(string.IsNullOrWhiteSpace(insuredAddressSummary) ? "-" : insuredAddressSummary)</div>
+                </div>
+            </MudPaper>
+
+            <div style="margin-top:12px; padding:10px; border-radius:8px; border:1px dashed #cbd5e1; background:#f8fafc; font-size:12px;">
+                <div style="font-weight:600; margin-bottom:4px;">@LangService.T("Confirmation","Confirmação")</div>
+                <div style="color:#4b5563;">
+                    @LangService.T(
+                        "By continuing, you confirm that the risk details and sums insured are accurate and that you wish to proceed with this quote.",
+                        "Ao continuar, confirma que os detalhes do risco e os capitais segurados estão corretos e que pretende prosseguir com esta cotação.")
+                </div>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="CloseQuoteModal">
+            @LangService.T("Cancel","Cancelar")
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="OnSubmitQuote"
+                   Disabled="@isSubmitting"
+                   Loading="@isSubmitting">
+            @(isSubmitting
+                ? LangService.T("Submitting...","A submeter...")
+                : LangService.T("Submit","Submeter"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public string ClassName { get; set; } = string.Empty;
+
+    private bool isLoading = true;
+    private List<PlanViewModel> allPlans = new();
+    private List<PlanViewModel> filteredPlans = new();
+    private Dictionary<string, List<LimitDetail>> limitsByInsurer = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, List<Deductible>> deductiblesByInsurer = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> insurerByCode = new();
+    private decimal totalSumInsured;
+    private int totalRiskLines;
+    private string insuredAddressSummary = string.Empty;
+    private bool showQuoteModal;
+    private bool isSubmitting;
+    private HashSet<string> selectedUnderwriters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private bool selectAllUnderwriters;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        try
+        {
+            var effectiveClassName = ClassName?.Trim() ?? string.Empty;
+            var plansTask = UnitOfWork.PlanService.GetPlansByClassNameAsync(effectiveClassName);
+            var insurersTask = UnitOfWork.UnderwriterPolicyService.GetInsurersAsync();
+
+            await Task.WhenAll(plansTask, insurersTask);
+
+            allPlans = plansTask.Result ?? new List<PlanViewModel>();
+            BuildInsurerLookup(insurersTask.Result);
+
+            // Load quote context to compute total Sum Insured and summary info
+            var quote = UnitOfWork.QuoteContextService.GetQuote();
+            if (quote?.RiskLines != null && quote.RiskLines.Count > 0)
+            {
+                totalSumInsured = quote.RiskLines.Sum(r => r.Sum_Insured);
+                totalRiskLines = quote.RiskLines.Count;
+            }
+            else
+            {
+                totalSumInsured = 0;
+                totalRiskLines = 0;
+            }
+
+            insuredAddressSummary = quote?.InsuredAddress ?? string.Empty;
+
+            await LoadLimitAndDeductibleDetailsAsync();
+
+            ApplyFilter();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(LangService.T("Error loading plans.","Erro ao carregar planos."), Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuildInsurerLookup(IEnumerable<InsurerList> insurers)
+    {
+        insurerByCode.Clear();
+        if (insurers == null) return;
+
+        foreach (var ins in insurers)
+        {
+            if (!string.IsNullOrWhiteSpace(ins.No) && !insurerByCode.ContainsKey(ins.No))
+            {
+                insurerByCode[ins.No] = ins.Name;
+            }
+        }
+    }
+
+    private async Task LoadLimitAndDeductibleDetailsAsync()
+    {
+        limitsByInsurer.Clear();
+        deductiblesByInsurer.Clear();
+
+        var insurerCodes = allPlans
+            .Where(p => !string.IsNullOrWhiteSpace(p.Underwriter_Code))
+            .Select(p => p.Underwriter_Code)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var code in insurerCodes)
+        {
+            var limits = await UnitOfWork.LimitDetailService.GetLimitDetailsByInsurerAsync(code);
+            limitsByInsurer[code] = limits ?? new List<LimitDetail>();
+
+            var deductibles = await UnitOfWork.DeductibleService.GetDeductiblesByInsurerAsync(code);
+            deductiblesByInsurer[code] = deductibles ?? new List<Deductible>();
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        var className = ClassName?.Trim();
+
+        var query = allPlans.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(className))
+        {
+            query = query.Where(p => string.Equals(p.Class_Name, className, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Order by Estimated Gross Premium (cheapest first). If we can't compute it, push to the end.
+        filteredPlans = query
+            .OrderBy(p =>
+            {
+                if (totalSumInsured > 0 && p.Premium_Rate > 0)
+                {
+                    return totalSumInsured * p.Premium_Rate;
+                }
+                return decimal.MaxValue;
+            })
+            .ThenBy(p => p.Short_Name)
+            .ToList();
+
+        selectAllUnderwriters = filteredPlans.Count > 0
+            && filteredPlans.All(p => !string.IsNullOrWhiteSpace(p.Underwriter_Code)
+                                      && selectedUnderwriters.Contains(p.Underwriter_Code));
+    }
+
+    private string GetInsurerName(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return code;
+        return insurerByCode.TryGetValue(code, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : code;
+    }
+
+    private int MapRelationshipToApplicantCode(string? relationship)
+    {
+        if (string.IsNullOrWhiteSpace(relationship))
+            return 0; // Default or self
+
+        var value = relationship.Trim().ToLowerInvariant();
+
+        return value switch
+        {
+            "self" or "applicant" => 0,
+            "spouse" or "husband" or "wife" => 1,
+            "child" or "son" or "daughter" => 2,
+            "parent" or "father" or "mother" => 3,
+            "sibling" or "brother" or "sister" or "siter" => 4,
+            _ => 0
+        };
+    }
+
+    private void OpenQuoteModal()
+    {
+        showQuoteModal = true;
+    }
+
+    private void CloseQuoteModal()
+    {
+        if (isSubmitting)
+            return;
+
+        showQuoteModal = false;
+    }
+
+    private void ToggleSelectAll(bool value)
+    {
+        selectAllUnderwriters = value;
+        selectedUnderwriters.Clear();
+
+        if (selectAllUnderwriters && filteredPlans != null)
+        {
+            foreach (var plan in filteredPlans)
+            {
+                if (!string.IsNullOrWhiteSpace(plan.Underwriter_Code))
+                    selectedUnderwriters.Add(plan.Underwriter_Code);
+            }
+        }
+    }
+
+    private void ToggleUnderwriterSelection(PlanViewModel plan, bool value)
+    {
+        if (plan == null || string.IsNullOrWhiteSpace(plan.Underwriter_Code))
+            return;
+
+        if (value)
+        {
+            selectedUnderwriters.Add(plan.Underwriter_Code);
+        }
+        else
+        {
+            selectedUnderwriters.Remove(plan.Underwriter_Code);
+            selectAllUnderwriters = filteredPlans != null
+                && filteredPlans.Count > 0
+                && filteredPlans.All(p => !string.IsNullOrWhiteSpace(p.Underwriter_Code)
+                                          && selectedUnderwriters.Contains(p.Underwriter_Code));
+        }
+    }
+
+    private async Task OnSubmitQuote()
+    {
+        if (isSubmitting)
+            return;
+
+        var quote = UnitOfWork.QuoteContextService.GetQuote();
+        if (quote == null)
+        {
+            Snackbar.Add(LangService.T("No quote data to submit.","Sem dados de cotação para submeter."), Severity.Error);
+            return;
+        }
+
+        if (quote.RiskLines == null || !quote.RiskLines.Any())
+        {
+            Snackbar.Add(LangService.T("Please add at least one risk line before submitting.","Adicione pelo menos uma linha de risco antes de submeter."), Severity.Error);
+            return;
+        }
+
+        if (filteredPlans == null || !filteredPlans.Any())
+        {
+            Snackbar.Add(LangService.T("No underwriters available to receive this quote.","Nenhuma seguradora disponível para receber esta cotação."), Severity.Error);
+            return;
+        }
+
+        var plansToSubmit = filteredPlans
+            .Where(p => !string.IsNullOrWhiteSpace(p.Underwriter_Code)
+                        && selectedUnderwriters.Contains(p.Underwriter_Code))
+            .ToList();
+
+        if (plansToSubmit == null || plansToSubmit.Count == 0)
+        {
+            Snackbar.Add(LangService.T("Please select at least one underwriter before submitting.","Selecione pelo menos uma seguradora antes de submeter."), Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+
+            // Resolve current user contact (same pattern as QuoteSummary)
+            var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+            var currentUser = await UnitOfWork.userRepository.GetById(userId);
+            var contactKey = currentUser?.Contact_No;
+
+            if (string.IsNullOrWhiteSpace(contactKey))
+            {
+                Snackbar.Add(LangService.T("Contact number is missing. Please complete your KYC first.","O número de contacto está em falta. Complete o seu KYC primeiro."), Severity.Error);
+                NavigationManager.NavigateTo("/Individual_Generalinfo");
+                return;
+            }
+
+            var card = await UnitOfWork.ContactCardService.GetContactCardAsync(contactKey);
+            if (card == null)
+            {
+                Snackbar.Add(LangService.T("Unable to find your contact record in Business Central.","Não foi possível encontrar o seu registo de contacto no Business Central."), Severity.Error);
+                return;
+            }
+
+            var bcContactNo = card.No;
+            var bcCustomerNo = card.Insured_Number;
+
+            if (string.IsNullOrWhiteSpace(bcContactNo))
+            {
+                Snackbar.Add(LangService.T("Your contact record is missing the required field (No). Please complete your KYC and try again.","O seu registo de contacto não tem o campo obrigatório (No). Complete o seu KYC e tente novamente."), Severity.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(bcCustomerNo))
+            {
+                Snackbar.Add(LangService.T("Your contact record has no Insured_Number yet. We will attempt to submit the quote anyway; if it fails, please complete/submit your KYC or contact support.","O seu registo de contacto ainda não tem Insured_Number. Vamos tentar submeter a cotação; se falhar, conclua/submeta o seu KYC ou contacte o suporte."), Severity.Warning);
+                bcCustomerNo = string.Empty;
+            }
+
+            var salesAgent = string.Empty; // per QuoteSummary: send empty
+
+            // Map risk lines to BC payload shape
+            var riskLinesPayload = quote.RiskLines.Select(rl => new
+            {
+                rl.Family_Name,
+                rl.First_Names,
+                rl.Other_Names,
+                rl.Ages,
+                rl.GenderToken,
+                Relationship_to_Applicant = MapRelationshipToApplicantCode(rl.Relationship_to_Applicant),
+                rl.Cover_Description,
+                rl.Sum_Insured,
+                rl.Gross_Premium,
+                rl.RatePercentage,
+                rl.RateType,
+                rl.RateDiscount,
+                rl.RegistrationNo,
+                rl.Make,
+                rl.Model,
+                rl.Colour,
+                rl.ChassisNo,
+                rl.EngineNo,
+                rl.CubicCapacity,
+                rl.CarryingCapacity,
+                rl.VehicleUsage,
+                rl.PropertyCategory,
+                rl.PropertyDetails,
+                rl.PropertyValue,
+                rl.PropertyPermanent,
+                rl.PropertyOccupied,
+                rl.BusinessOnPremise,
+                rl.TravelCategory,
+                rl.PassportNumber,
+                rl.DestinationCountry,
+                rl.CountryZone,
+                rl.PurposeOfTravel,
+                rl.Plan,
+                rl.PassengerPolicyHolder,
+                rl.MarineCategory,
+                rl.PortOfOrigin,
+                rl.PortOfDestination,
+                rl.InvoiceValue,
+                rl.TaxIdentificationNo,
+                rl.CargoType,
+                rl.CharterType,
+                rl.Conditions
+            });
+
+            var serializedRiskLines = JsonSerializer.Serialize(
+                riskLinesPayload,
+                new JsonSerializerOptions
+                {
+                    WriteIndented = false
+                });
+
+            var config = new BusinessCentralConfig(Configuration);
+            var handler = config.CreateHttpClientHandler();
+            using var client = new HttpClient(handler);
+            config.ConfigureHttpClient(client);
+
+            var bcBaseUrl = Configuration["BcApi:BaseUrl"];
+            var url = $"{bcBaseUrl}PortalIntegration_FnSubmitQuote?company=STANDARD%20INSURANCE";
+
+            // Business Central policy class field is limited to 10 characters. QuoteContext.PlanClass
+            // is expected to contain the Product_Class_No. To be safe, trim anything longer than 10.
+            var policyClassForBc = (quote.PlanClass ?? string.Empty).Length > 10
+                ? quote.PlanClass.Substring(0, 10)
+                : quote.PlanClass ?? string.Empty;
+
+            foreach (var plan in plansToSubmit)
+            {
+                var payload = new
+                {
+                    contactNo = bcContactNo,
+                    customerNo = bcCustomerNo,
+                    // Use the policy class from the original selection (Product_Class_No stored in QuoteContext)
+                    policyClass = policyClassForBc,
+                    underwriterCode = plan.Underwriter_Code,
+                    policyType = plan.Undewriter_Product_Nos,
+                    startingDate = quote.StartingDate.ToString("yyyy-MM-dd"),
+                    paymentMode = quote.PaymentMode,
+                    sourceOfBusiness = quote.SourceOfBusiness,
+                    insuredAddress = quote.InsuredAddress ?? string.Empty,
+                    riskLines = serializedRiskLines,
+                    generatePolicy = true,
+                    quoteNo = string.Empty,
+                    timeBand = string.Empty,
+                    insurerPolicyNo = string.Empty,
+                    salesAgent = salesAgent
+                };
+
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = false
+                });
+
+                using var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var resp = await client.PostAsync(url, content);
+
+                if (!resp.IsSuccessStatusCode)
+                {
+                    var body = await resp.Content.ReadAsStringAsync();
+                    var snippet = string.IsNullOrWhiteSpace(body)
+                        ? string.Empty
+                        : (body.Length > 220 ? body.Substring(0, 220) + "…" : body);
+
+                    Snackbar.Add(
+                        LangService.T("Failed to submit quote for underwriter.","Falha ao submeter a cotação para a seguradora.") +
+                        $" {plan.Underwriter_Code} - {snippet}",
+                        Severity.Error);
+                    return; // stop on first failure
+                }
+            }
+
+            Snackbar.Add(LangService.T("Quotes submitted successfully for all underwriters.","Cotações submetidas com sucesso para todas as seguradoras."), Severity.Success);
+            UnitOfWork.QuoteContextService.Clear();
+            showQuoteModal = false;
+            NavigationManager.NavigateTo("/Dashboard");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        var quote = UnitOfWork.QuoteContextService.GetQuote();
+        var schedule = quote?.ScheduleLine ?? string.Empty;
+
+        var encodedClass = Uri.EscapeDataString(ClassName ?? string.Empty);
+        var encodedSchedule = Uri.EscapeDataString(schedule);
+
+        NavigationManager.NavigateTo($"/risk-listing-v3/{encodedClass}/{encodedSchedule}");
+    }
+}

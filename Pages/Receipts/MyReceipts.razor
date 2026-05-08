@@ -1,0 +1,173 @@
+@page "/MyReceipts"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+
+<div style="max-width: 1000px; margin: 0 auto; padding: 16px;">
+    <div style="font-size: 20px; font-weight: 700; margin-bottom: 12px;">My Receipts</div>
+
+    @if (loading)
+    {
+        <div style="text-align:center; color:#666; padding: 40px 0;">Loading receipts...</div>
+    }
+    else if (!string.IsNullOrEmpty(error))
+    {
+        <div style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca; padding:12px; border-radius:8px;">@error</div>
+    }
+    else if (receipts == null || receipts.Count == 0)
+    {
+        <div style="color:#666;">No receipts found.</div>
+    }
+    else
+    {
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            @foreach (var r in receipts)
+            {
+                <div style="background:white; border-radius:10px; box-shadow: 0 0 10px rgba(0,0,0,0.06); padding: 12px; display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; font-family: 'Courier New', Courier, monospace;">
+                    <div>
+                        <div style="font-weight:700;">@r.Receipt_No</div>
+                        <div style="font-size:12px; color:#666;">Posted: @r.Posted_Date @r.Posted_Time • Mode: @r.Pay_Mode</div>
+                        <div style="font-size:12px; color:#333;">Received From: @r.Received_From</div>
+                    </div>
+                    <div style="text-align:right; display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                        <div style="font-weight:700; color:#2E5090;">@r.Total_Amount.ToString("N2")</div>
+                        <div style="font-size:12px; color:#666;">No: @r.No</div>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="() => ShowDetails(r)">More details</MudButton>
+                        <MudIconButton Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Outlined.Download" OnClick="() => DownloadReceiptPdf(r)" />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+    window.downloadReceiptPdfGrid = (filename, title, rows) => {
+        try {
+            if (!window.jspdf) {
+                console.error('jsPDF not loaded');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+            const margin = 48;
+            const labelX = margin;
+            const valueX = margin + 220;
+            let y = margin;
+
+            // Title
+            doc.setFont('courier', 'bold');
+            doc.setFontSize(16);
+            doc.text(title, labelX, y);
+            y += 24;
+
+            // Rows
+            doc.setFontSize(12);
+            rows.forEach(r => {
+                doc.setFont('courier', 'normal');
+                doc.text(String(r.label || ''), labelX, y);
+                doc.setFont('courier', 'normal');
+                doc.text(String(r.value || ''), valueX, y);
+                y += 22;
+                // add simple spacing after groups if empty label
+                if (!r.label && !r.value) y += 6;
+            });
+
+            doc.save(filename);
+        } catch (e) {
+            console.error('PDF download failed', e);
+        }
+    };
+</script>
+
+@code {
+    private bool loading = true;
+    private string error;
+    private List<PostedReceiptItem> receipts = new();
+    private async Task ShowDetails(PostedReceiptItem r)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(ReceiptDetailsDialog.Receipt), r }
+        };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        DialogService.Show<ReceiptDetailsDialog>("Receipt Details", parameters, options);
+    }
+
+    private string GetFilename(PostedReceiptItem r) => $"Receipt_{(string.IsNullOrWhiteSpace(r.Receipt_No) ? r.No : r.Receipt_No)}.pdf";
+
+    private async Task DownloadReceiptPdf(PostedReceiptItem r)
+    {
+        var filename = GetFilename(r);
+        var rows = new object[]
+        {
+            new { label = "No", value = r.No },
+            new { label = "Receipt No", value = r.Receipt_No },
+            new { label = "Posting Date", value = r.Posting_Date },
+            new { label = "Pay Mode", value = r.Pay_Mode },
+            new { label = "Cheque No", value = r.Cheque_No },
+            new { label = "Received From", value = r.Received_From },
+            new { label = "On Behalf Of", value = r.On_Behalf_Of },
+            new { label = "Cheque Date", value = r.Cheque_Date },
+            new { label = "Currency Code", value = r.Currency_Code },
+            new { label = "Bank Code", value = r.Bank_Code },
+            new { label = "Cashier", value = r.Cashier },
+            new { label = "Posted", value = r.Posted ? "Yes" : "No" },
+            new { label = "Posted Date", value = r.Posted_Date },
+            new { label = "Posted Time", value = r.Posted_Time },
+            new { label = "Posted By", value = r.Posted_By },
+            new { label = "Total Amount", value = r.Total_Amount.ToString("N2") },
+            new { label = "Amount LCY", value = r.Amount_LCY.ToString("N2") },
+            new { label = "Cancellation Reason", value = r.Cancellation_Reason },
+            new { label = "Account No", value = r.Account_No }
+        };
+        await JS.InvokeVoidAsync("downloadReceiptPdfGrid", filename, "Receipt Details", rows);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+            var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+            string accountNo = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                var user = await unitOfWork.userRepository.GetById(userId);
+                accountNo = user?.Contact_No;
+            }
+
+            if (string.IsNullOrWhiteSpace(accountNo))
+            {
+                receipts = new List<PostedReceiptItem>();
+                loading = false;
+                return;
+            }
+
+            // Fetch ContactCard by Contact_No and get Insured_Number
+            var contactCard = await unitOfWork.ContactCardService.GetContactCardAsync(accountNo);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                receipts = new List<PostedReceiptItem>();
+                loading = false;
+                return;
+            }
+
+            receipts = await unitOfWork.PostedReceiptService.GetPostedReceiptsByAccountAsync(contactCard.Insured_Number);
+
+            loading = false;
+        }
+        catch (Exception ex)
+        {
+            error = $"Error loading receipts: {ex.Message}";
+            loading = false;
+        }
+    }
+}

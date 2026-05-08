@@ -1,0 +1,701 @@
+@page "/summary"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Utils
+@using System.Text.Json
+@inject IUnitOfWork unitOfWork
+@inject NavigationManager navigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime js
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject MOZ_UPGRADE.Utils.IEmailService EmailService
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="summary-container">
+    <!-- Header -->
+    <div class="header-section">
+        <div class="header-top">
+            <button class="btn-back" @onclick="GoBack">← @LangService.T("Back","Voltar")</button>
+            <h1 class="header-title">@LangService.T("Review & Confirm","Rever & Confirmar")</h1>
+            <div></div>
+        </div>
+    </div>
+
+    <!-- Stepper below header -->
+    <div class="stepper" style="display:flex; gap:10px; align-items:center; justify-content:center; padding:8px 12px;">
+        <div class="step" style="display:flex; align-items:center; gap:6px; opacity:0.6;">
+            <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px;">1</div>
+            <div class="step-label" style="font-size:11px; color:#475569;">@LangService.T("Select Plan","Selecionar Plano")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; width:40px;"></div>
+        <div class="step" style="display:flex; align-items:center; gap:6px; opacity:0.6;">
+            <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px;">2</div>
+            <div class="step-label" style="font-size:11px; color:#475569;">@LangService.T("Beneficiary","Beneficiário")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; width:40px;"></div>
+        <div class="step active" style="display:flex; align-items:center; gap:6px;">
+            <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#2E5090; color:white; font-weight:700; font-size:12px;">3</div>
+            <div class="step-label" style="font-size:11px; color:#2E5090; font-weight:600;">@LangService.T("Summary","Resumo")</div>
+        </div>
+    </div>
+
+    <!-- Summary Sections -->
+    <div class="summary-content">
+        @if (!hasContactNo)
+        {
+            <div style="background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; padding:10px 12px; border-radius:10px; margin-bottom:12px; display:flex; align-items:center; gap:10px;">
+                <span>⚠️ @LangService.T("You need to complete KYC before submitting. Contact number is missing.","Precisa concluir o KYC antes de submeter. O número de contacto está em falta.")</span>
+                <button class="btn-secondary" @onclick='@(() => navigationManager.NavigateTo("/Individual_Generalinfo"))'>@LangService.T("Go to KYC","Ir para KYC")</button>
+            </div>
+        }
+        <!-- Plan Summary -->
+        <div class="summary-card">
+            <div class="card-header">
+                <h2 class="card-title">📋 @LangService.T("Plan Details","Detalhes do Plano")</h2>
+                <button class="edit-btn" @onclick="NavigateToPlan">Edit</button>
+            </div>
+            <div class="card-body">
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Plan Name:","Nome do Plano:")</span>
+                    <span class="value">@planDescription</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Plan Number:","Número do Plano:")</span>
+                    <span class="value">@planNo</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Premium Rate:","Taxa de Prémio:")</span>
+                    <span class="value">@planPremiumRate.ToString("C2")</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Underwriter:","Seguradora:")</span>
+                    <span class="value">@(string.IsNullOrEmpty(underwriterName) ? underwriterCode : underwriterName)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Product (Beneficiary) Summary -->
+        <div class="summary-card">
+            <div class="card-header">
+                <h2 class="card-title">👤 @LangService.T("Beneficiary Information","Informações do Beneficiário")</h2>
+                <button class="edit-btn" @onclick='@(() => navigationManager.NavigateTo("/beneficiary-info"))'>@LangService.T("Edit","Editar")</button>
+            </div>
+            <div class="card-body">
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Name:","Nome:")</span>
+                    <span class="value">@selectedProduct.First_Name @selectedProduct.Family_Name</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Age:","Idade:")</span>
+                    <span class="value">@selectedProduct.Age</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Chronic Status:","Doença Crónica:")</span>
+                    <span class="value">@(string.IsNullOrWhiteSpace(selectedProduct.Chronic_Status) ? "N/A" : selectedProduct.Chronic_Status)</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Relationship:","Relação:")</span>
+                    <span class="value">@selectedProduct.Relationship_to_Applicant</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Occupation:","Ocupação:")</span>
+                    <span class="value">@(string.IsNullOrEmpty(selectedProduct.Occupation) ? "N/A" : selectedProduct.Occupation)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Policy Information Summary -->
+        <div class="summary-card">
+            <div class="card-header">
+                <h2 class="card-title">📄 @LangService.T("Policy Information","Informações da Apólice")</h2>
+                <button class="edit-btn" @onclick='@(() => navigationManager.NavigateTo("/beneficiary-info"))'>@LangService.T("Edit","Editar")</button>
+            </div>
+            <div class="card-body">
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Policy Number:","Número da Apólice:")</span>
+                    <span class="value">@(string.IsNullOrEmpty(selectedProduct.Policy_No) ? "N/A" : selectedProduct.Policy_No)</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Policy Start Date:","Data de Início:")</span>
+                    <span class="value">@selectedProduct.Policy_Start_Date.ToString("dd/MM/yyyy")</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Policy End Date:","Data de Fim:")</span>
+                    <span class="value">@selectedProduct.Policy_End_Date.ToString("dd/MM/yyyy")</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">@LangService.T("Description:","Descrição:")</span>
+                    <span class="value">@(string.IsNullOrEmpty(selectedProduct.Description) ? "N/A" : selectedProduct.Description)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button type="button" class="btn-secondary" @onclick="GoBack">← @LangService.T("Back to Edit","Voltar para Editar")</button>
+            <button type="button" class="btn-primary" @onclick="OpenConfirm" disabled="@(isSubmitting || !hasContactNo)">
+                @if (isSubmitting)
+                {
+                    <span>⏳ @LangService.T("Processing...","A processar...")</span>
+                }  
+                else
+                {
+                    <span>✓ @LangService.T("Confirm & Submit","Confirmar & Submeter")</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --stanbic-blue: #2E5090;
+        --stanbic-blue-dark: #1e3a5f;
+        --stanbic-orange: #FF9900;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --bg-light: #f8fafc;
+        --border: #e5e7eb;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 8px 16px rgba(46, 80, 144, 0.12);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .summary-container {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #fff;
+        min-height: 100vh;
+        padding: 0;
+    }
+
+    /* Header Section */
+    .header-section {
+        background: linear-gradient(135deg, #283A79, #2d488f);
+        color: #fff;
+        padding: 14px; /* tighter */
+        box-shadow: 0 20px 40px -24px rgba(15,70,150,.30);
+        border-bottom: 1px solid rgba(148,163,184,.20);
+        backdrop-filter: saturate(140%) blur(6px);
+    }
+
+    .header-top {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        justify-content: space-between;
+    }
+
+    .btn-back {
+        background: transparent;
+        border: 1px solid #9db2ff;
+        color: #eef2ff;
+        padding: 8px 14px;
+        border-radius: 9999px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 700;
+        transition: all 0.2s;
+        box-shadow: 0 4px 10px rgba(31,58,127,.12);
+    }
+
+    .btn-back:hover { background: rgba(255,255,255,.12); }
+
+    .header-title { font-size: 20px; font-weight: 800; margin: 0; flex: 1; letter-spacing:.2px; }
+
+    .step-indicator {
+        background: var(--stanbic-blue);
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* Summary Content */
+    .summary-content { max-width: 900px; margin: 16px auto; padding: 0 12px; }
+
+    .summary-card { background: rgba(255,255,255,.92); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); border: 1px solid rgba(148,163,184,.20); margin-bottom: 12px; backdrop-filter: saturate(140%) blur(6px); }
+
+    .card-header { background: linear-gradient(135deg, #283A79, #3657a6); color: #fff; padding: 12px 14px; }
+
+    .card-title { font-size: 15px; font-weight: 700; margin: 0; }
+
+    .card-header { display:flex; align-items:center; gap:8px; }
+    .edit-btn { margin-left:auto; border-radius:9999px; height:28px; padding:0 12px; font-weight:700; background:transparent; border:1px solid #9db2ff; color:#eef2ff; box-shadow:0 4px 10px rgba(31,58,127,.12); }
+    .edit-btn:hover { background: rgba(255,255,255,.12); }
+
+    .card-body { padding: 12px; }
+
+    .summary-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(148,163,184,.20); align-items: center; }
+
+    .summary-row:last-child {
+        border-bottom: none;
+    }
+
+    .label { font-weight: 700; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+    .value { font-size: 14px; color: #0f172a; font-weight: 600; }
+
+    .value.highlight {
+        color: var(--stanbic-blue);
+        font-weight: 700;
+        font-size: 16px;
+    }
+
+    /* Action Buttons */
+    .action-buttons { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; margin-bottom:16px; }
+
+    .btn-primary, .btn-secondary { padding: 10px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; border: none; }
+
+    .btn-primary { background: linear-gradient(135deg, #059669, #10b981); color: #fff; box-shadow: 0 8px 18px rgba(5,150,105,.25); }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary { background: transparent; color: #283A79; border: 1px solid #3657a6; }
+
+    .btn-secondary:hover {
+        background: white;
+        border-color: var(--stanbic-blue);
+    }
+
+    @@media (max-width: 768px) {
+        .summary-row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+
+        .label {
+            font-size: 12px;
+        }
+
+        .action-buttons {
+            flex-direction: column-reverse;
+        }
+
+        .btn-primary,
+        .btn-secondary {
+            width: 100%;
+        }
+    }
+</style>
+
+<!-- Glassmorphic Confirm Modal Styles -->
+<style>
+    .glass-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 15, 25, 0.45);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        z-index: 100000;
+        animation: fadeIn 200ms ease-out;
+    }
+    .glass-modal {
+        width: min(560px, 94vw);
+        border-radius: 20px;
+        background: linear-gradient(140deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.70) 100%);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+        border: 1px solid rgba(255,255,255,0.5);
+        overflow: hidden;
+        transform: translateY(6px);
+        animation: popIn 220ms ease-out forwards;
+    }
+    .glass-header {
+        padding: 18px 22px;
+        background: linear-gradient(135deg, rgba(46, 80, 144, 0.9) 0%, rgba(30, 58, 95, 0.9) 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+    .glass-body {
+        padding: 22px;
+        color: #0f172a;
+    }
+    .glass-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 8px 0; }
+    .glass-label { color: #475569; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    .glass-value { color: #0f172a; font-weight: 600; }
+    .glass-footer {
+        display: flex; justify-content: flex-end; gap: 12px; padding: 18px 22px 22px 22px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%);
+        border-top: 1px solid rgba(255,255,255,0.6);
+    }
+    .btn-ghost {
+        background: rgba(255,255,255,0.6);
+        color: #0f172a;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        padding: 10px 16px; border-radius: 12px; cursor: pointer;
+        transition: all 150ms ease;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.9); transform: translateY(-1px); }
+    .btn-solid {
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        color: #fff; border: none; padding: 10px 16px; border-radius: 12px; cursor: pointer;
+        box-shadow: 0 8px 20px rgba(46, 80, 144, 0.35);
+        transition: all 150ms ease;
+    }
+    .btn-solid:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(46, 80, 144, 0.45); }
+    .btn-solid:disabled, .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+    @@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @@keyframes popIn { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+</style>
+
+@code {
+
+    private MOZ_UPGRADE.Models.SelectedProduct selectedProduct = new();
+    private string planDescription = "";
+    private decimal planPremiumRate = 0;
+    private string planNo = "";
+    private string underwriterCode = "";
+    private string underwriterName = "";
+    private string planClass = "";
+    private bool isSubmitting = false;
+    private bool showConfirm = false;
+    private bool hasContactNo = false;
+    private string? currentContactNo;
+
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+        try
+        {
+            // Retrieve plan data from service
+            var planData = unitOfWork.PlanSelectionService.GetPlanData();
+            if (planData != null)
+            {
+                planDescription = planData.Description;
+                planPremiumRate = planData.PremiumRate;
+                planNo = planData.PlanNo;
+                underwriterCode = planData.UnderwriterCode;
+                underwriterName = planData.UnderwriterName; // Get the actual name from plan data
+                planClass = planData.PlanClass;
+                System.Diagnostics.Debug.WriteLine($"[Summary] Plan data loaded: {planDescription}");
+                System.Diagnostics.Debug.WriteLine($"[Summary] Underwriter: {underwriterName}");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[Summary] No plan data found in service");
+            }
+
+            // Retrieve selected product data from service
+            selectedProduct = unitOfWork.PlanSelectionService.GetBeneficiaryData();
+            if (selectedProduct != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Summary] SelectedProduct loaded: {selectedProduct.First_Name} {selectedProduct.Family_Name}");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("[Summary] No selected product found in service");
+                selectedProduct = new();
+            }
+
+
+
+            try
+
+            {
+
+                var usrid = await unitOfWork.Get_LoggedIn_User.UserId();
+
+
+
+                var currentUser = await unitOfWork.userRepository.GetById(usrid);
+
+
+
+                if (currentUser != null)
+                {
+                    currentContactNo = currentUser?.Contact_No;
+
+                    hasContactNo = !string.IsNullOrWhiteSpace(currentContactNo);
+                    selectedProduct.Contact_No = currentContactNo;
+                    StateHasChanged();
+                }
+
+
+
+
+
+            }
+
+            catch
+
+            {
+
+                hasContactNo = false;
+
+            }
+
+
+
+
+
+
+
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Summary] Error loading data: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        navigationManager.NavigateTo("javascript:history.back()");
+    }
+
+    private void OpenConfirm()
+    {
+        if (isSubmitting) return;
+        showConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CloseConfirm()
+    {
+        if (isSubmitting) return;
+        showConfirm = false;
+        StateHasChanged();
+    }
+
+    private async Task SubmitApplication()
+    {
+        try
+        {
+            isSubmitting = true;
+            StateHasChanged();
+
+            // Validate required fields
+            var validationErrors = new List<string>();
+            if (string.IsNullOrWhiteSpace(selectedProduct.First_Name)) validationErrors.Add("First name is required.");
+            if (string.IsNullOrWhiteSpace(selectedProduct.Family_Name)) validationErrors.Add("Family name is required.");
+            if (string.IsNullOrWhiteSpace(selectedProduct.Relationship_to_Applicant)) validationErrors.Add("Relationship to applicant is required.");
+            if (selectedProduct.Age <= 0) validationErrors.Add("Age must be a positive number.");
+            if (string.IsNullOrWhiteSpace(selectedProduct.Occupation)) validationErrors.Add("Occupation is required.");
+            if (string.IsNullOrWhiteSpace(selectedProduct.Policy_No)) validationErrors.Add("Policy number is required.");
+            if (string.IsNullOrWhiteSpace(selectedProduct.Contact_No)) validationErrors.Add("Contact number is required.");
+            if (selectedProduct.Policy_Start_Date == default) validationErrors.Add("Policy start date is required.");
+            if (selectedProduct.Policy_End_Date == default) validationErrors.Add("Policy end date is required.");
+            if (selectedProduct.Policy_End_Date <= selectedProduct.Policy_Start_Date) validationErrors.Add("Policy end date must be after start date.");
+            if (validationErrors.Any())
+            {
+                foreach (var err in validationErrors) Snackbar.Add("❌ " + err, Severity.Error);
+                return;
+            }
+
+            // Ensure we have selected product data
+            if (selectedProduct == null)
+                selectedProduct = new();
+
+            // Set fields required by BC
+            // Use Contact_No from current user profile (BC constraint: <= 20 chars)
+            var email = await unitOfWork.Get_LoggedIn_User.UserEmail();
+            var currentUser = await unitOfWork.userRepository.GetByEmail(email);
+            var contactNo = currentContactNo;
+            if (string.IsNullOrWhiteSpace(contactNo))
+            {
+                Snackbar.Add("❌ Contact number is required. Please complete your KYC first.", Severity.Error);
+                showConfirm = false;
+                isSubmitting = false;
+                StateHasChanged();
+                navigationManager.NavigateTo("/Individual_Generalinfo");
+                return;
+            }
+            selectedProduct.Contact_No = currentContactNo;// contactNo.Length > 20 ? contactNo.Substring(0, 20) : contactNo;
+            selectedProduct.Underwriter_Code = underwriterCode;
+            // Do not auto-fill Description; keep user's input
+            selectedProduct.Class_Name = string.IsNullOrWhiteSpace(selectedProduct.Class_Name) ? planClass : selectedProduct.Class_Name;
+            // Enforce valid Policy_Term (positive integer)
+            if (selectedProduct.Policy_Term <= 0)
+            {
+                Snackbar.Add("❌ Policy Term must be a positive number.", Severity.Error);
+                return;
+            }
+            // Link to BC 'plans' table: set Policy_No from planNo and validate against plans for underwriter/class
+            try
+            {
+                // Always prioritize incoming planNo from BeneficiaryInfo
+                if (!string.IsNullOrWhiteSpace(planNo))
+                {
+                    selectedProduct.Policy_No = planNo.Length > 20 ? planNo.Substring(0, 20) : planNo;
+                }
+
+                // Skip local Policy_No validation; let ERP validate
+            }
+            catch { /* if lookup fails, we'll send what we have and let BC validate */ }
+
+
+
+
+
+
+
+            string json = JsonSerializer.Serialize(selectedProduct, new JsonSerializerOptions
+
+                {
+
+                    WriteIndented = true // makes it pretty-printed
+
+                });
+
+
+
+            // Snackbar.Add(" the data:" + json, Severity.Normal);
+
+
+
+            // Persist to ERP
+            var result = await unitOfWork.SelectedProductService.CreateSelectedProductAsync(selectedProduct);
+
+            if (result.Success)
+            {
+                Snackbar.Add("✅ Submitted Successfully", Severity.Success);
+                try
+                {
+                    var recipients = new List<string>
+                    {
+                        "Sheila.chumba@attain-es.com",
+                        "benndora2@gmail.com",
+                        "kipletingbrian285@gmail.com",
+                        "emmanukiptoo98@gmail.com"
+                    };
+
+                    var customerName = $"{selectedProduct.First_Name} {selectedProduct.Family_Name}".Trim();
+
+                    var renewalContext = unitOfWork?.PlanSelectionService?.GetRenewalContext();
+                    if (renewalContext?.IsRenewal == true)
+                    {
+                        await EmailService.SendPolicyRenewalNotificationAsync(
+                            recipients,
+                            customerName,
+                            selectedProduct.Contact_No,
+                            renewalContext.OldPolicyNo,
+                            planNo,
+                            planDescription,
+                            selectedProduct.Policy_Start_Date,
+                            selectedProduct.Policy_End_Date,
+                            string.IsNullOrWhiteSpace(underwriterName) ? underwriterCode : underwriterName
+                        );
+
+                        try
+                        {
+                            unitOfWork?.PlanSelectionService?.ClearRenewalContext();
+                        }
+                        catch
+                        {
+                            // ignore
+                        }
+                    }
+                    else
+                    {
+                        await EmailService.SendProductSubmissionNotificationAsync(
+                            recipients,
+                            customerName,
+                            selectedProduct.Contact_No,
+                            planNo,
+                            planDescription,
+                            selectedProduct.Policy_Start_Date,
+                            selectedProduct.Policy_End_Date,
+                            string.IsNullOrWhiteSpace(underwriterName) ? underwriterCode : underwriterName,
+                            selectedProduct.Policy_No
+                        );
+                    }
+                }
+                catch (Exception emailEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Summary] Error sending management email: {emailEx.Message}");
+                }
+                showConfirm = false;
+                navigationManager.NavigateTo("/Dashboard");
+            }
+            else
+            {
+                var details = string.IsNullOrWhiteSpace(result.Error) ? "" : $" (" + result.Error + ")";
+                string bodySnippet = null;
+                if (!string.IsNullOrWhiteSpace(result.ResponseBody))
+                {
+                    // Log full body and show a short snippet to the user
+                    System.Diagnostics.Debug.WriteLine($"[Summary] BC error body: {result.ResponseBody}");
+                    bodySnippet = result.ResponseBody.Length > 220 ? result.ResponseBody.Substring(0, 220) + "…" : result.ResponseBody;
+                }
+                Snackbar.Add($"❌ Failed to submit  {details}. {bodySnippet}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToPlan()
+    {
+        var insurer = string.IsNullOrWhiteSpace(underwriterCode) ? "" : Uri.EscapeDataString(underwriterCode);
+        var klass = string.IsNullOrWhiteSpace(planClass) ? "" : Uri.EscapeDataString(planClass);
+        if (!string.IsNullOrWhiteSpace(insurer) && !string.IsNullOrWhiteSpace(klass))
+            navigationManager.NavigateTo($"/plans-details/{insurer}/{klass}");
+        else
+            navigationManager.NavigateTo("/plans-details");
+    }
+}
+
+@if (showConfirm)
+{
+    <div class="glass-backdrop">
+        <div class="glass-modal" @onclick:stopPropagation>
+            <div class="glass-header">
+                <span>@LangService.T("Confirm Submission","Confirmar Submissão")</span>
+            </div>
+            <div class="glass-body">
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Name","Nome")</div>
+                    <div class="glass-value">@selectedProduct.First_Name @selectedProduct.Family_Name</div>
+                </div>
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Plan","Plano")</div>
+                    <div class="glass-value">@planNo (@planDescription)</div>
+                </div>
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Start","Início")</div>
+                    <div class="glass-value">@selectedProduct.Policy_Start_Date.ToString("yyyy-MM-dd")</div>
+                </div>
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("End","Fim")</div>
+                    <div class="glass-value">@selectedProduct.Policy_End_Date.ToString("yyyy-MM-dd")</div>
+                </div>
+            </div>
+            <div class="glass-footer">
+                <button class="btn-ghost" @onclick="CloseConfirm" disabled="@isSubmitting">@LangService.T("Cancel","Cancelar")</button>
+                <button class="btn-solid" @onclick="SubmitApplication" disabled="@isSubmitting">@(isSubmitting ? LangService.T("Submitting...","A submeter...") : LangService.T("Confirm & Submit","Confirmar & Submeter"))</button>
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,2251 @@
+@page "/Dashboard"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject HttpClient Http
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    .dashboard-container {
+        background: #f8f9fa;
+        height: 100%;
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+        position: relative;
+        overflow-y: auto;
+        overflow-x: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dashboard-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 0;
+        background: transparent;
+        animation: none;
+        pointer-events: none;
+    }
+
+    @@keyframes gradientShift {
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        50% { transform: translate(-5%, -5%) rotate(5deg); }
+    }
+
+    .content-wrapper {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        flex: 1;
+    }
+
+    .welcome-section {
+        background: white;
+        border-radius: 12px;
+        padding: 32px 36px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .welcome-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 0;
+        background: transparent;
+    }
+
+    .welcome-section:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #FF9900;
+    }
+
+    .welcome-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .welcome-header h2 {
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0;
+        color: #17275F;
+        letter-spacing: -0.5px;
+    }
+
+    .welcome-header p {
+        font-size: 15px;
+        margin: 0;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .welcome-icons {
+        display: flex;
+        gap: 12px;
+    }
+
+    .icon-circle {
+        width: 56px;
+        height: 56px;
+        border-radius: 10px;
+        background: #FFF4E6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        border: 1px solid #FFE5CC;
+        box-shadow: none;
+        transition: all 0.2s ease;
+    }
+
+    .icon-circle:hover {
+        transform: none;
+        background: #FFEBCC;
+        box-shadow: none;
+    }
+
+    /* Features Section */
+    .features-section {
+        background: white;
+        border-radius: 16px;
+        padding: 48px 40px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        transition: all 0.2s ease;
+    }
+
+    .features-header {
+        text-align: center;
+        margin-bottom: 48px;
+    }
+
+    .features-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #17275F;
+        margin: 0 0 12px 0;
+        letter-spacing: -0.5px;
+    }
+
+    .features-subtitle {
+        font-size: 16px;
+        color: #666;
+        margin: 0;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        line-height: 1.6;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 28px;
+    }
+
+    .feature-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        padding: 32px 28px;
+        border-radius: 14px;
+        border: 1px solid #e5e5e7;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #FF9900 0%, #FFB84D 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover {
+        border-color: #FF9900;
+        background: white;
+        transform: translateY(-4px);
+    }
+
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .feature-icon {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #FFF4E6 0%, #FFFBF0 100%);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        margin: 0 auto 20px;
+        border: 1px solid #FFE5CC;
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover .feature-icon {
+        background: linear-gradient(135deg, #FFEBCC 0%, #FFF8E6 100%);
+        transform: scale(1.1);
+    }
+
+    .feature-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #17275F;
+        margin: 0 0 12px 0;
+        letter-spacing: -0.3px;
+    }
+
+    .feature-description {
+        font-size: 14px;
+        color: #666;
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .account-info-section {
+        background: white;
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        transition: all 0.2s ease;
+    }
+
+    .account-info-section:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #FF9900;
+    }
+
+    .account-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+    }
+
+    .info-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .info-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 0;
+        background: transparent;
+        border-radius: 0;
+    }
+
+    .info-card:hover {
+        transform: none;
+        background: white;
+        border-color: #FF9900;
+        box-shadow: none;
+    }
+
+    .info-label {
+        font-size: 11px;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .info-value {
+        font-size: 16px;
+        color: #17275F;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+    }
+
+    .kyc-section {
+        background: white;
+        border-radius: 12px;
+        padding: 28px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        transition: all 0.2s ease;
+    }
+
+    .kyc-section:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #FF9900;
+    }
+
+    .kyc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #e5e5e7;
+    }
+
+    .kyc-header h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #17275F;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+
+    .kyc-button {
+        background: #FF9900;
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: none;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+    }
+
+    .kyc-button:hover {
+        transform: none;
+        background: #E68A00;
+        box-shadow: none;
+    }
+
+    .kyc-button:active {
+        transform: none;
+    }
+
+    .kyc-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .contact-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 8px;
+        letter-spacing: 0.3px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 12px 14px;
+        background: white;
+        border: 1px solid #e5e5e7;
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #333;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+        color: #aaa;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        background: white;
+        border-color: #FF9900;
+        box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .form-buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+        grid-column: 1 / -1;
+    }
+
+    .btn-submit {
+        background: #FF9900;
+        color: white;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+        box-shadow: none;
+    }
+
+    .btn-submit:hover {
+        transform: none;
+        background: #E68A00;
+        box-shadow: none;
+    }
+
+    .btn-submit:active {
+        transform: none;
+    }
+
+    .btn-cancel {
+        background: white;
+        color: #666;
+        border: 1px solid #e5e5e7;
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        box-shadow: none;
+    }
+
+    .btn-cancel:hover {
+        background: #f5f5f7;
+        transform: none;
+        box-shadow: none;
+        border-color: #FF9900;
+    }
+
+    .btn-cancel:active {
+        transform: none;
+    }
+
+    .floating-contact-btn {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: linear-gradient(135deg, #FF9900, #FFB84D);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.45);
+        cursor: pointer;
+        z-index: 9999;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+
+    .floating-contact-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(135deg, #FFB84D, #FF9900);
+    }
+
+    .floating-contact-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.35);
+    }
+
+    .contact-support-panel {
+        position: fixed;
+        right: 24px;
+        bottom: 92px;
+        width: 380px;
+        max-width: calc(100% - 32px);
+        max-height: 70vh;
+        background: #ffffff;
+        border-radius: 18px;
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        z-index: 9998;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .contact-support-header {
+        padding: 10px 12px;
+        background: linear-gradient(135deg, #2E5090, #1F3A7F);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 12px;
+        font-weight: 600;
+        gap: 10px;
+    }
+
+    .chat-header-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .chat-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 9999px;
+        background: radial-gradient(circle at 30% 0, #ffffff 0, #e0e7ff 35%, #1f2937 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.35);
+    }
+
+    .chat-header-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+    }
+
+    .chat-header-name {
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .chat-header-email {
+        font-size: 11px;
+        opacity: 0.85;
+    }
+
+    .chat-header-right {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .chat-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.28);
+    }
+
+    .chat-status-text {
+        font-size: 11px;
+        opacity: 0.9;
+    }
+
+    .contact-support-close {
+        background: transparent;
+        border: none;
+        color: #e5e7eb;
+        font-size: 18px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0 4px;
+    }
+
+    .contact-support-body {
+        padding: 12px 14px 14px 14px;
+        overflow-y: auto;
+    }
+
+    .chat-messages {
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 4px;
+        margin-bottom: 8px;
+    }
+
+    .chat-message {
+        display: flex;
+        margin-bottom: 6px;
+    }
+
+    .chat-message-bot {
+        justify-content: flex-start;
+    }
+
+    .chat-message-user {
+        justify-content: flex-end;
+    }
+
+    .chat-bubble {
+        max-width: 85%;
+        padding: 8px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        line-height: 1.4;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.12);
+        position: relative;
+    }
+
+    .chat-bubble-bot {
+        background: #eff6ff;
+        color: #0b1120;
+        border-bottom-left-radius: 4px;
+    }
+
+    .chat-bubble-user {
+        background: #fffbeb;
+        color: #111827;
+        border-bottom-right-radius: 4px;
+    }
+
+    .chat-meta {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px;
+        margin-top: 4px;
+        font-size: 10px;
+        opacity: 0.7;
+    }
+
+    .chat-ticks {
+        font-size: 11px;
+        color: #3b82f6;
+    }
+
+    .chat-choice-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .chat-choice-btn {
+        padding: 6px 10px;
+        border-radius: 9999px;
+        border: none;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #2E5090;
+        color: #ffffff;
+    }
+
+    .chat-choice-secondary {
+        background: #e5e7eb;
+        color: #111827;
+    }
+
+    .chat-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 9999px;
+        border: 1px solid #e5e7eb;
+        font-size: 12px;
+        outline: none;
+    }
+
+    .chat-input:focus {
+        border-color: #2E5090;
+        box-shadow: 0 0 0 2px rgba(46, 80, 144, 0.15);
+    }
+
+    .chat-send-btn {
+        padding: 7px 12px;
+        border-radius: 9999px;
+        border: none;
+        background: linear-gradient(135deg, #2E5090, #1F3A7F);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .chat-send-btn:hover {
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+    }
+
+    /* Promotional Section */
+    .promo-section {
+        background: #17275F;
+        border-radius: 12px;
+        padding: 40px;
+        margin-bottom: 24px;
+        border: 1px solid #1F3A7F;
+        box-shadow: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 40px;
+    }
+
+    .promo-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 0;
+        height: 0;
+        background: transparent;
+        border-radius: 0;
+        pointer-events: none;
+    }
+
+    .promo-section:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .promo-content {
+        flex: 1;
+        position: relative;
+        z-index: 1;
+    }
+
+    .promo-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: white;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.5px;
+        line-height: 1.2;
+    }
+
+    .promo-description {
+        font-size: 15px;
+        color: rgba(255, 255, 255, 0.9);
+        margin: 0 0 24px 0;
+        line-height: 1.6;
+    }
+
+    .promo-button {
+        background: #FF9900;
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: none;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .promo-button:hover {
+        transform: none;
+        background: #E68A00;
+        box-shadow: none;
+    }
+
+    .promo-button:active {
+        transform: none;
+    }
+
+    .promo-image {
+        flex: 1;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .promo-image img {
+        max-width: 100%;
+        height: auto;
+        filter: none;
+    }
+
+    /* Products Section */
+    .products-section {
+        background: white;
+        border-radius: 0;
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 600px;
+        margin: 0;
+    }
+
+    .products-filter-section {
+        background: #f8f9fa;
+        padding: 24px;
+        border-radius: 0;
+        border-bottom: 1px solid #e5e5e7;
+        margin: 0;
+    }
+
+    .products-content-section {
+        background: white;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        margin: 0;
+    }
+
+    .products-header {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .products-header-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #17275F;
+        margin: 0;
+    }
+
+    .products-header-title::before {
+        content: '🔍';
+        font-size: 20px;
+    }
+
+    .products-filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        align-items: flex-end;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .filter-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .filter-input {
+        padding: 12px 14px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #333;
+        transition: all 0.2s ease;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #FF9900;
+        box-shadow: none;
+    }
+
+    .filter-input::placeholder {
+        color: #999;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding-top: 6px;
+    }
+
+    .btn-clear-filters {
+        background: #666;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-clear-filters:hover {
+        background: #555;
+    }
+
+    .filter-results {
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .filter-results strong {
+        color: #17275F;
+        font-weight: 700;
+    }
+
+    .products-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        margin: 0;
+    }
+
+    .product-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 0;
+        height: 0;
+        background: transparent;
+        border-radius: 0;
+    }
+
+    .product-card:hover {
+        transform: none;
+        border-color: #FF9900;
+        box-shadow: none;
+    }
+
+    .product-card-content {
+        flex: 1;
+    }
+
+    .btn-view-details {
+        background: #17275F;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 12px;
+        align-self: flex-start;
+    }
+
+    .btn-view-details:hover {
+        background: #E68A00;
+        transform: none;
+    }
+
+    .product-code {
+        font-size: 11px;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .product-name {
+        font-size: 15px;
+        color: #17275F;
+        font-weight: 600;
+        letter-spacing: -0.3px;
+        margin-bottom: 12px;
+        line-height: 1.4;
+    }
+
+    .product-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .product-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .product-info-label {
+        color: #999;
+        font-weight: 500;
+    }
+
+    .product-info-value {
+        color: #17275F;
+        font-weight: 600;
+    }
+
+    .product-commission {
+        background: #f5f5f5;
+        padding: 10px 12px;
+        border-radius: 6px;
+        margin-top: 12px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: #17275F;
+        border: 1px solid #e5e5e7;
+    }
+
+    .products-loading {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+    }
+
+    .products-empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+        font-size: 14px;
+    }
+
+    /* Underwriter Policies Section */
+    .policies-section {
+        background: white;
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 24px;
+        border: 1px solid #e5e5e7;
+        box-shadow: none;
+        transition: all 0.2s ease;
+    }
+
+    .policies-section:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #FF9900;
+    }
+
+    .policies-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .policies-header h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #17275F;
+        margin: 0;
+        letter-spacing: -0.3px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    }
+
+    .policies-filter-section {
+        background: transparent;
+        padding: 0;
+        margin-bottom: 20px;
+        border: none;
+        box-shadow: none;
+        transition: all 0.3s ease;
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex: 1;
+        min-width: 160px;
+    }
+
+    .filter-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .filter-input {
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 13px;
+        transition: all 0.2s ease;
+        background: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #2E5090;
+        box-shadow: none;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-filter {
+        background: #2E5090;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(46, 80, 144, 0.15);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .btn-filter:hover {
+        background: #1F3A7F;
+        box-shadow: 0 4px 12px rgba(46, 80, 144, 0.25);
+        transform: translateY(-1px);
+    }
+
+    .btn-clear {
+        background: white;
+        color: #555;
+        border: 1px solid #ddd;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: none;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .btn-clear:hover {
+        background: #f5f5f5;
+        border-color: #bbb;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transform: translateY(-1px);
+    }
+
+    .btn-clear:active {
+        transform: translateY(0);
+    }
+
+    .view-more-btn {
+        background: white;
+        color: #2E5090;
+        border: 1px solid #2E5090;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: none;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .view-more-btn:hover {
+        background: #2E5090;
+        color: white;
+        box-shadow: 0 4px 12px rgba(46, 80, 144, 0.2);
+        transform: translateY(-1px);
+    }
+
+    /* Policies Cards Grid - iPhone 17 Aesthetics */
+    .policies-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 20px;
+    }
+
+    .policy-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+        border-radius: 20px;
+        border: 1px solid rgba(229, 229, 231, 0.6);
+        overflow: hidden;
+        transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        backdrop-filter: blur(10px);
+    }
+
+    .policy-card:hover {
+        transform: translateY(-12px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(46, 80, 144, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border-color: rgba(46, 80, 144, 0.3);
+    }
+
+    .policy-card-header {
+        background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%);
+        padding: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .policy-card-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .policy-number {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .policy-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    .policy-value {
+        font-size: 22px;
+        font-weight: 600;
+        color: white;
+        letter-spacing: -0.5px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .policy-badge {
+        font-size: 40px;
+        opacity: 0.9;
+        position: relative;
+        z-index: 1;
+    }
+
+    .policy-card-body {
+        padding: 24px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .policy-field {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: linear-gradient(135deg, rgba(46, 80, 144, 0.05) 0%, rgba(31, 58, 127, 0.03) 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(46, 80, 144, 0.08);
+        transition: all 0.2s ease;
+    }
+
+    .policy-field:hover {
+        background: linear-gradient(135deg, rgba(46, 80, 144, 0.08) 0%, rgba(31, 58, 127, 0.05) 100%);
+        border-color: rgba(46, 80, 144, 0.15);
+    }
+
+    .field-icon {
+        font-size: 20px;
+        min-width: 24px;
+    }
+
+    .field-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+    }
+
+    .field-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .field-value {
+        font-size: 14px;
+        font-weight: 500;
+        color: #2E5090;
+        line-height: 1.3;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        text-transform: capitalize;
+    }
+
+    .policy-card-footer {
+        padding: 16px 24px 24px;
+        display: flex;
+        gap: 12px;
+    }
+
+    .policy-action-btn {
+        flex: 1;
+        background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%);
+        color: white;
+        border: none;
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 4px 12px rgba(46, 80, 144, 0.2);
+    }
+
+    .policy-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(46, 80, 144, 0.3);
+    }
+
+    .policy-action-btn:active {
+        transform: translateY(0);
+    }
+
+</style>
+
+<style media="(max-width: 768px)">
+    .products-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .products-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .promo-section {
+        flex-direction: column;
+        padding: 32px 24px;
+        gap: 24px;
+    }
+
+    .promo-title {
+        font-size: 24px;
+    }
+
+    .promo-description {
+        font-size: 14px;
+    }
+
+    .promo-image {
+        max-width: 100%;
+    }
+    .dashboard-container {
+        padding: 20px 16px;
+    }
+
+    .welcome-section,
+    .account-info-section,
+    .kyc-section {
+        padding: 24px 20px;
+        border-radius: 18px;
+    }
+
+    .welcome-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .welcome-header h2 {
+        font-size: 24px;
+    }
+
+    .welcome-icons {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .icon-circle {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+    }
+
+    .contact-form {
+        grid-template-columns: 1fr;
+    }
+
+    .account-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .kyc-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+
+    .kyc-button {
+        width: 100%;
+    }
+
+    .form-buttons {
+        flex-direction: column;
+    }
+
+    .btn-submit,
+    .btn-cancel {
+        width: 100%;
+    }
+}
+  .ios-glass {
+      background: rgba(255, 255, 255, 0.55);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      box-shadow: 0 14px 38px rgba(11,24,78,0.16), 0 4px 14px rgba(11,24,78,0.12);
+      border-radius: 16px;
+  }
+  .ios-glass-dark {
+      background: rgba(11, 24, 78, 0.72);
+      backdrop-filter: blur(14px) saturate(140%);
+      -webkit-backdrop-filter: blur(14px) saturate(140%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.22);
+      border-radius: 16px;
+  }
+  .ios-pill {
+      border-radius: 9999px;
+      padding: 10px 16px;
+      font-weight: 700;
+      border: 1px solid rgba(255,255,255,0.5);
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.75));
+      color: #0B184E;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+      transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .ios-pill:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(0,0,0,0.16); }
+  .ios-pill:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .dashboard-container {
+      font-family: "SF Pro Text", "SF Pro Display", "Inter var", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+      font-feature-settings: "liga" 1, "kern" 1, "calt" 1;
+      background: radial-gradient(1200px 600px at 10% -10%, #e6eeff 0%, transparent 60%), radial-gradient(1000px 500px at 110% 10%, #ffe9d6 0%, transparent 60%), linear-gradient(180deg, #f7fafc, #eef2f7);
+  }
+  h1, h2, h3, h4, h5, h6 { letter-spacing: -0.015em; }
+  .kpi-card div:first-child + div > div:last-child { letter-spacing: -0.01em; }
+  .stepper-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .stepper-cta { margin-left:auto; }
+  .brand-pill {
+      background: linear-gradient(180deg, #152269 0%, #0B184E 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255,255,255,0.25);
+  }
+  .cta-pill { display:inline-flex; align-items:center; gap:8px; padding:10px 16px; border-radius:9999px; font-weight:700; }
+  .cta-icon { display:flex; align-items:center; }
+  .promo-like-btn { background:#0B184E !important; color:#fff !important; border-radius:16px; border:1px solid rgba(255,255,255,0.25); box-shadow: 0 10px 30px rgba(0,0,0,0.25); display:inline-flex; align-items:center; gap:8px; }
+  .promo-like-btn:hover { background:#0B184E !important; box-shadow: 0 14px 36px rgba(0,0,0,0.3); }
+  .promo-like-btn:active { background:#0B184E !important; box-shadow: 0 6px 16px rgba(0,0,0,0.22); }
+  .kpi-card.kpi-solid {
+      background:#ffffff;
+      border:1px solid #EEF1F6;
+      border-radius:16px;
+      box-shadow: 0 10px 24px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);
+      will-change: transform, box-shadow;
+      transition: box-shadow .2s ease, transform .2s ease;
+      font-variant-numeric: tabular-nums;
+  }
+  .kpi-card.kpi-solid:hover { box-shadow: 0 14px 30px rgba(16,24,40,0.12), 0 4px 10px rgba(16,24,40,0.08); transform: translateY(-2px); }
+  @@media (max-width: 640px) {
+      .stepper-row { flex-direction:column; align-items:flex-start; gap:10px; }
+</style>
+<div class="dashboard-container">
+    <div class="content-wrapper">
+        <div class="page-header" style="display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin:8px 0 12px 0;">
+            <div>
+                <div class="breadcrumb" style="font-size:12px; color:#64748b; display:flex; align-items:center; gap:6px;">
+                    <span>@LangService.T("Home","Início")</span>
+                    <span style="opacity:.5">/</span>
+                    <span style="color:#1f2937; font-weight:600;">@LangService.T("Dashboard","Painel")</span>
+                </div>
+                <h1 style="margin:4px 0 0 0; font-size:22px; font-weight:800; color:#0B184E; letter-spacing:-0.015em;">@LangService.T("Dashboard","Painel")</h1>
+            </div>
+        </div>
+        @if (status == "Approved")
+        {
+        <!-- KPI + Activity at Top -->
+        <div class="kpi-section" style="margin-top:0; width:100%; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:16px;">
+            <div class="kpi-card kpi-solid" style="padding:16px; display:flex; align-items:center; gap:12px; background:#ffffff; border:1px solid #E2E8F0; border-radius:16px; box-shadow: 0 10px 24px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);">
+                <div style="width:30px;height:30px;border-radius:8px; background:linear-gradient(135deg,#2E5090,#1F3A7F); color:white; display:flex; align-items:center; justify-content:center; font-weight:800;">K</div>
+                <div style="display:flex; flex-direction:column;">
+                    <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">@LangService.T("KYC Status","Estado KYC")</div>
+                    <div style="font-size:22px; line-height:1.1; font-weight:900; color:#0B184E;">@kycDisplay</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-solid" style="padding:16px; display:flex; align-items:center; gap:12px; background:#ffffff; border:1px solid #E2E8F0; border-radius:16px; box-shadow: 0 10px 24px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);">
+                <div style="width:30px;height:30px;border-radius:8px; background:linear-gradient(135deg,#ffb84d,#ff9900); color:white; display:flex; align-items:center; justify-content:center; font-weight:800;">Q</div>
+                <div style="display:flex; flex-direction:column;">
+                    <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">@LangService.T("Quotes (30 days)","Cotações (30 dias)")</div>
+                    <div style="font-size:24px; line-height:1.1; font-weight:900; color:#1f2937;">@quotesLast30</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-solid" style="padding:16px; display:flex; align-items:center; gap:12px; background:#ffffff; border:1px solid #E2E8F0; border-radius:16px; box-shadow: 0 10px 24px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);">
+                <div style="width:30px;height:30px;border-radius:8px; background:linear-gradient(135deg,#60a5fa,#2563eb); color:white; display:flex; align-items:center; justify-content:center; font-weight:800;">C</div>
+                <div style="display:flex; flex-direction:column;">
+                    <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">@LangService.T("Claims (open)","Reclamações (abertas)")</div>
+                    <div style="font-size:24px; line-height:1.1; font-weight:900; color:#1f2937;">@openClaimsCount</div>
+                </div>
+            </div>
+            <div class="kpi-card kpi-solid" style="padding:16px; display:flex; align-items:center; gap:12px; background:#ffffff; border:1px solid #E2E8F0; border-radius:16px; box-shadow: 0 10px 24px rgba(16,24,40,0.08), 0 2px 4px rgba(16,24,40,0.06);">
+                <div style="width:30px;height:30px;border-radius:8px; background:linear-gradient(135deg,#10b981,#059669); color:white; display:flex; align-items:center; justify-content:center; font-weight:800;">P</div>
+                <div style="display:flex; flex-direction:column;">
+                    <div style="font-size:11px; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:.3px;">@LangService.T("Payments (12m)","Pagamentos (12m)")</div>
+                    <div style="font-size:22px; line-height:1.1; font-weight:900; color:#065f46;">@paymentsLast12m.ToString("N2")</div>
+                </div>
+            </div>
+        </div>}
+
+        <!-- KYC Stepper + CTA inline -->
+        <div class="ios-glass" style="margin-top:0; border-radius:16px; padding:10px; margin-bottom:12px;">
+            <div class="stepper-row">
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                @foreach (var s in kycSteps)
+                {
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <div style="width:22px;height:22px;border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; color:@(s.Index <= currentKycStep ? "white" : "#475569"); background:@(s.Index <= currentKycStep ? "#2E5090" : "#e5e7eb");">@s.Index</div>
+                        <div style="font-size:11px; color:@(s.Index <= currentKycStep ? "#1f2937" : "#64748b"); font-weight:700;">@s.Label</div>
+                    </div>
+                    @if (s.Index < kycSteps.Count)
+                    {
+                        <div style="height:2px; width:28px; background:#e5e7eb;"></div>
+                    }
+                }
+                </div>
+            </div>
+
+        </div>
+        @if (status == "Approved")
+        {
+            <div style="padding:8px;text-align:end">
+                <button class="cta-pill promo-like-btn" style="background-color:#0B184E;color:white;border-radius:8px;padding:8px" title="View Products" @onclick="GoToUnderwriterPolicies">
+                <span class="cta-icon"><MudIcon Icon="@Icons.Material.Filled.Storefront" /></span>
+                <span>@LangService.T("View Products", "Ver Produtos")</span>
+            </button>
+
+        </div>
+        }
+        <!-- Promotional Section (slim) -->
+        <div class="promo-section" style="margin-top:0; padding:16px; border-radius:16px; background:#0B184E; display:grid; grid-template-columns: 1fr auto; align-items:center; gap:12px;">
+            <div class="promo-content">
+                <h2 class="promo-title" style="font-size:16px; margin:0 0 6px 0; font-weight:800; color:white;">@LangService.T("Get your insurance in Mozambique in minutes and save up to 15%","Obtenha o seu seguro em Moçambique em minutos e poupe até 15%")</h2>
+                <p class="promo-description" style="font-size:12px; margin:0; color:gray;">@LangService.T(
+                    "We assist you to choose the best insurance cover in Mozambique in line with your lifestyle and needs. Our customized benefits are tailored to help you get the best motor insurance deal in Mozambique at an affordable price. Request a callback today!",
+                    "Ajudamo-lo a escolher a melhor cobertura de seguro em Moçambique de acordo com o seu estilo de vida e necessidades. Os nossos benefícios personalizados são concebidos para o ajudar a obter o melhor seguro automóvel em Moçambique a um preço acessível. Solicite um retorno de chamada hoje!")
+                </p>
+                 @if (status == "Open" ||status=="n/a"){
+
+                    <MudAlert Severity="Severity.Warning" Style="font-size:12px; padding:8px;">Your KYC process hasn’t started yet. Please fill in your details to begin verification.</MudAlert>
+
+                    <button class="promo-button" style="padding:6px 10px; font-size:12px;" @onclick="HandleKYCClick">
+                        @LangService.T("Continue to KYC Form","Continuar para o formulário KYC")
+                    </button>
+                }
+                else if (status == "Submitted")
+                {
+                    <MudAlert Severity="Severity.Info" Style="font-size:12px; padding:8px;">Your KYC has been submitted successfully ✅. Our team will review your details shortly.</MudAlert>
+
+                }
+                else if (status == "Pending Approval")
+                {
+                    <MudAlert Severity="Severity.Info" Style="font-size:12px; padding:8px;">Your KYC is under review 🔍. We’re verifying your information — this may take a short while.</MudAlert>
+
+                }
+                else if (status == "Approved")
+                {
+                    <MudAlert Severity="Severity.Success" Style="font-size:12px; padding:8px;">Congratulations! 🎉 Your KYC has been approved. You now have full access to all services.</MudAlert>
+
+                }
+                else if (status == "Rejected")
+                {
+                    <MudAlert Severity="Severity.Error" Style="font-size:12px; padding:8px;">Your KYC was not approved 😔. You can update your details and try submitting again.</MudAlert>
+                    <button class="promo-button" style="padding:6px 10px; font-size:12px;" @onclick="HandleKYCClick">
+                        @LangService.T("Continue to KYC Form", "Continuar para o formulário KYC")
+                    </button>
+                }
+            </div>
+            <div class="promo-image" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+                <img src="Images/homeeee.png" style="height:220px; border-radius:14px; box-shadow: 0 10px 30px rgba(0,0,0,0.25);" alt="Insurance Promo" />
+            </div>
+        </div>
+    </div>
+</div>
+@if (showContactPanel)
+{
+    <div class="contact-support-panel">
+        <div class="contact-support-header">
+            <div class="chat-header-left">
+                <div class="chat-avatar">@HeaderInitials</div>
+                <div class="chat-header-text">
+                    <div class="chat-header-name">@(!string.IsNullOrWhiteSpace(headerName) ? headerName : LangService.T("Guest user","Utilizador convidado"))</div>
+                    <div class="chat-header-email">@(!string.IsNullOrWhiteSpace(headerEmail) ? headerEmail : "support@standardinsurance.mz")</div>
+                </div>
+            </div>
+            <div class="chat-header-right">
+                <span class="chat-status-dot"></span>
+                <span class="chat-status-text">Online</span>
+                <button class="contact-support-close" @onclick="ToggleContactPanel">×</button>
+            </div>
+        </div>
+        <div class="contact-support-body">
+            <div class="chat-messages">
+                @foreach (var msg in supportChatMessages)
+                {
+                    var isBot = msg.Sender == "bot";
+                    <div class="chat-message @(isBot ? "chat-message-bot" : "chat-message-user")">
+                        <div class="chat-bubble @(isBot ? "chat-bubble-bot" : "chat-bubble-user")">
+                            <div>@msg.Text</div>
+                            <div class="chat-meta">
+                                <span>@msg.CreatedAt.ToString("HH:mm")</span>
+                                @if (isBot && msg.IsRead)
+                                {
+                                    <span class="chat-ticks">✔✔</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            @if (showSupportForm)
+            {
+                <div class="contact-form" style="margin-top:8px;">
+                    <div class="form-group">
+                        <label>@LangService.T("Type","Tipo")</label>
+                        <select @bind="supportType">
+                            <option value="">@LangService.T("Select an option","Selecione uma opção")</option>
+                            <option value="Question">@LangService.T("Question","Pergunta")</option>
+                            <option value="Issue">@LangService.T("Issue","Problema")</option>
+                            <option value="Feedback">@LangService.T("Feedback","Feedback")</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>@LangService.T("Add Name","Adicionar Nome")</label>
+                        <input type="text" @bind="supportName" placeholder="@LangService.T("Enter name","Introduza o nome")" />
+                    </div>
+                    <div class="form-group">
+                        <label>@LangService.T("Email (optional)","Email (opcional)")</label>
+                        <input type="email" @bind="supportEmail" placeholder="@LangService.T("Enter email","Introduza o email")" />
+                    </div>
+                    <div class="form-group full">
+                        <label>@LangService.T("Details","Detalhes")</label>
+                        <textarea @bind="supportDetails" placeholder="@LangService.T("Enter your message or details here...","Introduza a sua mensagem ou detalhes aqui...")"></textarea>
+                    </div>
+                    <div class="form-buttons">
+                        <button class="btn-submit" @onclick="SubmitSupportRequest">@LangService.T("Submit","Submeter")</button>
+                        <button class="btn-cancel" @onclick="ToggleContactPanel">@LangService.T("Cancel","Cancelar")</button>
+                    </div>
+                </div>
+            }
+
+            @if (!showSupportForm)
+            {
+                <div class="chat-input-row">
+                    <input class="chat-input" @bind="chatInput" placeholder="@LangService.T("Ask a question about the portal...","Faça uma pergunta sobre o portal...")" />
+                    <button class="chat-send-btn" @onclick="SendChatMessage">@LangService.T("Send","Enviar")</button>
+                </div>
+            }
+
+            @if (awaitingContactChoice)
+            {
+                <div class="chat-choice-row">
+                    <button type="button" class="chat-choice-btn" @onclick="() => HandleContactChoice(true)">@LangService.T("Yes","Sim")</button>
+                    <button type="button" class="chat-choice-btn chat-choice-secondary" @onclick="() => HandleContactChoice(false)">@LangService.T("No","Não")</button>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<button type="button"
+        class="floating-contact-btn"
+        title="@LangService.T("Contact Support","Contactar Suporte")"
+        @onclick="ToggleContactPanel">
+    💬
+</button>
+
+@code {
+    private Users currentUser;
+    private string accountType;
+    private bool isLoadingProducts = true;
+    private string searchFilter = "";
+    private string classFilter = "";
+    private bool showContactPanel = false;
+    private List<SupportMessage> supportChatMessages = new();
+    private string supportType = string.Empty;
+    private string supportName = string.Empty;
+    private string supportEmail = string.Empty;
+    private string supportDetails = string.Empty;
+    private bool awaitingContactChoice = false;
+    private bool showSupportForm = true;
+    private string headerName;
+    private string headerEmail;
+    private string chatInput = string.Empty;
+
+    
+
+    private void FilterProducts()
+    {
+        StateHasChanged();
+    }
+
+    private void ClearFilters()
+    {
+        searchFilter = "";
+        classFilter = "";
+        StateHasChanged();
+    }
+
+    private void ToggleContactPanel()
+    {
+        showContactPanel = !showContactPanel;
+
+        if (showContactPanel && supportChatMessages.Count == 0)
+        {
+            supportChatMessages.Add(new SupportMessage
+            {
+                Sender = "bot",
+                Text = "Hi there 👋. I am your support assistant. Please share a few details so we can help: type of request, your name, email and a short description of your issue.",
+                CreatedAt = DateTime.Now,
+                IsRead = true
+            });
+        }
+    }
+
+    private void SubmitSupportRequest()
+    {
+        if (string.IsNullOrWhiteSpace(supportDetails))
+        {
+            return;
+        }
+
+        var summary = $"Type: {supportType}; Name: {supportName}; Email: {supportEmail}; Details: {supportDetails}";
+        supportChatMessages.Add(new SupportMessage
+        {
+            Sender = "user",
+            Text = summary,
+            CreatedAt = DateTime.Now,
+            IsRead = true
+        });
+
+        // Update header with user-provided identity
+        if (!string.IsNullOrWhiteSpace(supportName))
+        {
+            headerName = supportName;
+        }
+        if (!string.IsNullOrWhiteSpace(supportEmail))
+        {
+            headerEmail = supportEmail;
+        }
+
+        // Hardcoded contextual answer based on user's message
+        var canned = GetCannedSupportAnswer(supportDetails, supportType);
+        if (!string.IsNullOrWhiteSpace(canned))
+        {
+            supportChatMessages.Add(new SupportMessage
+            {
+                Sender = "bot",
+                Text = canned,
+                CreatedAt = DateTime.Now,
+                IsRead = true
+            });
+        }
+
+        supportChatMessages.Add(new SupportMessage
+        {
+            Sender = "bot",
+            Text = "Thank you. We have received your issue and our team will contact you shortly.",
+            CreatedAt = DateTime.Now,
+            IsRead = true
+        });
+
+        supportChatMessages.Add(new SupportMessage
+        {
+            Sender = "bot",
+            Text = "Would you like to see our contact email and phone as well?",
+            CreatedAt = DateTime.Now,
+            IsRead = true
+        });
+
+        awaitingContactChoice = true;
+
+        showSupportForm = false;
+
+        supportType = string.Empty;
+        supportName = string.Empty;
+        supportEmail = string.Empty;
+        supportDetails = string.Empty;
+    }
+
+    private void SendChatMessage()
+    {
+        var message = chatInput?.Trim();
+        if (string.IsNullOrWhiteSpace(message))
+            return;
+
+        supportChatMessages.Add(new SupportMessage
+        {
+            Sender = "user",
+            Text = message,
+            CreatedAt = DateTime.Now,
+            IsRead = true
+        });
+
+        var canned = GetCannedSupportAnswer(message, supportType);
+        if (!string.IsNullOrWhiteSpace(canned))
+        {
+            supportChatMessages.Add(new SupportMessage
+            {
+                Sender = "bot",
+                Text = canned,
+                CreatedAt = DateTime.Now,
+                IsRead = true
+            });
+        }
+
+        chatInput = string.Empty;
+    }
+
+    private void HandleContactChoice(bool wantsContact)
+    {
+        awaitingContactChoice = false;
+
+        if (wantsContact)
+        {
+            supportChatMessages.Add(new SupportMessage
+            {
+                Sender = "bot",
+                Text = "You can reach us at support@standardinsurance.mz or call +258-762-065-500.",
+                CreatedAt = DateTime.Now,
+                IsRead = true
+            });
+        }
+        else
+        {
+            supportChatMessages.Add(new SupportMessage
+            {
+                Sender = "bot",
+                Text = "No problem. If you need anything else, just open this chat again. Have a great day!",
+                CreatedAt = DateTime.Now,
+                IsRead = true
+            });
+        }
+    }
+
+    string status = "n/a";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get current logged-in user
+            var authState = await authProvider.GetAuthenticationStateAsync();
+            if (authState?.User?.Identity?.IsAuthenticated == true)
+            {
+                var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+                accountType = await unitOfWork.Get_LoggedIn_User.UserAccountType();
+
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    // Get user details from database
+                    var users = await unitOfWork.userRepository.GetById(userId);
+                    if (users != null)
+                    {
+                        currentUser = users;
+                        if (users.Contact_No != null)
+                        {
+                            if (users.AccountType == KycType.Individual)
+                            {
+                                IndividualKyc individualKyc = await unitOfWork.ContactCardService.GetContactCardAsync(users.Contact_No);
+                                if (individualKyc != null)
+                                {
+                                    status = ToDisplayStatus(individualKyc.Application_Status);
+                                }
+                            }
+                            else
+                            {
+                                CorporateKyc CorporateKyc = await unitOfWork.CorporateContactCardService.GetContactCardAsync(users.Contact_No);
+                                if (CorporateKyc != null)
+                                {
+                                    status = ToDisplayStatus(CorporateKyc.Application_Status);
+                                }
+                            }
+                            await FetchKycStatusFromODataAsync(users.Contact_No);
+                            await LoadDashboardStats(users.Contact_No);
+                        }
+
+                    }
+                }
+            }
+           
+            
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading user: {ex.Message}");
+            isLoadingProducts = false;
+        }
+    }
+
+    private string HeaderInitials => GetHeaderInitials();
+
+    private string GetHeaderInitials()
+    {
+        if (string.IsNullOrWhiteSpace(headerName))
+            return "SI";
+
+        var parts = headerName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1)
+        {
+            var p = parts[0].Trim();
+            if (p.Length >= 2) return p.Substring(0, 2).ToUpperInvariant();
+            return p.ToUpperInvariant();
+        }
+
+        var first = parts[0].Trim();
+        var second = parts[1].Trim();
+        char c1 = first.Length > 0 ? char.ToUpperInvariant(first[0]) : 'S';
+        char c2 = second.Length > 0 ? char.ToUpperInvariant(second[0]) : 'I';
+        return new string(new[] { c1, c2 });
+    }
+
+    private string GetCannedSupportAnswer(string details, string type)
+    {
+        var text = (details ?? string.Empty).ToLowerInvariant();
+        var t = (type ?? string.Empty).ToLowerInvariant();
+
+        if (text.Contains("kyc"))
+        {
+            return "For KYC, please make sure all mandatory fields are completed and that your documents are clear and up to date. You can track your KYC status on the Dashboard under *KYC Status*.";
+        }
+
+        if (text.Contains("quote") || text.Contains("quotation"))
+        {
+            return "Quotes are created from your selected products and can be viewed under *My Quotes* or on the Insurer Quotes page. Once you confirm a quote, it is sent to the insurer in the ERP for review.";
+        }
+
+        if (text.Contains("payment") || text.Contains("pay") || text.Contains("debit note"))
+        {
+            return "Payments are captured against your debit notes in the *My Payments* section. After you submit a payment, you will see it reflected in your receipts once it has been processed.";
+        }
+
+        if (text.Contains("claim"))
+        {
+            return "Claims can be initiated from your policy details or the *My Claims* page. Make sure you provide the date of loss, description, and upload any supporting documents requested by the claims team.";
+        }
+
+        if (text.Contains("dashboard"))
+        {
+            return "The Dashboard gives you an overview of your KYC status, recent quotes, open claims and payments over the last 12 months so you can quickly see your position with Standard Insurance.";
+        }
+
+        if (t.Contains("feedback"))
+        {
+            return "Thank you for your feedback. We use client feedback to continuously improve this portal experience and our products.";
+        }
+
+        return "I have noted your request. Our team will look into it, and in the meantime you can navigate through Dashboard, Quotes, Payments and Claims using the left-hand menu for most common actions.";
+    }
+
+    private class SupportMessage
+    {
+        public string Sender { get; set; }
+        public string Text { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsRead { get; set; }
+    }
+
+    
+
+    private void HandleKYCClick()
+    {
+        if (string.IsNullOrEmpty(accountType))
+        {
+            return;
+        }
+
+        // Check user account type from claims and redirect accordingly
+        if (accountType == KycType.Individual.ToString())
+        {
+            NavigationManager.NavigateTo("/Individual_Generalinfo");
+        }
+        else if (accountType == KycType.Corporate.ToString())
+        {
+            NavigationManager.NavigateTo("/Corporate_Generalinfo");
+        }
+    }
+
+    private async Task FetchKycStatusFromODataAsync(string contactNo)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(contactNo)) return;
+            var baseUrl = "http://196.201.224.102:2048/BC260/ODataV4/Company('STANDARD%20INSURANCE')/ContactCard";
+            var filterNo = Uri.EscapeDataString($"No eq '{contactNo}'");
+            var select = Uri.EscapeDataString("No,Approval_Status");
+            var url = $"{baseUrl}?$filter={filterNo}&$select={select}&$top=1";
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            var res = await Http.SendAsync(req);
+            if (!res.IsSuccessStatusCode) return;
+            using var stream = await res.Content.ReadAsStreamAsync();
+            using var doc = await System.Text.Json.JsonDocument.ParseAsync(stream);
+            if (doc.RootElement.TryGetProperty("value", out var valueArr) && valueArr.ValueKind == System.Text.Json.JsonValueKind.Array && valueArr.GetArrayLength() > 0)
+            {
+                var rec = valueArr[0];
+                if (rec.TryGetProperty("Approval_Status", out var st))
+                {
+                    var s = st.GetString();
+                    if (!string.IsNullOrWhiteSpace(s)) status = s;
+                }
+                else if (rec.TryGetProperty("Status", out var st2))
+                {
+                    var s2 = st2.GetString();
+                    if (!string.IsNullOrWhiteSpace(s2)) status = s2;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] OData status fetch failed: {ex.Message}");
+        }
+    }
+
+    private static string ToDisplayStatus(KycStatus statusEnum)
+    {
+        return statusEnum switch
+        {
+            KycStatus.Open => "Open",
+            KycStatus.Pending_Approval => "Pending Approval",
+            KycStatus.Approved => "Approved",
+            KycStatus.Rejected => "Rejected",
+            KycStatus.Submitted => "Submitted",
+            _ => "Open"
+        };
+    }
+
+    private void GoToUnderwriterPolicies()
+    {
+
+
+
+        NavigationManager.NavigateTo("/Products_Upgrade_V3");
+
+
+
+    }
+
+    private int quotesLast30 = 0;
+    private int openClaimsCount = 0;
+    private decimal paymentsLast12m = 0m;
+    private string kycDisplay => status;
+    private int currentKycStep => status switch { "Open" => 1, "Submitted" => 2, "Pending Approval" => 3, "Approved" => 4, _ => 1 };
+    private List<(int Index, string Label)> kycSteps = new() { (1, "Profile"), (2, "Submitted"), (3, "Review"), (4, "Approved") };
+    private List<ActivityItem> recentActivities = new();
+
+    private async Task LoadDashboardStats(string contactNo)
+    {
+        try
+        {
+            var quotes = await unitOfWork.InsurerQuoteService.GetInsurerQuotesAsync(contactNo);
+            if (quotes != null && quotes.Any())
+            {
+                var now = DateTime.UtcNow;
+                quotesLast30 = quotes.Count(q =>
+                {
+                    if (DateTime.TryParse(q.Document_Date, out var d))
+                    {
+                        var dd = d.ToUniversalTime();
+                        return dd >= now.AddDays(-30);
+                    }
+                    return false;
+                });
+                // add to recent
+                foreach (var q in quotes)
+                {
+                    if (DateTime.TryParse(q.Document_Date, out var dq))
+                        recentActivities.Add(new ActivityItem { Type = "quote", Title = $"Quote {q.No} - {q.Class_Name}", Date = dq, Icon = "📄" });
+                }
+            }
+
+            // Claims open count - filtered to current user like MyClaims
+            var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+            string userContactNo = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                var user = await unitOfWork.userRepository.GetById(userId);
+                userContactNo = user?.Contact_No;
+            }
+
+            if (!string.IsNullOrWhiteSpace(userContactNo))
+            {
+                var contactCard = await unitOfWork.ContactCardService.GetContactCardAsync(userContactNo);
+                if (contactCard != null && !string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+                {
+                    var claims = await unitOfWork.ClaimsService.GetClaimsAsync(contactCard.Insured_Number);
+                    if (claims != null)
+                    {
+                        openClaimsCount = claims.Count(c => string.Equals(c.Claim_Status ?? string.Empty, "Open", StringComparison.OrdinalIgnoreCase));
+                        foreach (var c in claims)
+                        {
+                            if (DateTime.TryParse(c.Date_Notified, out var dc))
+                                recentActivities.Add(new ActivityItem { Type = "claim", Title = $"Claim {c.Claim_No} - {c.Claim_Status}", Date = dc, Icon = "🧾" });
+                        }
+                    }
+                }
+            }
+
+            // Payments (12 months)
+            string insuredNo = null;
+            try
+            {
+                var contact = currentUser?.Contact_No;
+                if (!string.IsNullOrWhiteSpace(contact))
+                {
+                    var contactCard = await unitOfWork.ContactCardService.GetContactCardAsync(contact);
+                    insuredNo = contactCard?.Insured_Number;
+                }
+            }
+            catch { }
+
+            if (!string.IsNullOrWhiteSpace(insuredNo))
+            {
+                var receipts = await unitOfWork.PostedReceiptService.GetPostedReceiptsByAccountAsync(insuredNo);
+                var cutoff = DateTime.UtcNow.AddMonths(-12);
+                foreach (var r in receipts ?? new List<PostedReceiptItem>())
+                {
+                    if (DateTime.TryParse(r.Posting_Date, out var dr))
+                    {
+                        if (dr.ToUniversalTime() >= cutoff)
+                        {
+                            paymentsLast12m += r.Total_Amount;
+                        }
+                        recentActivities.Add(new ActivityItem { Type = "receipt", Title = $"Receipt {r.Receipt_No} - {r.Total_Amount.ToString("N2")}", Date = dr, Icon = "💳" });
+                    }
+                }
+            }
+
+            // Keep only latest 8 activities
+            recentActivities = recentActivities
+                .OrderByDescending(a => a.Date)
+                .Take(8)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] Load stats failed: {ex.Message}");
+        }
+        StateHasChanged();
+    }
+
+    private class ActivityItem
+    {
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public DateTime Date { get; set; }
+        public string Icon { get; set; }
+    }
+}

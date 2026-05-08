@@ -1,0 +1,503 @@
+@page "/Individual_documents"
+@attribute [Authorize]
+@using System.Security.Claims
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject IUnitOfWork UnitOfWork
+@inject ISharePointDocumentService SharePointDocuments
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@layout MainLayout
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+<style>
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --blue-500: #4266bd;
+        --blue-100: #e8edf9;
+        --bg: #f6f9ff;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --radius: 16px;
+        --shadow: 0 24px 60px -28px rgba(15,70,150,.28);
+    }
+
+    body {
+        background: radial-gradient(900px 420px at -10% -10%, rgba(19,97,201,.10), transparent 45%), var(--bg);
+    }
+
+    .kyc-page {
+        max-width: 100%;
+        margin: 0;
+        padding: 12px;
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+        color: #fff;
+        border-radius: var(--radius);
+        padding: 12px 10px;
+        box-shadow: var(--shadow);
+        margin-bottom: 12px;
+    }
+
+    .header .title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+        letter-spacing: .2px;
+    }
+
+    .header .subtitle {
+        margin: .25rem 0 0;
+        opacity: .95;
+    }
+
+    .section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: var(--shadow);
+    }
+
+    .section-title {
+        font-size: 1.0rem;
+        font-weight: 700;
+        color: var(--blue-800);
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid var(--blue-100);
+    }
+
+    .document-group {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .document-title {
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 8px;
+    }
+
+    .required {
+        color: #dc2626;
+    }
+
+    .form-control {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: .9rem;
+        display: block;
+        width: 100%;
+    }
+
+    .form-control:focus {
+        border-color: var(--blue-600);
+        box-shadow: 0 0 0 3px rgba(19,97,201,.1);
+        outline: none;
+    }
+
+    .action-bar {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        margin-top: 12px;
+        box-shadow: var(--shadow);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+    }
+
+    .btn {
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all .2s;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-success {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-600));
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background: linear-gradient(135deg, var(--blue-900), var(--blue-700));
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(31,58,127,.25);
+    }
+
+    .btn-success:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .btn-secondary {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+    }
+
+    .btn-secondary:hover {
+        background: var(--blue-100);
+        border-color: var(--blue-600);
+    }
+
+    .helper-text {
+        font-size: .8rem;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    .file-input-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .file-name {
+        color: #999;
+        font-size: 12px;
+    }
+
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: 12px;
+        padding: 16px 12px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        gap: 6px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background: #e0e0e0;
+        z-index: 0;
+    }
+
+    .step.active:not(:last-child)::after {
+        background: var(--blue-600);
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        border: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: #999;
+        margin-bottom: 6px;
+        position: relative;
+        z-index: 1;
+        font-size: 13px;
+    }
+
+    .step.active .step-number {
+        background: var(--blue-600);
+        border-color: var(--blue-600);
+        color: white;
+    }
+
+    .step-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .step.active .step-label {
+        color: var(--blue-700);
+    }
+
+    /* Mobile adjustments */
+    @@media (max-width: 600px) {
+        .kyc-page { padding: 12px; }
+        .header { padding: 14px 12px; margin-bottom: 16px; }
+        .header .title { font-size: 1.05rem; }
+        .section { padding: 14px; }
+        .section-title { font-size: 1.05rem; margin-bottom: 12px; }
+        .document-group { padding: 12px; }
+        .action-buttons { flex-direction: column; gap: 10px; }
+        .btn { width: 100%; padding: 10px 14px; }
+        .step-indicator { padding: 18px 12px; margin-bottom: 16px; }
+        .step-number { width: 34px; height: 34px; font-size: 14px; }
+        .step-label { font-size: 12px; }
+    }
+</style>
+
+<div class="kyc-page">
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-label">@LangService.T("Personal Information","Informação Pessoal")</div>
+        </div>
+        <div class="step active">
+            <div class="step-number">2</div>
+            <div class="step-label">@LangService.T("Upload Documents","Carregar Documentos")</div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-label">@LangService.T("Review & Submit","Rever & Submeter")</div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1 class="title">@LangService.T("Upload Required Documents","Carregar Documentos Obrigatórios")</h1>
+        <p class="subtitle">@LangService.T("Please upload the required documents for your KYC. All documents must be clear and legible.","Por favor, carregue os documentos obrigatórios para o seu KYC. Todos os documentos devem estar legíveis.")</p>
+    </div>
+
+    <!-- Required Documents Section -->
+    <section class="section">
+        <h2 class="section-title">📋 @LangService.T("Required Documents","Documentos Obrigatórios")</h2>
+
+        <!-- DOC096 — Identification Document (NUIT) -->
+        <div class="document-group">
+            <div class="document-title">
+                @LangService.T("Identification Document (NUIT)","Documento de Identificação (NUIT)") <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <button class="btn btn-secondary" @onclick="@(async () => { currentDocumentCode = "DOC096"; await ClickFileInputAsync("Doc096File"); })">@LangService.T("Choose File","Escolher Ficheiro")</button>
+                <span class="file-name">@(GetFileName("DOC096") ?? LangService.T("No file chosen","Nenhum ficheiro selecionado"))</span>
+            </div>
+            <InputFile id="Doc096File" OnChange="@(OnFileSelectedHandler)" accept=".pdf" style="display:none;" />
+            <div class="helper-text">@LangService.T("Upload your tax identification document (NUIT) - PDF only - Max 5MB","Carregue o seu documento de identificação fiscal (NUIT) - Apenas PDF - Máx 5MB")</div>
+        </div>
+
+        <!-- DOC086 — Proof of Address -->
+        <div class="document-group">
+            <div class="document-title">
+                @LangService.T("Proof of Address (Utility Bill)","Comprovativo de Morada (Fatura de Serviços)") <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <button class="btn btn-secondary" @onclick="@(async () => { currentDocumentCode = "DOC086"; await ClickFileInputAsync("Doc086File"); })">@LangService.T("Choose File","Escolher Ficheiro")</button>
+                <span class="file-name">@(GetFileName("DOC086") ?? LangService.T("No file chosen","Nenhum ficheiro selecionado"))</span>
+            </div>
+            <InputFile id="Doc086File" OnChange="@(OnFileSelectedHandler)" accept=".pdf" style="display:none;" />
+            <div class="helper-text">@LangService.T("Recent utility bill (electricity, water, gas) not older than 3 months - PDF only - Max 5MB","Fatura recente (eletricidade, água, gás) com menos de 3 meses - Apenas PDF - Máx 5MB")</div>
+        </div>
+
+        <!-- DOC085 — Additional Address Verification (Optional) -->
+        <div class="document-group">
+            <div class="document-title">
+                @LangService.T("Additional Address Verification (Optional)","Verificação Adicional de Morada (Opcional)")
+            </div>
+            <div class="file-input-wrapper">
+                <button class="btn btn-secondary" @onclick="@(async () => { currentDocumentCode = "DOC085"; await ClickFileInputAsync("Doc085File"); })">@LangService.T("Choose File","Escolher Ficheiro")</button>
+                <span class="file-name">@(GetFileName("DOC085") ?? LangService.T("No file chosen","Nenhum ficheiro selecionado"))</span>
+            </div>
+            <InputFile id="Doc085File" OnChange="@(OnFileSelectedHandler)" accept=".pdf" style="display:none;" />
+            <div class="helper-text">@LangService.T("Bank statement, rental agreement, or other proof of address - PDF only - Max 5MB","Extrato bancário, contrato de arrendamento ou outro comprovativo de morada - Apenas PDF - Máx 5MB")</div>
+        </div>
+    </section>
+
+    <!-- Action Buttons -->
+    <div class="action-bar">
+        <div class="action-buttons">
+            <button class="btn btn-secondary" @onclick="@(()=>navigate.NavigateTo("/Individual_Generalinfo"))">← @LangService.T("Back to Personal Info","Voltar à Informação Pessoal")</button>
+            <button type="button" class="btn btn-success" @onclick="SubmitDocuments" disabled="@isSubmitting">@(isSubmitting ? LangService.T("Uploading...","A carregar...") : LangService.T("Next: Review & Submit →","Seguinte: Rever & Submeter →"))</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+
+    private Dictionary<string, string> fileNames = new();
+    private Dictionary<string, byte[]> fileData = new();
+    private bool isSubmitting = false;
+    private string currentUserContactNo = "";
+    private string currentDocumentCode = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get current user's Contact_No
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.Contact_No))
+                    {
+                        currentUserContactNo = dbUser.Contact_No;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing page: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ClickFileInputAsync(string inputId)
+    {
+        await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{inputId}').click()");
+    }
+
+    private async Task OnFileSelectedHandler(InputFileChangeEventArgs e)
+    {
+        await OnFileSelected(e, currentDocumentCode);
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e, string documentCode)
+    {
+        try
+        {
+            var file = e.GetMultipleFiles(1).FirstOrDefault();
+            if (file != null)
+            {
+                // Enforce PDF type (content-type or extension)
+                var isPdf = (file.ContentType?.Equals("application/pdf", StringComparison.OrdinalIgnoreCase) == true)
+                            || string.Equals(System.IO.Path.GetExtension(file.Name), ".pdf", StringComparison.OrdinalIgnoreCase);
+                if (!isPdf)
+                {
+                    Snackbar.Add(@LangService.T("Only PDF files are allowed","Apenas ficheiros PDF são permitidos"), Severity.Error);
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.Size > 5 * 1024 * 1024)
+                {
+                    Snackbar.Add($"File size exceeds 5MB limit", Severity.Error);
+                    return;
+                }
+
+                // Read file into memory
+                using (var stream = file.OpenReadStream(5 * 1024 * 1024))
+                {
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+                    fileData[documentCode] = ms.ToArray();
+                    fileNames[documentCode] = file.Name;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting file: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetFileName(string documentCode)
+    {
+        return fileNames.ContainsKey(documentCode) ? fileNames[documentCode] : null;
+    }
+
+    private async Task SubmitDocuments()
+    {
+        try
+        {
+            // Validate required documents (NUIT and Proof of Address)
+            if (!fileData.ContainsKey("DOC096") || !fileData.ContainsKey("DOC086"))
+            {
+                Snackbar.Add("Please upload all required documents (NUIT and Proof of Address)", Severity.Warning);
+                return;
+            }
+
+            isSubmitting = true;
+            Layout.OpenLoading();
+
+            var requiredDocuments = new[] { "DOC096", "DOC086" };
+            var optionalDocuments = new[] { "DOC085" };
+
+            // Upload required documents
+            foreach (var docCode in requiredDocuments)
+            {
+                if (fileData.ContainsKey(docCode))
+                {
+                    await UploadDocument(docCode, fileData[docCode], fileNames[docCode]);
+                }
+            }
+
+            // Upload optional documents if provided
+            foreach (var docCode in optionalDocuments)
+            {
+                if (fileData.ContainsKey(docCode))
+                {
+                    await UploadDocument(docCode, fileData[docCode], fileNames[docCode]);
+                }
+            }
+
+            Snackbar.Add("Documents uploaded successfully!", Severity.Success);
+            navigate.NavigateTo("/Individual_Summary");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading documents: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            Layout.CloseLoading();
+        }
+    }
+
+    private async Task UploadDocument(string documentCode, byte[] fileContent, string fileName)
+    {
+        try
+        {
+            var url = await SharePointDocuments.UploadKycDocumentAsync("Individual", currentUserContactNo, documentCode, fileContent, fileName);
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                KycUploadContext.IndividualDocumentUrlsByCode[documentCode] = url;
+            }
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+}

@@ -1,0 +1,302 @@
+@page "/ProductsPage"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject NavigationManager NavigationManager
+
+<style>
+    .policies-page { padding: 20px; }
+    .policies-section { background: white; border-radius: 12px; padding: 28px; margin-bottom: 24px; border: 1px solid #e5e5e7; box-shadow: none; }
+    .policies-section:hover { border-color: #FF9900; }
+    .policies-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 20px; flex-wrap: wrap; }
+    .policies-filter-section { background: transparent; padding: 0; margin-bottom: 20px; border: none; box-shadow: none; }
+    .filter-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 160px; }
+    .filter-label { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btn-filter { background: #2E5090; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 2px 8px rgba(46, 80, 144, 0.15); }
+    .btn-filter:hover { background: #1F3A7F; box-shadow: 0 4px 12px rgba(46, 80, 144, 0.25); transform: translateY(-1px); }
+    .btn-clear { background: white; color: #555; border: 1px solid #ddd; padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-clear:hover { background: #f5f5f5; border-color: #bbb; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); transform: translateY(-1px); }
+    .policies-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+    .policy-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border-radius: 16px; border: 1px solid rgba(229, 229, 231, 0.6); overflow: hidden; transition: transform .25s ease, box-shadow .25s ease; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; height: 100%; }
+    .policy-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06); }
+    .policy-card:active { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.10); }
+    .policy-card:focus-within { box-shadow: 0 0 0 3px rgba(46, 80, 144, 0.15), 0 4px 12px rgba(0,0,0,.06); }
+    .policy-card-header { background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%); padding: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .policy-number { display: flex; flex-direction: column; gap: 4px; }
+    .policy-value { font-size: 16px; font-weight: 700; color: white; }
+    .policy-badge { font-size: 32px; }
+    .policy-card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .policy-field { display: flex; align-items: center; gap: 8px; padding: 8px; background: linear-gradient(135deg, rgba(46, 80, 144, 0.05) 0%, rgba(31, 58, 127, 0.03) 100%); border-radius: 10px; border: 1px solid rgba(46, 80, 144, 0.08); }
+    .field-icon { font-size: 20px; min-width: 24px; }
+    .field-label { font-size: 9px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.4px; }
+    .field-value { font-size: 13px; font-weight: 600; color: #2E5090; }
+    .policy-card-footer { padding: 0 12px 12px; display: flex; gap: 8px; }
+    .policy-action-btn { flex: 1; background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%); color: white; border: none; padding: 10px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px rgba(46, 80, 144, 0.18); }
+    .policy-plans { margin-top: 6px; padding: 8px; border-radius: 10px; background: #fafbff; border: 1px solid #eef0f7; }
+    .policy-plans-title { font-size: 12px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .plan-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #e5e7eb; }
+    .plan-row:last-child { border-bottom: none; }
+    .plan-desc { font-size: 12px; color: #1f2937; }
+    .plan-rate { font-size: 12px; font-weight: 700; color: #2E5090; }
+    .products-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 28px; margin-bottom: 20px; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #e5e7eb; }
+    .hero-title { display:flex; align-items:center; gap:12px; font-size: 22px; font-weight: 800; color: #1f2937; }
+    .hero-sub { margin-top: 6px; color: #475569; font-size: 14px; max-width: 900px; }
+    .hero-badge { display:inline-flex; align-items:center; gap:8px; background:#fff; color:#2E5090; padding:6px 12px; border:1px solid #eaeefb; border-radius:999px; font-weight:700; font-size:12px; }
+</style>
+
+<div class="policies-page">
+    <div class="products-hero">
+        <div class="hero-badge">🛡️ @LangService.T("Curated Insurance Products","Produtos de Seguro Selecionados")</div>
+        <div class="hero-title">@LangService.T("Explore Underwriter Policies","Explorar Apólices do Segurador")</div>
+        <div class="hero-sub">
+            @LangService.T(
+                "Browse policy classes and quickly preview available plans with their premium rates. Select a policy to view full plan details.",
+                "Explore classes de apólices e visualize rapidamente os planos disponíveis com as suas taxas. Selecione uma apólice para ver os detalhes completos.")
+        </div>
+    </div>
+    <div class="policies-section">
+        <div class="policies-header">
+            <h3>📋 @LangService.T("Underwriter Policies","Apólices do Segurador")</h3>
+        </div>
+        <div class="policies-filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label">@LangService.T("Filter by Insurer","Filtrar por Seguradora")</label>
+                    <MudSelect @bind-Value="filterInsurer" Placeholder='@LangService.T("Select insurer...","Selecione a seguradora...")' AnchorOrigin="Origin.BottomCenter" @onchange="ApplyPoliciesFilter">
+                        <MudSelectItem Value="@string.Empty">@LangService.T("All Insurers","Todas as seguradoras")</MudSelectItem>
+                        @foreach (var insurer in insurerOptions)
+                        {
+                            <MudSelectItem Value="@insurer">@insurer</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">@LangService.T("Filter by Product Class","Filtrar por Classe de Produto")</label>
+                    <MudSelect @bind-Value="filterProductClass" Placeholder='@LangService.T("Select product class...","Selecione a classe do produto...")' AnchorOrigin="Origin.BottomCenter" @onchange="ApplyPoliciesFilter">
+                        <MudSelectItem Value="@string.Empty">@LangService.T("All Product Classes","Todas as classes de produto")</MudSelectItem>
+                        @foreach (var productClass in productClassOptions)
+                        {
+                            <MudSelectItem Value="@productClass">@productClass</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+                <div class="filter-controls">
+                    <button class="btn-filter" @onclick="ApplyPoliciesFilter">🔍 @LangService.T("Filter","Filtrar")</button>
+                    <button class="btn-clear" @onclick="ClearPoliciesFilters">@LangService.T("Clear","Limpar")</button>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoadingPolicies)
+        {
+            <div style="text-align: center; padding: 60px 20px;">
+                <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+                <p style="margin-top: 20px; color: #999; font-size: 16px;">@LangService.T("Loading policies...","A carregar apólices...")</p>
+            </div>
+        }
+        else if (filteredPolicies.Count == 0)
+        {
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                <p style="color: #999; font-size: 16px; margin: 0;">@LangService.T("No policies found. Try adjusting your filters.","Nenhuma apólice encontrada. Tente ajustar os filtros.")</p>
+            </div>
+        }
+        else
+        {
+            <div class="policies-cards-grid">
+                @foreach (var policy in filteredPolicies)
+                {
+                    <div class="policy-card">
+                        <div class="policy-card-header">
+                            <div class="policy-number">
+                                <span class="policy-value">@policy.PolicyPlan</span>
+                            </div>
+                            <div class="policy-badge">🛡️</div>
+                        </div>
+                        <div class="policy-card-body">
+                            <div class="policy-field">
+                                <span class="field-icon">🏢</span>
+                                <div class="field-content">
+                                    <span class="field-label">@LangService.T("Insurer","Seguradora")</span>
+                                    <span class="field-value Text-Capitalized">@policy.InsurerName</span>
+                                </div>
+                            </div>
+                           
+                            <div class="policy-plans">
+                                <div class="policy-plans-title">@LangService.T("Plans","Planos")</div>
+                                @if (IsPlansLoading(policy.Insurer, policy.Plans))
+                                {
+                                    <div style="display:flex; align-items:center; gap:8px; color:#6b7280;">
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                        <span>@LangService.T("Loading plans...","A carregar planos...")</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    var plans = GetPlansFor(policy.Insurer, policy.Plans);
+                                    if (plans == null || plans.Count == 0)
+                                    {
+                                        <div style="color:#9ca3af; font-size:12px;">@LangService.T("No plans available","Sem planos disponíveis")</div>
+                                    }
+                                    else
+                                    {
+                                        foreach (var p in plans)
+                                        {
+                                            <div class="plan-row">
+                                                <div class="plan-desc">@p.Description</div>
+                                                <div class="plan-rate">@string.Format("{0:N2}%", p.Premium_Rate)</div>
+                                            </div>
+                                        }
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <div class="policy-card-footer">
+                            <button class="policy-action-btn" @onclick="() => ViewPlanDetails(policy.Insurer, policy.Plans)">📄 @LangService.T("View Details","Ver detalhes")</button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool isLoadingPolicies = true;
+    private List<UnderwriterPolicyViewModel> allPolicies = new();
+    private List<UnderwriterPolicyViewModel> filteredPolicies = new();
+    private string filterInsurer = "";
+    private string filterProductClass = "";
+
+    private List<string> insurerOptions = new();
+    private List<string> productClassOptions = new();
+
+    // Cache of plans per (Insurer, Class)
+    private readonly Dictionary<string, List<PlanViewModel>> plansByKey = new();
+    private readonly HashSet<string> loadingKeys = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUnderwriterPolicies();
+        // Load plans for the initial visible set
+        await LoadPlansForPoliciesAsync(filteredPolicies);
+    }
+
+    private async Task LoadUnderwriterPolicies()
+    {
+        try
+        {
+            isLoadingPolicies = true;
+            allPolicies = await unitOfWork.UnderwriterPolicyService.GetUnderwriterPoliciesAsync();
+            filteredPolicies = new List<UnderwriterPolicyViewModel>(allPolicies);
+
+            insurerOptions = allPolicies.Select(p => p.InsurerName).Distinct().OrderBy(x => x).ToList();
+            productClassOptions = allPolicies.Select(p => p.ProductClassName).Distinct().OrderBy(x => x).ToList();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(LangService.T("Error loading policies. Please try again.", "Erro ao carregar apólices. Por favor, tente novamente."), Severity.Error);
+        }
+        finally
+        {
+            isLoadingPolicies = false;
+        }
+    }
+
+    private void ApplyPoliciesFilter()
+    {
+        filteredPolicies = allPolicies.Where(p =>
+            (string.IsNullOrEmpty(filterInsurer) || p.InsurerName.Equals(filterInsurer, StringComparison.OrdinalIgnoreCase)) &&
+            (string.IsNullOrEmpty(filterProductClass) || p.ProductClassName.Equals(filterProductClass, StringComparison.OrdinalIgnoreCase))
+        ).ToList();
+        _ = LoadPlansForPoliciesAsync(filteredPolicies);
+    }
+
+    private void ClearPoliciesFilters()
+    {
+        filterInsurer = "";
+        filterProductClass = "";
+        filteredPolicies = new List<UnderwriterPolicyViewModel>(allPolicies);
+        _ = LoadPlansForPoliciesAsync(filteredPolicies);
+    }
+
+    private void ViewPlanDetails(string insurerCode, string planClass)
+    {
+        if (string.IsNullOrEmpty(insurerCode) || string.IsNullOrEmpty(planClass))
+        {
+            Snackbar.Add(LangService.T("Invalid insurer or plan class", "Seguradora ou classe de plano inválida"), Severity.Error);
+            return;
+        }
+        var encodedInsurer = Uri.EscapeDataString(insurerCode);
+        var encodedClass = Uri.EscapeDataString(planClass);
+        NavigationManager.NavigateTo($"/plans-details/{encodedInsurer}/{encodedClass}");
+    }
+
+    private async Task LoadPlansForPoliciesAsync(IEnumerable<UnderwriterPolicyViewModel> policies)
+    {
+        if (policies == null) return;
+        // Deduplicate by Insurer+Class
+        var keys = policies
+            .Where(p => !string.IsNullOrWhiteSpace(p.Insurer) && !string.IsNullOrWhiteSpace(p.Plans))
+            .Select(p => (insurer: p.Insurer, planClass: p.Plans))
+            .Distinct()
+            .ToList();
+
+        var tasks = new List<Task>();
+        foreach (var (insurer, planClass) in keys)
+        {
+            var key = MakeKey(insurer, planClass);
+            if (plansByKey.ContainsKey(key) || loadingKeys.Contains(key)) continue;
+
+            loadingKeys.Add(key);
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    var plans = await unitOfWork.PlanService.GetPlansByInsurerAndClassAsync(insurer, planClass);
+                    lock (plansByKey)
+                    {
+                        plansByKey[key] = plans ?? new List<PlanViewModel>();
+                    }
+                }
+                catch
+                {
+                    lock (plansByKey)
+                    {
+                        plansByKey[key] = new List<PlanViewModel>();
+                    }
+                }
+                finally
+                {
+                    loadingKeys.Remove(key);
+                    InvokeAsync(StateHasChanged);
+                }
+            }));
+        }
+
+        if (tasks.Count > 0)
+        {
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    private static string MakeKey(string insurer, string planClass) => $"{insurer}|{planClass}";
+
+    private bool IsPlansLoading(string insurer, string planClass)
+    {
+        var key = MakeKey(insurer, planClass);
+        return loadingKeys.Contains(key) && !plansByKey.ContainsKey(key);
+    }
+
+    private List<PlanViewModel> GetPlansFor(string insurer, string planClass)
+    {
+        var key = MakeKey(insurer, planClass);
+        return plansByKey.TryGetValue(key, out var list) ? list : new List<PlanViewModel>();
+    }
+}

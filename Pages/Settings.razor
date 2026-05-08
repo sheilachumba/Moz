@@ -1,0 +1,324 @@
+@page "/Settings"
+@layout MainLayout
+@using MudBlazor
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+<style>
+    .settings-root {
+        padding: 20px;
+    }
+    .settings-container {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        gap: 20px;
+    }
+    .settings-sidebar {
+        background: var(--mud-palette-surface, #fff);
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 14px;
+        padding: 12px;
+        height: fit-content;
+    }
+    .settings-content {
+        background: var(--mud-palette-surface, #fff);
+        border: 1px solid rgba(0,0,0,.08);
+        border-radius: 14px;
+        padding: 16px;
+    }
+    .section-title { font-weight: 700; letter-spacing: -.2px; }
+    .section-subtitle { color: var(--mud-palette-text-secondary); }
+
+    .pref-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 10px 0; border-bottom: 1px dashed rgba(0,0,0,.06); }
+    .pref-row:last-child { border-bottom: 0; }
+    .pref-col { display:flex; flex-direction:column; gap:4px; }
+
+    @@media (max-width: 1024px) {
+        .settings-container { grid-template-columns: 1fr; }
+    }
+
+    /* Dark mode tweaks */
+    .dark .settings-sidebar, .dark .settings-content { border-color: rgba(255,255,255,.08); }
+</style>
+
+<div class="settings-root">
+    <div class="settings-container">
+        <div class="settings-sidebar">
+            <MudList Dense="true">
+                <MudListItem @onclick="(()=>ActiveTab=0)" Class="@(ActiveTab==0?"mud-primary-text":"")" Icon="@Icons.Material.Outlined.Security">@LangService.T("Security","Segurança")</MudListItem>
+                <MudListItem @onclick="(()=>ActiveTab=1)" Class="@(ActiveTab==1?"mud-primary-text":"")" Icon="@Icons.Material.Outlined.Tune">@LangService.T("Preferences","Preferências")</MudListItem>
+                <MudListItem @onclick="(()=>ActiveTab=2)" Class="@(ActiveTab==2?"mud-primary-text":"")" Icon="@Icons.Material.Outlined.Notifications">@LangService.T("Notifications","Notificações")</MudListItem>
+                <MudListItem @onclick="(()=>ActiveTab=3)" Class="@(ActiveTab==3?"mud-primary-text":"")" Icon="@Icons.Material.Outlined.PrivacyTip">@LangService.T("Privacy","Privacidade")</MudListItem>
+            </MudList>
+        </div>
+
+        <div class="settings-content">
+            <MudTabs @bind-ActivePanelIndex="ActiveTab" Rounded="true" Elevation="0">
+                <MudTabPanel Text="@LangService.T("Security","Segurança")" Icon="@Icons.Material.Outlined.Security">
+                    <MudText Typo="Typo.h5" Class="section-title">@LangService.T("Security Settings","Definições de Segurança")</MudText>
+                    <MudText Typo="Typo.body2" Class="section-subtitle" GutterBottom="true">@LangService.T("Manage your password, 2FA and active sessions","Gerir palavra-passe, 2FA e sessões ativas")</MudText>
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="security.CurrentPassword" Label="@LangService.T("Current Password","Palavra-passe atual")" Variant="Variant.Outlined" InputType="InputType.Password" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="security.NewPassword" Label="@LangService.T("New Password","Nova palavra-passe")" Variant="Variant.Outlined" InputType="InputType.Password" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="security.ConfirmPassword" Label="@LangService.T("Confirm Password","Confirmar palavra-passe")" Variant="Variant.Outlined" InputType="InputType.Password" />
+                            </MudItem>
+                            <MudItem xs="12" md="6">
+                                <div class="pref-row">
+                                    <div class="pref-col">
+                                        <MudText Typo="Typo.subtitle2">@LangService.T("Two-Factor Authentication","Autenticação de Dois Fatores")</MudText>
+                                        <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Add an extra layer of security to your account","Adicione uma camada extra de segurança à sua conta")</MudText>
+                                    </div>
+                                    <MudSwitch @bind-Checked="security.Enable2FA" Color="Color.Primary" />
+                                </div>
+                            </MudItem>
+                            <MudItem xs="12">
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Active sessions","Sessões ativas")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Sign out of other devices if you suspect suspicious activity","Termine sessão noutros dispositivos se suspeitar de atividade suspeita")</MudText>
+                                <div class="mt-2">
+                                    <MudButton Color="Color.Default" Variant="Variant.Outlined" StartIcon="@Icons.Material.Outlined.Logout" OnClick="SignOutOtherSessions" Class="text-capitalize">@LangService.T("Sign out of other sessions","Terminar outras sessões")</MudButton>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                        <div class="mt-4" style="display:flex; gap:10px;">
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveSecurity" StartIcon="@Icons.Material.Outlined.Lock" Class="text-capitalize">@LangService.T("Update Security","Atualizar Segurança")</MudButton>
+                            <MudButton Color="Color.Default" Variant="Variant.Outlined" OnClick="SendSecurityTestEmail" StartIcon="@Icons.Material.Outlined.MarkEmailRead" Class="text-capitalize">@LangService.T("Send security test email","Enviar email de teste de segurança")</MudButton>
+                        </div>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <MudTabPanel Text="@LangService.T("Preferences","Preferências")" Icon="@Icons.Material.Outlined.Tune">
+                    <MudText Typo="Typo.h5" Class="section-title">@LangService.T("App Preferences","Preferências da App")</MudText>
+                    <MudText Typo="Typo.body2" Class="section-subtitle" GutterBottom="true">@LangService.T("Customize language, theme and layout","Personalize idioma, tema e layout")</MudText>
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Language","Idioma")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Choose your preferred language","Escolha o idioma preferido")</MudText>
+                            </div>
+                            <MudSelect T="string" @bind-Value="language" Style="min-width:160px" Dense="true">
+                                <MudSelectItem Value='@("en")'>English</MudSelectItem>
+                                <MudSelectItem Value='@("pt")'>Português</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Dark Mode","Modo Escuro")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Switch between light and dark themes","Alternar entre tema claro e escuro")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="isDark" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Density","Densidade")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Adjust component spacing","Ajuste o espaçamento dos componentes")</MudText>
+                            </div>
+                            <MudSlider @bind-Value="density" Min="0" Max="2" Step="1" Marks="true" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Default dashboard","Painel por defeito")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Choose where you land after login","Escolha onde entra após iniciar sessão")</MudText>
+                            </div>
+                            <MudSelect T="string" @bind-Value="defaultDashboard" Style="min-width:180px" Dense="true">
+                                <MudSelectItem Value="@("dashboard")">@LangService.T("Dashboard","Painel")</MudSelectItem>
+                                <MudSelectItem Value="@("quotes")">@LangService.T("My Quotes","Minhas Cotações")</MudSelectItem>
+                                <MudSelectItem Value="@("claims")">@LangService.T("My Claims","Meus Sinistros")</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <div class="mt-4" style="display:flex; gap:10px;">
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="ApplyPreferences" StartIcon="@Icons.Material.Outlined.CheckCircle" Class="text-capitalize">@LangService.T("Apply","Aplicar")</MudButton>
+                            <MudButton Color="Color.Default" Variant="Variant.Outlined" OnClick="ResetPreferences" StartIcon="@Icons.Material.Outlined.Restore" Class="text-capitalize">@LangService.T("Reset","Repor")</MudButton>
+                        </div>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <MudTabPanel Text="@LangService.T("Notifications","Notificações")" Icon="@Icons.Material.Outlined.Notifications">
+                    <MudText Typo="Typo.h5" Class="section-title">@LangService.T("Notifications","Notificações")</MudText>
+                    <MudText Typo="Typo.body2" Class="section-subtitle" GutterBottom="true">@LangService.T("Choose when we should notify you","Quando devemos notificá-lo")</MudText>
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Email alerts","Alertas por email")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Policy updates, reminders, claims","Atualizações de apólices, lembretes, sinistros")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="notifyEmail" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("SMS alerts","Alertas por SMS")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Urgent updates and security","Atualizações urgentes e segurança")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="notifySms" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("In-app notifications","Notificações na app")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Quotes, tips and news","Cotações, dicas e notícias")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="notifyInApp" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Monthly summary","Resumo mensal")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Receive a monthly summary of your policies and claims","Receba um resumo mensal das suas apólices e sinistros")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="notifySummary" Color="Color.Primary" />
+                        </div>
+                        <div class="mt-4" style="display:flex; gap:10px;">
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveNotifications" StartIcon="@Icons.Material.Outlined.NotificationsActive" Class="text-capitalize">@LangService.T("Save","Guardar")</MudButton>
+                            <MudButton Color="Color.Default" Variant="Variant.Outlined" OnClick="PreviewNotification" StartIcon="@Icons.Material.Outlined.Visibility" Class="text-capitalize">@LangService.T("Preview","Pré-visualizar")</MudButton>
+                        </div>
+                    </MudPaper>
+                </MudTabPanel>
+
+                <MudTabPanel Text="@LangService.T("Privacy","Privacidade")" Icon="@Icons.Material.Outlined.PrivacyTip">
+                    <MudText Typo="Typo.h5" Class="section-title">@LangService.T("Privacy Controls","Controlos de Privacidade")</MudText>
+                    <MudText Typo="Typo.body2" Class="section-subtitle" GutterBottom="true">@LangService.T("Manage your data and visibility","Gerir dados e visibilidade")</MudText>
+                    <MudPaper Elevation="0" Class="pa-4">
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Make profile private","Tornar perfil privado")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Hide profile from public searches","Ocultar perfil de pesquisas públicas")</MudText>
+                            </div>
+                            <MudSwitch @bind-Checked="privacyPrivate" Color="Color.Primary" />
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Export my data","Exportar os meus dados")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Receive a copy of your data via email","Receber cópia dos dados por email")</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Outlined.Download" OnClick="ExportData" Class="text-capitalize">@LangService.T("Export","Exportar")</MudButton>
+                        </div>
+                        <div class="pref-row">
+                            <div class="pref-col">
+                                <MudText Typo="Typo.subtitle2">@LangService.T("Data retention","Retenção de dados")</MudText>
+                                <MudText Typo="Typo.caption" Class="section-subtitle">@LangService.T("Choose how long we keep your activity logs","Escolha por quanto tempo mantemos os registos de atividade")</MudText>
+                            </div>
+                            <MudSelect T="int" @bind-Value="dataRetentionMonths" Style="min-width:160px" Dense="true">
+                                <MudSelectItem Value="6">6 @LangService.T("months","meses")</MudSelectItem>
+                                <MudSelectItem Value="12">12 @LangService.T("months","meses")</MudSelectItem>
+                                <MudSelectItem Value="24">24 @LangService.T("months","meses")</MudSelectItem>
+                            </MudSelect>
+                        </div>
+                        <MudDivider Class="my-4" />
+                        <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
+                            <MudText Typo="Typo.body2">@LangService.T("Deleting your account is permanent and cannot be undone.","Eliminar a sua conta é permanente e não pode ser desfeito.")</MudText>
+                            <div class="mt-2">
+                                <MudButton Color="Color.Error" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.DeleteForever" OnClick="DeleteAccount" Class="text-capitalize">@LangService.T("Delete Account","Eliminar Conta")</MudButton>
+                            </div>
+                        </MudAlert>
+                    </MudPaper>
+                </MudTabPanel>
+            </MudTabs>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int ActiveTab = 0;
+
+    // Security
+    private SecurityModel security = new();
+
+    // Preferences
+    private string language = "pt";
+    private bool isDark = false;
+    private int density = 1;
+    private string defaultDashboard = "dashboard";
+
+    // Notifications
+    private bool notifyEmail = true;
+    private bool notifySms = false;
+    private bool notifyInApp = true;
+    private bool notifySummary = false;
+
+    // Privacy
+    private bool privacyPrivate = false;
+    private int dataRetentionMonths = 12;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var langStored = await JS.InvokeAsync<string>("localStorage.getItem", "site_lang");
+            if (!string.IsNullOrWhiteSpace(langStored)) language = langStored;
+            var theme = await JS.InvokeAsync<string>("localStorage.getItem", "site_theme");
+            isDark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { }
+    }
+
+    private async Task ApplyPreferences()
+    {
+        LangService.SetLang(language);
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", language); } catch { }
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_theme", isDark?"dark":"light"); } catch { }
+        Snackbar.Add(LangService.T("Preferences applied","Preferências aplicadas"), Severity.Success);
+        StateHasChanged();
+    }
+
+    private async Task ResetPreferences()
+    {
+        language = "pt"; isDark = false; density = 1;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", language); } catch { }
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_theme", isDark?"dark":"light"); } catch { }
+        LangService.SetLang(language);
+        StateHasChanged();
+    }
+
+    private void SaveSecurity()
+    {
+        if (string.IsNullOrWhiteSpace(security.NewPassword) || security.NewPassword != security.ConfirmPassword)
+        {
+            Snackbar.Add(LangService.T("Passwords do not match","Palavras-passe não coincidem"), Severity.Error);
+            return;
+        }
+        Snackbar.Add(LangService.T("Security updated","Segurança atualizada"), Severity.Success);
+    }
+
+    private void SaveNotifications()
+    {
+        Snackbar.Add(LangService.T("Notification settings saved","Definições de notificação guardadas"), Severity.Success);
+    }
+
+    private void ExportData()
+    {
+        Snackbar.Add(LangService.T("We will email your data export shortly","Enviaremos a exportação de dados em breve"), Severity.Info);
+    }
+
+    private void DeleteAccount()
+    {
+        Snackbar.Add(LangService.T("Please contact support to complete account deletion","Contacte o suporte para concluir a remoção da conta"), Severity.Warning);
+    }
+    private void SignOutOtherSessions()
+    {
+        Snackbar.Add(LangService.T("We will sign out other active sessions shortly","Terminaremos outras sessões ativas em breve"), Severity.Info);
+    }
+
+    private void SendSecurityTestEmail()
+    {
+        Snackbar.Add(LangService.T("Security test email requested","Email de teste de segurança solicitado"), Severity.Info);
+    }
+
+    private void PreviewNotification()
+    {
+        Snackbar.Add(LangService.T("This is how a typical notification will look","É assim que uma notificação típica será apresentada"), Severity.Info);
+    }
+
+    private class SecurityModel
+    {
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
+        public string ConfirmPassword { get; set; }
+        public bool Enable2FA { get; set; }
+    }
+}

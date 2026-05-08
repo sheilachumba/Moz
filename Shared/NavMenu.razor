@@ -1,0 +1,171 @@
+@using System.Drawing
+@using MudBlazor
+@inject NavigationManager NavigationManager
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject ISnackbar Snackbar
+
+
+
+
+<MudNavMenu Margin="Margin.Dense" Style="background: transparent; padding: 0;" Color="MudBlazor.Color.Warning">
+    <MudNavLink Href="/Dashboard" Icon="@Icons.Material.Outlined.Home" Match="NavLinkMatch.All">@LangService.T("Home", "Início")</MudNavLink>
+    <MudNavLink Href="/Products_Upgrade_V3" Disabled="@isdisable" Icon="@Icons.Material.Outlined.FolderSpecial">@LangService.T("Products", "Produtos")</MudNavLink>
+
+    <MudNavLink Href="/InsurerQuotes" Disabled="@isdisable" Icon="@Icons.Material.Outlined.Mail">@LangService.T("Quotes", "Cotações")</MudNavLink>
+    <MudNavLink Href="/MyPyments" Disabled="@isdisable" Icon="@Icons.Material.Outlined.Description">@LangService.T("My Payments", "Minhas Notas de Débito")</MudNavLink>
+
+    <MudNavLink Href="/MyReceipts" Disabled="@isdisable" Icon="@Icons.Material.Outlined.ReceiptLong">@LangService.T("My Receipts", "Meus Recibos")</MudNavLink>
+
+    <MudNavLink Href="/MyPolicies" Disabled="@isdisable" Icon="@Icons.Material.Outlined.Policy">@LangService.T("My Policies", "Minhas Apólices")</MudNavLink>
+    <MudNavLink Href="/MyClaims" Disabled="@isdisable" Icon="@Icons.Material.Outlined.AssignmentTurnedIn">@LangService.T("My Claims", "Minhas Reclamações")</MudNavLink>
+    <MudNavLink Href="/Reports" Disabled="@isdisable" Icon="@Icons.Material.Outlined.Report">@LangService.T("Reports & Analytics", "Relatórios e análises")</MudNavLink>
+   
+    <MudNavLink Href="/Profile" Icon="@Icons.Material.Outlined.Person">@LangService.T("Profile", "Perfil")</MudNavLink>
+    <MudNavLink Href="/Settings" Icon="@Icons.Material.Outlined.Settings">@LangService.T("Settings", "Definições")</MudNavLink>
+
+    <MudDivider />
+    <MudNavLink Href="/HelpFeedback" Icon="@Icons.Material.Outlined.Help">@LangService.T("Support / Complaints", "Suporte / Reclamações")</MudNavLink>
+    <MudNavLink OnClick="HandleLogout" Icon="@Icons.Material.Outlined.Logout"> @LangService.T("Sign Out", "Terminar Sessão")</MudNavLink>
+</MudNavMenu>
+
+
+
+
+
+
+@code {
+
+
+
+    private async Task HandleLogout()
+
+    {
+
+
+
+        Snackbar.Add(LangService.T("You will be logged out from here", "Será terminado a sua sessão a partir daqui"), Severity.Warning);
+
+    }
+
+
+
+
+
+
+
+    private string accountType;
+
+
+
+
+
+
+
+    bool isdisable = true;
+
+
+
+    protected override async Task OnInitializedAsync()
+
+    {
+
+
+
+        // Get current logged-in user
+
+
+
+        var authState = await authProvider.GetAuthenticationStateAsync();
+
+        if (authState?.User?.Identity?.IsAuthenticated == true)
+
+        {
+
+            var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+
+            accountType = await unitOfWork.Get_LoggedIn_User.UserAccountType();
+
+
+
+            if (!string.IsNullOrEmpty(userId))
+
+            {
+
+                // Get user details from database
+
+                var users = await unitOfWork.userRepository.GetById(userId);
+
+                if (users != null)
+
+                {
+
+
+
+                    if (users.Contact_No != null)
+
+                    {
+
+                        if (users.AccountType == KycType.Individual)
+
+                        {
+
+                            IndividualKyc individualKyc = await unitOfWork.ContactCardService.GetContactCardAsync(users.Contact_No);
+
+                            if (individualKyc != null)
+
+                            {
+
+                                if (individualKyc.Application_Status.ToString() == "Approved")
+                                {
+
+                                    isdisable = false;
+
+                                }
+
+                            }
+
+                        }
+
+                        else
+
+                        {
+
+                            CorporateKyc CorporateKyc = await unitOfWork.CorporateContactCardService.GetContactCardAsync(users.Contact_No);
+
+                            if (CorporateKyc != null)
+
+                            {
+
+                                if (CorporateKyc.Application_Status.ToString() == "Approved")
+
+                                {
+
+                                    isdisable = false;
+
+                                }
+
+                            }
+
+                        }
+
+
+
+                    }
+
+
+
+                }
+
+            }
+
+        }
+
+
+
+
+
+
+
+    }
+
+}

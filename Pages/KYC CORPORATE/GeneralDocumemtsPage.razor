@@ -1,0 +1,688 @@
+@page "/GeneralDocumemtsPage"
+@attribute [Authorize]
+@using System.Security.Claims
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+@inject IUnitOfWork UnitOfWork
+@inject ISharePointDocumentService SharePointDocuments
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@layout MainLayout
+
+<style>
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --blue-100: #e8edf9;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --radius: 12px;
+        --shadow: 0 24px 60px -28px rgba(15,70,150,.20);
+    }
+
+    .kyc-page { width: 100%; min-height: 100vh; padding: 14px; background: var(--surface); }
+
+    .header {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+        color: #fff;
+        border-radius: var(--radius);
+        padding: 12px 14px;
+        box-shadow: 0 20px 40px -24px rgba(15,70,150,.30);
+        margin-bottom: 12px;
+        backdrop-filter: saturate(140%) blur(6px);
+    }
+
+    .header .title {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: .2px;
+    }
+
+    .header .subtitle {
+        margin: .35rem 0 0;
+        opacity: .95;
+    }
+
+    .section {
+        background: rgba(255,255,255,.92);
+        border: 1px solid rgba(148,163,184,.20);
+        border-radius: var(--radius);
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 12px 32px -20px rgba(2,6,23,.18);
+        backdrop-filter: saturate(140%) blur(6px);
+    }
+
+    .section-title { font-size: 1.05rem; font-weight: 700; color: var(--blue-700); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--blue-100); }
+
+    .document-group {
+        background: rgba(248,250,252,.85);
+        border: 1px solid rgba(148,163,184,.18);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 10px 24px -20px rgba(2,6,23,.15);
+    }
+
+    .document-title { font-weight: 700; color: var(--text); margin-bottom: 6px; }
+
+    .required {
+        color: #dc2626;
+    }
+
+    .form-control { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: .9rem; display: block; width: 100%; }
+
+    .form-control:focus {
+        border-color: var(--blue-600);
+        box-shadow: 0 0 0 3px rgba(19,97,201,.1);
+        outline: none;
+    }
+
+    .action-bar { background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.20); border-radius: var(--radius); padding: 14px; margin-top: 12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .nav-actions { margin-top: 4px; display: flex; gap: 8px; justify-content: space-between; }
+    .nav-btn { border-radius: 9999px; padding: 8px 14px; font-weight: 700; }
+    .nav-btn--prev { background: transparent; border: 1px solid var(--blue-600); color: var(--blue-800); box-shadow: 0 4px 10px rgba(31,58,127,.12); }
+    .nav-btn--prev:hover { background: var(--blue-100); }
+    .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color: #fff; box-shadow: 0 8px 18px rgba(31,58,127,.25); }
+
+    .helper-text {
+        font-size: .85rem;
+        color: var(--muted);
+        margin-top: 4px;
+    }
+
+    .file-input-wrapper { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+    .file-name {
+        color: #999;
+        font-size: 13px;
+    }
+
+    .content-grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; align-items:start; }
+    .sidebar-card { background: rgba(255,255,255,.92); border:1px solid rgba(148,163,184,.20); border-radius: var(--radius); padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .sidebar-title { font-weight:700; color: var(--blue-700); margin-bottom:8px; }
+    .sidebar-list { margin: 0 0 8px 16px; padding:0; color:#475569; font-size:.9rem; }
+    .guide-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#475569; font-size:.9rem; }
+    .guide-icon { color:#283A79; }
+    .sidebar-row { display:flex; justify-content:space-between; margin-bottom:6px; color:#475569; }
+    @@media (max-width: 600px) {
+        .content-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="kyc-page">
+    <!-- Header -->
+    <div class="header">
+        <h1 class="title">Upload Corporate Documents</h1>
+        <p class="subtitle">Company: corporate account (@currentCompanyInfo)</p>
+    </div>
+
+    <!-- Step Indicator below header -->
+    <StepIndicator CurrentStep="3" />
+
+    <div class="content-grid">
+    <div>
+    <!-- Required Documents Section -->
+    <section class="section">
+        <h2 class="section-title">Required Documents</h2>
+
+        <!-- DOC022 — Commercial Registration Certificate -->
+        <div class="document-group">
+            <div class="document-title">
+                Commercial Registration Certificate (DOC022) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="Doc022File" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC022"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC022") ?? "No file chosen")</div>
+            <div class="helper-text">Upload the company's commercial registration certificate (PDF only)</div>
+        </div>
+
+        <!-- DOC096 — Tax Identification Card (NUIT) -->
+        <div class="document-group">
+            <div class="document-title">
+                Tax Identification Card (NUIT) (DOC096) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="Doc096File" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC096"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC096") ?? "No file chosen")</div>
+            <div class="helper-text">Upload the company's NUIT document (PDF only)</div>
+        </div>
+
+        <!-- DOC126 — Minutes -->
+        <div class="document-group">
+            <div class="document-title">
+                Minutes (DOC126) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="Doc126File" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC126"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC126") ?? "No file chosen")</div>
+            <div class="helper-text">Upload the company's minutes (PDF only)</div>
+        </div>
+
+        <!-- DOC127 — Statutes -->
+        <div class="document-group">
+            <div class="document-title">
+                Statutes (DOC127) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="Doc127File" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC127"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC127") ?? "No file chosen")</div>
+            <div class="helper-text">Statutes published in the Bulletin of the Republic (PDF only)</div>
+        </div>
+
+        <!-- DOC085 — Proof of Current Address -->
+        <div class="document-group">
+            <div class="document-title">
+                Proof of Current Address (DOC085) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="Doc085File" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC085"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC085") ?? "No file chosen")</div>
+            <div class="helper-text">Upload proof of the company's current address (PDF only)</div>
+        </div>
+
+        <!-- Shareholder Structure -->
+        <div class="document-group">
+            <div class="document-title">
+                Shareholder structure document (DOC131) <span class="required">*</span>
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="ShareholderStructureFile" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC131"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC131") ?? "No file chosen")</div>
+            <div class="helper-text">Upload shareholder structure document (PDF only)</div>
+        </div>
+
+        <!-- Audited Financials -->
+        <div class="document-group">
+            <div class="document-title">
+                Audited financials (DOC130) (Optional)
+            </div>
+            <div class="file-input-wrapper">
+                <InputFile id="AuditedFinancialsFile" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC130"))" accept=".pdf" class="form-control" />
+            </div>
+            <div class="file-name">@(GetFileName("DOC130") ?? "No file chosen")</div>
+            <div class="helper-text">Upload audited financial statements (PDF only)</div>
+        </div>
+    </section>
+
+    <!-- Legal Representative Documents Section - Show only if "Legal Representative" is selected -->
+    @if (companyRepresentative == "Legal Representative")
+    {
+        <section class="section">
+            <h2 class="section-title">Legal Representative Documents</h2>
+
+            <div class="document-group">
+                <div class="document-title">
+                    Legal Representative – Identification document (any type) <span class="required">*</span>
+                </div>
+                <div class="file-input-wrapper">
+                    <InputFile id="LegalRepIdFile" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC048"))" accept=".pdf" class="form-control" />
+                </div>
+                <div class="file-name">@(GetFileName("DOC048") ?? "No file chosen")</div>
+                <div class="helper-text">Upload identification document for the legal representative (PDF only)</div>
+            </div>
+        </section>
+    }
+
+    <!-- Beneficial Owner Documents Section - Show only if "Beneficial Owner" is selected -->
+    @if (companyRepresentative == "Beneficial Owner")
+    {
+        <section class="section">
+            <h2 class="section-title">Beneficial Owner Documents</h2>
+
+            <!-- Beneficial Owner – NUIT -->
+            <div class="document-group">
+                <div class="document-title">
+                    Beneficial Owner – NUIT (DOC128) <span class="required">*</span>
+                </div>
+                <div class="file-input-wrapper">
+                    <InputFile id="BeneficialOwnerNuitFile" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC128"))" accept=".pdf" class="form-control" />
+                </div>
+                <div class="file-name">@(GetFileName("DOC128") ?? "No file chosen")</div>
+                <div class="helper-text">Upload beneficial owner's NUIT (PDF only)</div>
+            </div>
+
+            <!-- Beneficial Owner – Comparative attachment -->
+            <div class="document-group">
+                <div class="document-title">
+                    Beneficial Owner – Comparative attachment (DOC023) <span class="required">*</span>
+                </div>
+                <div class="file-input-wrapper">
+                    <InputFile id="BeneficialOwnerComparativeFile" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, "DOC023"))" accept=".pdf" class="form-control" />
+                </div>
+                <div class="file-name">@(GetFileName("DOC023") ?? "No file chosen")</div>
+                <div class="helper-text">Upload beneficial owner's comparative attachment (PDF only)</div>
+            </div>
+        </section>
+    }
+    </div>
+
+    <!-- Sidebar Info -->
+    <aside class="sidebar-card">
+        <div class="sidebar-title">Guidance</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.PictureAsPdf" /> Only PDF files up to 5MB are allowed.</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.CheckCircle" /> Ensure all required documents are selected.</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Badge" /> Names should match company records.</div>
+        <MudDivider Class="my-2" />
+        <div class="sidebar-title">Upload Summary</div>
+        <div class="sidebar-row"><span>Selected files</span><strong>@fileData.Count</strong></div>
+        <div class="sidebar-row"><span>DOC022 (Reg. Cert)</span><strong style="color:@(fileData.ContainsKey("DOC022")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC022")?"✓":"—")</strong></div>
+        <div class="sidebar-row"><span>DOC096 (NUIT)</span><strong style="color:@(fileData.ContainsKey("DOC096")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC096")?"✓":"—")</strong></div>
+        <div class="sidebar-row"><span>DOC126 (Minutes)</span><strong style="color:@(fileData.ContainsKey("DOC126")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC126")?"✓":"—")</strong></div>
+        <div class="sidebar-row"><span>DOC127 (Statutes)</span><strong style="color:@(fileData.ContainsKey("DOC127")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC127")?"✓":"—")</strong></div>
+        <div class="sidebar-row"><span>DOC085 (Address)</span><strong style="color:@(fileData.ContainsKey("DOC085")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC085")?"✓":"—")</strong></div>
+        <div class="sidebar-row"><span>DOC131 (Structure)</span><strong style="color:@(fileData.ContainsKey("DOC131")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC131")?"✓":"—")</strong></div>
+        @if (companyRepresentative == "Legal Representative")
+        {
+            <div class="sidebar-row"><span>DOC048 (Legal Rep ID)</span><strong style="color:@(fileData.ContainsKey("DOC048")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC048")?"✓":"—")</strong></div>
+        }
+        @if (companyRepresentative == "Beneficial Owner")
+        {
+            <div class="sidebar-row"><span>DOC128 (BO NUIT)</span><strong style="color:@(fileData.ContainsKey("DOC128")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC128")?"✓":"—")</strong></div>
+            <div class="sidebar-row"><span>DOC023 (BO Comparative)</span><strong style="color:@(fileData.ContainsKey("DOC023")?"#16a34a":"#9ca3af")">@(fileData.ContainsKey("DOC023")?"✓":"—")</strong></div>
+        }
+    </aside>
+    </div>
+
+    <!-- Navigation / Submit -->
+    <div class="action-bar">
+        <div class="nav-actions">
+            <MudButton Class="nav-btn nav-btn--prev" Variant="Variant.Outlined" OnClick="@(()=>navigate.NavigateTo("PepPage"))" StartIcon="@Icons.Material.Filled.ArrowBack">Previous</MudButton>
+            <MudButton Class="nav-btn nav-btn--next" Variant="Variant.Filled" Color="Color.Success" OnClick="SubmitDocuments" Disabled="@isSubmitting" EndIcon="@Icons.Material.Filled.ArrowForward">@(isSubmitting ? "Uploading..." : "Next: Summary")</MudButton>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+
+
+
+    private Dictionary<string, string> fileNames = new();
+    private Dictionary<string, byte[]> fileData = new();
+    private string currentUserContactNo = "";
+    private string currentCompanyInfo = "CONT00229";
+    private string companyRepresentative = "";
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            await GetCurrentUserContactNo();
+            await LoadCompanyRepresentativeType();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error initializing page: {ex.Message}", Severity.Error);
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task GetCurrentUserContactNo()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    currentUserContactNo = email;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task LoadCompanyRepresentativeType()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.CompanyRepresentative))
+                    {
+                        companyRepresentative = dbUser.CompanyRepresentative;
+                        StateHasChanged();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            companyRepresentative = "";
+        }
+        Layout.CloseLoading();
+    }
+
+    private string GetFileName(string docCode)
+    {
+        return fileNames.ContainsKey(docCode) ? fileNames[docCode] : null;
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e, string docCode)
+    {
+        Layout.OpenLoading();
+        try
+        {
+            var file = e.GetMultipleFiles().FirstOrDefault();
+            if (file != null)
+            {
+                // Validate file type
+                if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    Snackbar.Add($"Only PDF files are allowed for {docCode}", Severity.Error);
+                    Layout.CloseLoading();
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.Size > 5 * 1024 * 1024)
+                {
+                    Snackbar.Add($"File size must not exceed 5MB for {docCode}", Severity.Error);
+                    Layout.CloseLoading();
+                    return;
+                }
+
+                fileNames[docCode] = file.Name;
+                fileData[docCode] = await ReadFileAsync(file);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting file: {ex.Message}", Severity.Error);
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task<byte[]> ReadFileAsync(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();
+    }
+
+    private async Task SubmitDocuments()
+    {
+        if (fileData.Count == 0)
+        {
+            Snackbar.Add("Please select at least one document to upload", Severity.Warning);
+            Layout.CloseLoading();
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        Layout.CloseLoading();
+
+        
+        try
+
+        {
+            Layout.OpenLoading();
+
+            // Get customer number from current user
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+            string customerNo = "CONT00228"; // Default, will be updated from user data
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.Contact_No))
+                    {
+                        customerNo = dbUser.Contact_No;
+                    }
+                }
+            }
+
+            // Upload each document one by one
+            int successCount = 0;
+            int failureCount = 0;
+
+            // Upload DOC022
+            if (fileData.ContainsKey("DOC022"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC022"], fileNames["DOC022"], "DOC022");
+                    successCount++;
+                    //Snackbar.Add($"✓ {fileNames["DOC022"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC022"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+               // await Task.Delay(5000);
+            }
+
+            // Upload DOC096
+            if (fileData.ContainsKey("DOC096"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC096"], fileNames["DOC096"], "DOC096");
+                    successCount++;
+                  //  Snackbar.Add($"✓ {fileNames["DOC096"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC096"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+               // await Task.Delay(5000);
+            }
+
+            // Upload DOC126
+            if (fileData.ContainsKey("DOC126"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC126"], fileNames["DOC126"], "DOC126");
+                    successCount++;
+                   // Snackbar.Add($"✓ {fileNames["DOC126"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC126"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+               // await Task.Delay(5000);
+            }
+
+            // Upload DOC127
+            if (fileData.ContainsKey("DOC127"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC127"], fileNames["DOC127"], "DOC127");
+                    successCount++;
+                   // Snackbar.Add($"✓ {fileNames["DOC127"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC127"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+               // await Task.Delay(5000);
+            }
+
+            // Upload DOC085
+            if (fileData.ContainsKey("DOC085"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC085"], fileNames["DOC085"], "DOC085");
+                    successCount++;
+                  //  Snackbar.Add($"✓ {fileNames["DOC085"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC085"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+               // await Task.Delay(5000);
+            }
+
+            // Upload DOC131 (Shareholder Structure)
+            if (fileData.ContainsKey("DOC131"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC131"], fileNames["DOC131"], "DOC131");
+                    successCount++;
+                   // Snackbar.Add($"✓ {fileNames["DOC131"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC131"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+             //   await Task.Delay(5000);
+            }
+
+            // Upload DOC130 (Audited Financials)
+            if (fileData.ContainsKey("DOC130"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC130"], fileNames["DOC130"], "DOC130");
+                    successCount++;
+                   // Snackbar.Add($"✓ {fileNames["DOC130"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC130"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+              //  await Task.Delay(5000);
+            }
+
+            // Upload DOC048 (Legal Representative ID)
+            if (fileData.ContainsKey("DOC048"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC048"], fileNames["DOC048"], "DOC048");
+                    successCount++;
+                 //   Snackbar.Add($"✓ {fileNames["DOC048"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC048"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+              //  await Task.Delay(5000);
+            }
+
+            // Upload DOC023 (Beneficial Owner Comparative)
+            if (fileData.ContainsKey("DOC128"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC128"], fileNames["DOC128"], "DOC128");
+                    successCount++;
+                 //   Snackbar.Add($"✓ {fileNames["DOC128"]} uploaded successfully", Severity.Success);
+
+                }
+                catch (Exception ex)
+                {
+
+
+
+                    Snackbar.Add($"✗ {fileNames["DOC128"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+
+                    failureCount++;
+                }
+              //  await Task.Delay(5000);
+            }// Upload DOC023 (Beneficial Owner Comparative)
+            if (fileData.ContainsKey("DOC023"))
+            {
+                try
+                {
+                    await UploadDocumentToBC(customerNo, fileData["DOC023"], fileNames["DOC023"], "DOC023");
+                    successCount++;
+                  //  Snackbar.Add($"✓ {fileNames["DOC023"]} uploaded successfully", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"✗ {fileNames["DOC023"]}: {ex.InnerException?.Message ?? ex.Message}", Severity.Error);
+                    failureCount++;
+                }
+              //  await Task.Delay(5000);
+            }
+
+            if (failureCount == 0)
+            {
+                Snackbar.Add($"Successfully uploaded {successCount} document(s)!", Severity.Success);
+             //   await Task.Delay(1500);
+                navigate.NavigateTo("Cop_SummaryPage");
+            }
+            else
+            {
+                Snackbar.Add($"Uploaded {successCount} document(s), {failureCount} failed", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting documents: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+
+        Layout.CloseLoading();
+
+    }
+
+    private async Task UploadDocumentToBC(string customerNo, byte[] fileBytes, string fileName, string documentCode)
+    {
+        Layout.OpenLoading();
+        var url = await SharePointDocuments.UploadKycDocumentAsync("Corporate", customerNo, documentCode, fileBytes, fileName);
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            KycUploadContext.CorporateDocumentUrlsByCode[documentCode] = url;
+        }
+        Layout.CloseLoading();
+    }
+}

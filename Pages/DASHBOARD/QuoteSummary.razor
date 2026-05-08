@@ -1,0 +1,675 @@
+@page "/quote-summary"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Utils
+@using MudBlazor
+@using System.Text.Json
+@using System.Text
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+
+<div class="container-fluid" style="margin:0 auto; padding:24px;">
+    <div class="hero">
+        <div class="hero-title">@LangService.T("Quote Summary","Resumo da Cotação")</div>
+        <div class="hero-sub">@LangService.T("Review the plan and risk lines below, then confirm to submit the quote.","Revise o plano e as linhas de risco abaixo e confirme para submeter a cotação.")</div>
+    </div>
+
+    <h2 style="font-weight:700; margin-bottom: 8px;">@LangService.T("Summary","Resumo")</h2>
+    <p style="color:#64748b; margin-bottom:16px;">@LangService.T("This page will display the selected plan, quote details, and risk lines.","Esta página irá mostrar o plano selecionado, os detalhes da cotação e as linhas de risco.")</p>
+
+    <div class="step-indicator" style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+        <div class="step" style="display:flex; align-items:center; gap:8px; opacity:0.6;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700;">1</div>
+            <div class="step-label" style="font-size:12px; color:#475569;">@LangService.T("Risk Lines","Linhas de Risco")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; flex:1;"></div>
+        <div class="step active" style="display:flex; align-items:center; gap:8px;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#2E5090; color:white; font-weight:700;">2</div>
+            <div class="step-label" style="font-size:12px; color:#2E5090; font-weight:600;">@LangService.T("Summary","Resumo")</div>
+        </div>
+    </div>
+
+    <style>
+        .hero { background: linear-gradient(135deg, #283A79, #2d488f); color:#fff; border-radius:12px; padding:12px 14px; margin-bottom:12px; box-shadow: 0 20px 40px -24px rgba(15,70,150,.30); }
+        .hero-title { font-weight:800; letter-spacing:.2px; margin:0 0 4px 0; font-size:1.05rem; }
+        .hero-sub { opacity:.95; font-size:.9rem; }
+        .summary-card { background:#fff; border-radius:12px; border:1px solid rgba(148,163,184,.20); padding:16px; box-shadow:0 12px 32px -20px rgba(2,6,23,.18); margin-bottom:12px; }
+        .summary-title { font-weight:700; margin-bottom:8px; font-size:14px; color:#0f172a; }
+        .summary-text { font-size:13px; color:#64748b; }
+        .action-bar { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+        .nav-btn { border-radius:9999px; padding:10px 14px; font-weight:700; border:none; cursor:pointer; }
+        .nav-btn--prev { background:#e5e7eb; color:#111827; }
+        .nav-btn--next { background: linear-gradient(135deg, #283A79, #2d488f); color:#fff; box-shadow:0 8px 18px rgba(31,58,127,.25); }
+        /* Glass modal styles reused from main Summary page */
+        .glass-backdrop {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 15, 25, 0.45);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            z-index: 100000;
+            animation: fadeIn 200ms ease-out;
+        }
+        .glass-modal {
+            width: min(560px, 94vw);
+            border-radius: 20px;
+            background: linear-gradient(140deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.70) 100%);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.5);
+            overflow: hidden;
+            transform: translateY(6px);
+            animation: popIn 220ms ease-out forwards;
+        }
+        .glass-header {
+            padding: 18px 22px;
+            background: linear-gradient(135deg, rgba(46, 80, 144, 0.9) 0%, rgba(30, 58, 95, 0.9) 100%);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .glass-body {
+            padding: 22px;
+            color: #0f172a;
+        }
+        .glass-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; padding: 8px 0; }
+        .glass-label { color: #475569; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+        .glass-value { color: #0f172a; font-weight: 600; }
+        .glass-footer {
+            display: flex; justify-content: flex-end; gap: 12px; padding: 18px 22px 22px 22px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.4) 100%);
+            border-top: 1px solid rgba(255,255,255,0.6);
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.6);
+            color: #0f172a;
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            padding: 10px 16px; border-radius: 12px; cursor: pointer;
+            transition: all 150ms ease;
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.9); transform: translateY(-1px); }
+        .btn-solid {
+            background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+            color: #fff; border: none; padding: 10px 16px; border-radius: 12px; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(46, 80, 144, 0.35);
+            transition: all 150ms ease;
+        }
+        .btn-solid:hover { transform: translateY(-1px); box-shadow: 0 12px 28px rgba(46, 80, 144, 0.45); }
+        .btn-solid:disabled, .btn-ghost:disabled { opacity: 0.6; cursor: not-allowed; }
+        @@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @@keyframes popIn { from { transform: translateY(12px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    </style>
+
+    @if (_quote == null)
+    {
+        <div class="summary-card">
+            <div class="summary-title">@LangService.T("No quote data","Sem dados de cotação")</div>
+            <div class="summary-text">
+                @LangService.T("We couldn't find any quote information. Please go back and add risk lines again.","Não foi possível encontrar informações de cotação. Volte atrás e adicione novamente as linhas de risco.")
+            </div>
+            <div class="action-bar">
+                <button class="nav-btn nav-btn--prev" @onclick="GoBack">@LangService.T("← Back","← Voltar")</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="summary-card">
+            <div class="summary-title">@LangService.T("Plan","Plano")</div>
+            <div class="summary-text">
+                <div><strong>@LangService.T("Plan No:","N.º do Plano:")</strong> @_quote.PlanNo</div>
+                <div><strong>@LangService.T("Class:","Classe:")</strong> @_quote.PlanClass</div>
+                <div><strong>@LangService.T("Description:","Descrição:")</strong> @_quote.Description</div>
+                <div><strong>@LangService.T("Premium Rate:","Taxa de Prémio:")</strong> @_quote.PremiumRate.ToString("N2")%</div>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-title">@LangService.T("Quote Header","Cabeçalho da Cotação")</div>
+            <div class="summary-text">
+                <div><strong>@LangService.T("Start Date:","Data de Início:")</strong> @_quote.StartingDate.ToShortDateString()</div>
+                <div><strong>@LangService.T("Payment Mode:","Modo de Pagamento:")</strong> @_quote.PaymentMode</div>
+                <div><strong>@LangService.T("Policy Type:","Tipo de Apólice:")</strong> @_quote.PolicyType</div>
+                <div><strong>@LangService.T("Source of Business:","Origem do Negócio:")</strong> @_quote.SourceOfBusiness</div>
+                <div><strong>@LangService.T("Insured Address:","Endereço do Segurado:")</strong> @_quote.InsuredAddress</div>
+            </div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-title">@LangService.T("Risk Lines","Linhas de Risco") (@_quote.RiskLines.Count)</div>
+            @if (_quote.RiskLines.Count == 0)
+            {
+                <div class="summary-text">@LangService.T("No risk lines.","Sem linhas de risco.")</div>
+            }
+            else
+            {
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <MudTextField T="string"
+                                  Value="@riskFilter"
+                                  ValueChanged="@(v => OnRiskFilterChanged(v))"
+                                  Placeholder="@LangService.T("Filter by member, vehicle, property...","Filtrar por membro, viatura, propriedade...")"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Immediate="true"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Outlined.Search"
+                                  Style="max-width:260px; font-size:12px;" />
+                    <MudText Typo="Typo.caption" Style="color:#9ca3af;">
+                        @GetFilteredRiskLines().Count() @LangService.T("records","registos")
+                    </MudText>
+                </div>
+
+                <MudTable Items="GetFilteredRiskLines()"
+                          Dense="true"
+                          Hover="true"
+                          Striped="true"
+                          Elevation="0"
+                          RowsPerPage="5"
+                          RowsPerPageOptions="@(new int[] { 5, 10, 20 })">
+                    <HeaderContent>
+                        <MudTh>@GetRiskMainHeader()</MudTh>
+                        <MudTh Style="width:120px;">@GetRiskDetailsHeader()</MudTh>
+                        <MudTh Style="width:140px;" Align="Align.Right">@LangService.T("Sum Insured","Capital Segurado")</MudTh>
+                        <MudTh Style="width:140px;" Align="Align.Right">@LangService.T("Gross Premium","Prémio Bruto")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="line">
+                        <MudTd>
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <MudAvatar Size="Size.Small" Color="Color.Primary" Style="font-size:10px; width:26px; height:26px;">
+                                    @GetRiskInitial(line)
+                                </MudAvatar>
+                                <div style="display:flex; flex-direction:column; gap:1px;">
+                                    @* Primary label mirrors RiskListing summary logic *@
+                                    @if (!string.IsNullOrWhiteSpace(line.First_Names) || !string.IsNullOrWhiteSpace(line.Family_Name))
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@line.First_Names @line.Family_Name</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.RegistrationNo) || !string.IsNullOrWhiteSpace(line.Make) || !string.IsNullOrWhiteSpace(line.Model))
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@($"{line.RegistrationNo} {line.Make} {line.Model}")</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.PropertyCategory) || !string.IsNullOrWhiteSpace(line.PropertyDetails))
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@line.PropertyCategory</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.TravelCategory) || !string.IsNullOrWhiteSpace(line.DestinationCountry))
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@line.TravelCategory</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.MarineCategory) || !string.IsNullOrWhiteSpace(line.PortOfOrigin) || !string.IsNullOrWhiteSpace(line.PortOfDestination))
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@line.MarineCategory</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="font-size:13px; font-weight:500;">@line.Cover_Description</span>
+                                    }
+
+                                    @* Secondary line: extra detail or age for person schedules *@
+                                    @if (!string.IsNullOrWhiteSpace(line.First_Names) || !string.IsNullOrWhiteSpace(line.Family_Name))
+                                    {
+                                        <span style="font-size:11px; color:#6b7280;">@LangService.T("Age","Idade"): @line.Ages</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.PropertyDetails))
+                                    {
+                                        <span style="font-size:11px; color:#6b7280;">@line.PropertyDetails</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.DestinationCountry))
+                                    {
+                                        <span style="font-size:11px; color:#6b7280;">@line.DestinationCountry</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.PortOfOrigin) || !string.IsNullOrWhiteSpace(line.PortOfDestination))
+                                    {
+                                        <span style="font-size:11px; color:#6b7280;">@($"{line.PortOfOrigin} → {line.PortOfDestination}")</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line.Cover_Description))
+                                    {
+                                        <span style="font-size:11px; color:#6b7280;">@line.Cover_Description</span>
+                                    }
+                                </div>
+                            </div>
+                        </MudTd>
+                        <MudTd>
+                            @* For person schedules we repeat age, for others this cell can remain subtle/empty *@
+                            @if (!string.IsNullOrWhiteSpace(line.First_Names) || !string.IsNullOrWhiteSpace(line.Family_Name))
+                            {
+                                @line.Ages
+                            }
+                        </MudTd>
+                        <MudTd Align="Align.Right">@line.Sum_Insured.ToString("N2")</MudTd>
+                        <MudTd Align="Align.Right">@line.Gross_Premium.ToString("N2")</MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            }
+            <div class="action-bar">
+                <button class="nav-btn nav-btn--prev" @onclick="GoBack">@LangService.T("← Back","← Voltar")</button>
+                <button class="nav-btn nav-btn--next" @onclick="OpenConfirm" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        @LangService.T("Submitting...","A submeter...")
+                    }
+                    else
+                    {
+                        @LangService.T("Confirm & Submit","Confirmar & Submeter")
+                    }
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private QuoteContext? _quote;
+    private bool showConfirm = false;
+    private bool isSubmitting = false;
+    private string riskFilter;
+
+    protected override void OnInitialized()
+    {
+        _quote = unitOfWork.QuoteContextService.GetQuote();
+    }
+
+    private IEnumerable<QuoteRiskLine> GetFilteredRiskLines()
+    {
+        if (_quote?.RiskLines == null || !_quote.RiskLines.Any())
+            return Enumerable.Empty<QuoteRiskLine>();
+
+        var query = _quote.RiskLines.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(riskFilter))
+        {
+            var term = riskFilter.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                (!string.IsNullOrWhiteSpace(x.First_Names) && x.First_Names.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Family_Name) && x.Family_Name.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.RegistrationNo) && x.RegistrationNo.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Make) && x.Make.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Model) && x.Model.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.PropertyCategory) && x.PropertyCategory.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.PropertyDetails) && x.PropertyDetails.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.TravelCategory) && x.TravelCategory.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.DestinationCountry) && x.DestinationCountry.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.MarineCategory) && x.MarineCategory.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.PortOfOrigin) && x.PortOfOrigin.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.PortOfDestination) && x.PortOfDestination.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Cover_Description) && x.Cover_Description.ToLowerInvariant().Contains(term))
+            );
+        }
+
+        return query;
+    }
+
+    private void OnRiskFilterChanged(string value)
+    {
+        riskFilter = value;
+    }
+
+    private string GetRiskMainHeader()
+    {
+        var sample = _quote?.RiskLines?.FirstOrDefault();
+        if (sample == null)
+            return LangService.T("Risk","Risco");
+
+        if (!string.IsNullOrWhiteSpace(sample.First_Names) || !string.IsNullOrWhiteSpace(sample.Family_Name))
+            return LangService.T("Member","Membro");
+
+        if (!string.IsNullOrWhiteSpace(sample.RegistrationNo) || !string.IsNullOrWhiteSpace(sample.Make) || !string.IsNullOrWhiteSpace(sample.Model))
+            return LangService.T("Vehicle","Viatura");
+
+        if (!string.IsNullOrWhiteSpace(sample.PropertyCategory) || !string.IsNullOrWhiteSpace(sample.PropertyDetails))
+            return LangService.T("Property","Propriedade");
+
+        if (!string.IsNullOrWhiteSpace(sample.TravelCategory) || !string.IsNullOrWhiteSpace(sample.DestinationCountry))
+            return LangService.T("Trip","Viagem");
+
+        if (!string.IsNullOrWhiteSpace(sample.MarineCategory) || !string.IsNullOrWhiteSpace(sample.PortOfOrigin) || !string.IsNullOrWhiteSpace(sample.PortOfDestination))
+            return LangService.T("Shipment","Envio");
+
+        return LangService.T("Risk","Risco");
+    }
+
+    private string GetRiskDetailsHeader()
+    {
+        var sample = _quote?.RiskLines?.FirstOrDefault();
+        if (sample == null)
+            return LangService.T("Details","Detalhes");
+
+        if (!string.IsNullOrWhiteSpace(sample.First_Names) || !string.IsNullOrWhiteSpace(sample.Family_Name))
+            return LangService.T("Age","Idade");
+
+        if (!string.IsNullOrWhiteSpace(sample.PropertyCategory) || !string.IsNullOrWhiteSpace(sample.PropertyDetails))
+            return LangService.T("Details","Detalhes");
+
+        if (!string.IsNullOrWhiteSpace(sample.TravelCategory) || !string.IsNullOrWhiteSpace(sample.DestinationCountry))
+            return LangService.T("Destination","Destino");
+
+        if (!string.IsNullOrWhiteSpace(sample.MarineCategory) || !string.IsNullOrWhiteSpace(sample.PortOfOrigin) || !string.IsNullOrWhiteSpace(sample.PortOfDestination))
+            return LangService.T("Route","Rota");
+
+        return LangService.T("Details","Detalhes");
+    }
+
+    private string GetRiskInitial(QuoteRiskLine line)
+    {
+        if (line == null)
+            return "?";
+        // Prefer person name if available
+        var fullName = $"{line.First_Names} {line.Family_Name}".Trim();
+        if (!string.IsNullOrWhiteSpace(fullName))
+            return fullName.Substring(0, 1).ToUpperInvariant();
+
+        // Then vehicle registration
+        if (!string.IsNullOrWhiteSpace(line.RegistrationNo))
+            return line.RegistrationNo.Substring(0, 1).ToUpperInvariant();
+
+        // Then property category
+        if (!string.IsNullOrWhiteSpace(line.PropertyCategory))
+            return line.PropertyCategory.Substring(0, 1).ToUpperInvariant();
+
+        // Then travel category or destination
+        if (!string.IsNullOrWhiteSpace(line.TravelCategory))
+            return line.TravelCategory.Substring(0, 1).ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(line.DestinationCountry))
+            return line.DestinationCountry.Substring(0, 1).ToUpperInvariant();
+
+        // Then marine category
+        if (!string.IsNullOrWhiteSpace(line.MarineCategory))
+            return line.MarineCategory.Substring(0, 1).ToUpperInvariant();
+
+        // Finally cover description
+        if (!string.IsNullOrWhiteSpace(line.Cover_Description))
+            return line.Cover_Description.Substring(0, 1).ToUpperInvariant();
+
+        return "?";
+    }
+
+    private void GoBack()
+    {
+        if (_quote == null)
+        {
+            NavigationManager.NavigateTo("/risk-listing");
+            return;
+        }
+
+        var planNo = string.IsNullOrWhiteSpace(_quote.PlanNo) ? "" : Uri.EscapeDataString(_quote.PlanNo);
+        var underwriter = string.IsNullOrWhiteSpace(_quote.UnderwriterCode) ? "" : Uri.EscapeDataString(_quote.UnderwriterCode);
+        var planClass = string.IsNullOrWhiteSpace(_quote.PlanClass) ? "" : Uri.EscapeDataString(_quote.PlanClass);
+        var desc = string.IsNullOrWhiteSpace(_quote.Description) ? "" : Uri.EscapeDataString(_quote.Description);
+        var schedule = string.IsNullOrWhiteSpace(_quote.ScheduleLine) ? "" : Uri.EscapeDataString(_quote.ScheduleLine);
+        var premium = _quote.PremiumRate;
+
+        var url = $"/risk-listing/{planNo}/{underwriter}/{planClass}/{desc}/{premium}/{schedule}";
+        NavigationManager.NavigateTo(url);
+    }
+
+    private void OpenConfirm()
+    {
+        if (_quote == null)
+        {
+            Snackbar.Add(LangService.T("No quote data to submit.","Sem dados de cotação para submeter."), Severity.Error);
+            return;
+        }
+
+        if (_quote.RiskLines == null || !_quote.RiskLines.Any())
+        {
+            Snackbar.Add(LangService.T("Please add at least one risk line before submitting.","Adicione pelo menos uma linha de risco antes de submeter."), Severity.Error);
+            return;
+        }
+
+        showConfirm = true;
+    }
+
+    private void CloseConfirm()
+    {
+        if (isSubmitting)
+            return;
+
+        showConfirm = false;
+    }
+
+    private async Task SubmitQuoteAsync()
+    {
+        if (_quote == null)
+        {
+            Snackbar.Add(LangService.T("No quote data to submit.","Sem dados de cotação para submeter."), Severity.Error);
+            return;
+        }
+
+        if (_quote.RiskLines == null || !_quote.RiskLines.Any())
+        {
+            Snackbar.Add(LangService.T("Please add at least one risk line before submitting.","Adicione pelo menos uma linha de risco antes de submeter."), Severity.Error);
+            return;
+        }
+
+        try
+        {
+            isSubmitting = true;
+
+            // Resolve current user contact
+            var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+            var currentUser = await unitOfWork.userRepository.GetById(userId);
+            var contactKey = currentUser?.Contact_No;
+
+            if (string.IsNullOrWhiteSpace(contactKey))
+            {
+                Snackbar.Add(LangService.T("Contact number is missing. Please complete your KYC first.","O número de contacto está em falta. Complete o seu KYC primeiro."), Severity.Error);
+                NavigationManager.NavigateTo("/Individual_Generalinfo");
+                return;
+            }
+
+            // Fetch ContactCard from BC using existing service
+            var card = await unitOfWork.ContactCardService.GetContactCardAsync(contactKey);
+            if (card == null)
+            {
+                Snackbar.Add(LangService.T("Unable to find your contact record in Business Central.","Não foi possível encontrar o seu registo de contacto no Business Central."), Severity.Error);
+                return;
+            }
+
+            var bcContactNo = card.No;
+            var bcCustomerNo = card.Insured_Number;
+
+            if (string.IsNullOrWhiteSpace(bcContactNo))
+            {
+                Snackbar.Add(LangService.T("Your contact record is missing the required field (No). Please complete your KYC and try again.","O seu registo de contacto não tem o campo obrigatório (No). Complete o seu KYC e tente novamente."), Severity.Error);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(bcCustomerNo))
+            {
+                Snackbar.Add(LangService.T("Your contact record has no Insured_Number yet. We will attempt to submit the quote anyway; if it fails, please complete/submit your KYC or contact support.","O seu registo de contacto ainda não tem Insured_Number. Vamos tentar submeter a cotação; se falhar, conclua/submeta o seu KYC ou contacte o suporte."), Severity.Warning);
+                bcCustomerNo = string.Empty;
+            }
+
+            // Business Central validation requires Sales Agent to relate to Vendor; per user, send empty value
+            var salesAgent = string.Empty;
+
+            // Map all risk line properties into the payload shape expected by BC (PascalCase names)
+            var riskLinesPayload = _quote.RiskLines.Select(rl => new
+            {
+                Family_Name = rl.Family_Name,
+                First_Names = rl.First_Names,
+                Other_Names = rl.Other_Names,
+                Ages = rl.Ages,
+                GenderToken = rl.GenderToken,
+                // BC expects numeric Relationship_to_Applicant, map from our string value
+                Relationship_to_Applicant = MapRelationshipToApplicantCode(rl.Relationship_to_Applicant),
+                Cover_Description = rl.Cover_Description,
+                Sum_Insured = rl.Sum_Insured,
+                Gross_Premium = rl.Gross_Premium,
+                RatePercentage = rl.RatePercentage,
+                RateType = rl.RateType,
+                RateDiscount = rl.RateDiscount,
+                RegistrationNo = rl.RegistrationNo,
+                Make = rl.Make,
+                Model = rl.Model,
+                Colour = rl.Colour,
+                ChassisNo = rl.ChassisNo,
+                EngineNo = rl.EngineNo,
+                CubicCapacity = rl.CubicCapacity,
+                CarryingCapacity = rl.CarryingCapacity,
+                VehicleUsage = rl.VehicleUsage,
+                PropertyCategory = rl.PropertyCategory,
+                PropertyDetails = rl.PropertyDetails,
+                PropertyValue = rl.PropertyValue,
+                PropertyPermanent = rl.PropertyPermanent,
+                PropertyOccupied = rl.PropertyOccupied,
+                BusinessOnPremise = rl.BusinessOnPremise,
+                TravelCategory = rl.TravelCategory,
+                PassportNumber = rl.PassportNumber,
+                DestinationCountry = rl.DestinationCountry,
+                CountryZone = rl.CountryZone,
+                PurposeOfTravel = rl.PurposeOfTravel,
+                Plan = rl.Plan,
+                PassengerPolicyHolder = rl.PassengerPolicyHolder,
+                MarineCategory = rl.MarineCategory,
+                PortOfOrigin = rl.PortOfOrigin,
+                PortOfDestination = rl.PortOfDestination,
+                InvoiceValue = rl.InvoiceValue,
+                TaxIdentificationNo = rl.TaxIdentificationNo,
+                CargoType = rl.CargoType,
+                CharterType = rl.CharterType,
+                Conditions = rl.Conditions
+            });
+
+            // Serialize the risk lines payload to a JSON string because BC expects a primitive value here
+            var serializedRiskLines = JsonSerializer.Serialize(
+                riskLinesPayload,
+                new JsonSerializerOptions
+                {
+                    // No PropertyNamingPolicy so PascalCase property names are preserved
+                    WriteIndented = false
+                });
+
+          //  Snackbar.Add($"my paload is :{serializedRiskLines}", Severity.Warning);
+
+
+            // Create the payload with risk lines as a JSON string
+            var payload = new
+            {
+                contactNo = bcContactNo,
+                customerNo = bcCustomerNo,
+                policyClass = _quote.PlanClass,
+                underwriterCode = _quote.UnderwriterCode,
+                policyType = _quote.PlanNo,
+                startingDate = _quote.StartingDate.ToString("yyyy-MM-dd"),
+                paymentMode = _quote.PaymentMode,
+                sourceOfBusiness = _quote.SourceOfBusiness,
+                insuredAddress = _quote.InsuredAddress ?? string.Empty,
+                riskLines = serializedRiskLines,
+                generatePolicy = true,
+                quoteNo = string.Empty,
+                timeBand = string.Empty,
+                insurerPolicyNo = string.Empty,
+                salesAgent = salesAgent
+            };
+
+            // Debug: Log the payload before sending
+            Console.WriteLine("Sending payload to BC:");
+            var jsonOptions = new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true 
+            };
+            var jsonPayload = JsonSerializer.Serialize(payload, jsonOptions);
+            Console.WriteLine(jsonPayload);
+
+            var config = new BusinessCentralConfig(Configuration);
+            var handler = config.CreateHttpClientHandler();
+            using var client = new HttpClient(handler);
+            config.ConfigureHttpClient(client);
+
+            var bcBaseUrl = Configuration["BcApi:BaseUrl"];
+            var url = $"{bcBaseUrl}PortalIntegration_FnSubmitQuote?company=STANDARD%20INSURANCE";
+
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions 
+            { 
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = false 
+            });
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(url, content);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                Snackbar.Add(LangService.T("Quote submitted successfully.","Cotação submetida com sucesso."), Severity.Success);
+                unitOfWork.QuoteContextService.Clear();
+                showConfirm = false;
+                NavigationManager.NavigateTo("/Dashboard");
+            }
+            else
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                var snippet = string.IsNullOrWhiteSpace(body) ? string.Empty : (body.Length > 220 ? body.Substring(0, 220) + "…" : body);
+                Snackbar.Add(LangService.T("Failed to submit quote.","Falha ao submeter a cotação.") + " " + snippet, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private int MapRelationshipToApplicantCode(string? relationship)
+    {
+        if (string.IsNullOrWhiteSpace(relationship))
+            return 0; // Default or self
+
+        var value = relationship.Trim().ToLowerInvariant();
+
+        return value switch
+        {
+            "self" or "applicant" => 0,
+            "spouse" or "husband" or "wife" => 1,
+            "child" or "son" or "daughter" => 2,
+            "parent" or "father" or "mother" => 3,
+            "sibling" or "brother" or "sister" or "siter" => 4,
+            _ => 0
+        };
+    }
+}
+
+@if (showConfirm && _quote != null)
+{
+    <div class="glass-backdrop">
+        <div class="glass-modal" @onclick:stopPropagation>
+            <div class="glass-header">
+                <span>@LangService.T("Confirm Submission","Confirmar Submissão")</span>
+            </div>
+            <div class="glass-body">
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Plan","Plano")</div>
+                    <div class="glass-value">@_quote.PlanNo (@_quote.Description)</div>
+                </div>
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Start Date","Data de Início")</div>
+                    <div class="glass-value">@_quote.StartingDate.ToString("yyyy-MM-dd")</div>
+                </div>
+                <div class="glass-row">
+                    <div class="glass-label">@LangService.T("Risk Lines","Linhas de Risco")</div>
+                    <div class="glass-value">@_quote.RiskLines.Count</div>
+                </div>
+            </div>
+            <div class="glass-footer">
+                <button class="btn-ghost" @onclick="CloseConfirm" disabled="@isSubmitting">@LangService.T("Cancel","Cancelar")</button>
+                <button class="btn-solid" @onclick="SubmitQuoteAsync" disabled="@isSubmitting">
+                    @(isSubmitting ? LangService.T("Submitting...","A submeter...") : LangService.T("Confirm & Submit","Confirmar & Submeter"))
+                </button>
+            </div>
+        </div>
+    </div>
+}

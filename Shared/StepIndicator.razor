@@ -1,0 +1,164 @@
+@using MudBlazor
+@inject NavigationManager Navigation
+
+<div class="step-indicator">
+    <div class="step @(CurrentStep >= 0 ? "active" : "") @(CurrentStep >= 0 ? "clickable" : "")" @onclick="@(() => NavigateToStep(1))">
+        <div class="step-number">1</div>
+        <div class="step-label">Corporate Data</div>
+    </div>
+    <div class="step @(CurrentStep >= 1 ? "active" : "") @(CurrentStep >= 1 ? "clickable" : "")" @onclick="@(() => NavigateToStep(2))">
+        <div class="step-number">2</div>
+        <div class="step-label">Shareholders</div>
+    </div>
+    <div class="step @(CurrentStep >= 2 ? "active" : "") @(CurrentStep >= 2 ? "clickable" : "")" @onclick="@(() => NavigateToStep(3))">
+        <div class="step-number">3</div>
+        <div class="step-label">PEP Information</div>
+    </div>
+    <div class="step @(CurrentStep >= 3 ? "active" : "") @(CurrentStep >= 3 ? "clickable" : "")" @onclick="@(() => NavigateToStep(4))">
+        <div class="step-number">4</div>
+        <div class="step-label">Documents</div>
+    </div>
+    <div class="step @(CurrentStep >= 4 ? "active" : "") @(CurrentStep >= 4 ? "clickable" : "")" @onclick="@(() => NavigateToStep(5))">
+        <div class="step-number">5</div>
+        <div class="step-label">Summary</div>
+    </div>
+</div>
+
+<style>
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 30px 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+        text-align: center;
+    }
+
+    .step.clickable {
+        cursor: pointer;
+    }
+
+    .step.clickable:hover .step-number {
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(91, 111, 216, 0.3);
+    }
+
+    .step.clickable:hover .step-label {
+        color: #5B6FD8;
+    }
+
+    .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background-color: #ddd;
+        z-index: 0;
+    }
+
+    .step.active:not(:last-child)::after {
+        background-color: #5B6FD8;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: #e0e0e0;
+        color: #999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 16px;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
+        border: 3px solid #f5f5f5;
+    }
+
+    .step.active .step-number {
+        background-color: #5B6FD8;
+        color: white;
+        border-color: #f5f5f5;
+    }
+
+    .step-label {
+        font-size: 12px;
+        color: #999;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .step.active .step-label {
+        color: #5B6FD8;
+        font-weight: 600;
+    }
+
+    /* Mobile adjustments */
+    @@media (max-width: 600px) {
+        .step-indicator {
+            margin: 12px 0;
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+        .step {
+            padding: 0 2px;
+        }
+        .step:not(:last-child)::after {
+            top: 16px;
+            height: 2px;
+        }
+        .step-number {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+            margin-bottom: 4px;
+            border-width: 2px;
+        }
+        .step-label {
+            font-size: 11px;
+            line-height: 1.1;
+            white-space: normal; /* allow wrapping so full text is visible */
+            max-width: 84px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int CurrentStep { get; set; } = 0;
+
+    private void NavigateToStep(int step)
+    {
+        // Only navigate if step is accessible (CurrentStep >= step - 1)
+        if (CurrentStep < step - 1)
+            return;
+
+        var routes = new Dictionary<int, string>
+        {
+            { 1, "Corporate_Generalinfo" },
+            { 2, "ShareHoldersPage" },
+            { 3, "PepPage" },
+            { 4, "GeneralDocumemtsPage" },
+            { 5, "Cop_SummaryPage" }
+        };
+
+        if (routes.ContainsKey(step))
+        {
+            Navigation.NavigateTo(routes[step]);
+        }
+    }
+}

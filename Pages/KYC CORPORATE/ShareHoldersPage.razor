@@ -1,0 +1,829 @@
+@page "/ShareHoldersPage"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Shared
+@using System.Security.Claims
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject IUnitOfWork UnitOfWork
+@inject ISharePointDocumentService SharePointDocuments
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@inject IJSRuntime JSRuntime
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+
+<style>
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --blue-100: #e8edf9;
+        --border: #e2e8f0;
+        --surface: #ffffff;
+        --shadow: 0 24px 60px -28px rgba(15,70,150,.20);
+    }
+
+    .kyc-page {
+        width: 100%;
+        min-height: 100vh;
+        padding: 14px;
+        background: var(--surface);
+    }
+
+    .kyc-container { width: 100%; max-width: none; margin: 0; }
+
+    .kyc-header {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+        color: #fff;
+        border-radius: 12px;
+        padding: 12px 14px;
+        box-shadow: var(--shadow);
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+    .kyc-header { backdrop-filter: saturate(140%) blur(4px); }
+    .kyc-header .title { margin: 0; font-weight: 800; font-size: 1.05rem; }
+    .kyc-header .subtitle { margin: 4px 0 0 0; opacity: .95; font-size: .9rem; }
+
+    .actions-bar { display: flex; gap: 8px; }
+
+    .th-blue { background-color: var(--blue-800) !important; color: #fff !important; font-weight: 700; }
+    .section-card .mud-table thead th { background: var(--blue-800) !important; color: #fff !important; }
+    .section-card .mud-table thead tr { box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+
+    .nav-actions { margin-top: 14px; display: flex; gap: 8px; justify-content: space-between; }
+    .nav-btn { border-radius: 9999px; padding: 8px 14px; font-weight: 700; }
+    .nav-btn--prev { background: transparent; border: 1px solid var(--blue-600); color: var(--blue-800); box-shadow: 0 4px 10px rgba(31,58,127,.12); }
+    .nav-btn--prev:hover { background: #e8edf9; }
+    .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color: #fff; box-shadow: 0 8px 18px rgba(31,58,127,.25); }
+    .nav-btn--next:hover { background: linear-gradient(135deg, var(--blue-900), var(--blue-700)); }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 5fr 1fr; /* ~10:2 ratio */
+        gap: 12px;
+        align-items: start;
+    }
+
+    .section-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: var(--shadow);
+    }
+    .name-cell { display:flex; align-items:center; gap:10px; }
+    .name-cell .avatar { width: 28px; height: 28px; font-size: .75rem; }
+    .name-cell .name-text { font-weight: 600; letter-spacing: .2px; color:#1e293b; }
+    .chip-perc .mud-chip { height: 22px; padding: 0 8px; font-weight:700; }
+    .chip-id .mud-chip { height: 22px; padding: 0 8px; }
+    .btn-pill { border-radius: 9999px; height: 28px; padding: 0 10px; font-weight:600; }
+    .icon-btn { border-radius: 9999px; }
+    .icon-btn:hover { background-color:#EEF2FF; }
+
+    .table-toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    /* Command-style search */
+    .table-toolbar .command-search { position: relative; flex: 1; }
+    .table-toolbar .command-search .mud-input-root {
+        border-radius: 9999px;
+        min-height: 36px;
+        background-color: #ffffff;
+        border: 1px solid #e6e9f2;
+        box-shadow: 0 6px 16px rgba(31,58,127,.12);
+        padding-inline: 12px;
+    }
+    .table-toolbar .command-search .mud-input-input { font-size: .95rem; padding: 4px 0; }
+    .table-toolbar .command-search .mud-input-adornment .mud-icon-root { color: #9aa3b2; }
+    .table-toolbar .command-search .key-hint {
+        position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+        color: #9aa3b2; font-size: .9rem; display:flex; align-items:center; gap:6px;
+        pointer-events: none;
+    }
+    .table-toolbar .command-search .clear-btn {
+        position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+        background: #f3f5f9; border-radius: 9999px;
+        width: 24px; height: 24px; display:flex; align-items:center; justify-content:center;
+        box-shadow: 0 2px 6px rgba(0,0,0,.06);
+    }
+    .table-toolbar .command-search .clear-btn .mud-icon-root { color:#9aa3b2; font-size:18px; }
+    .add-btn {
+        border-radius: 9999px;
+        height: 34px;
+        padding: 0 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--blue-800);
+        color: #fff;
+        border: 1px solid rgba(40,58,121,.18);
+        box-shadow: 0 6px 16px rgba(31,58,127,.16);
+        font-weight: 700;
+        transition: box-shadow .15s ease, transform .15s ease, background .15s ease;
+    }
+    .add-btn:hover { background: var(--blue-900); box-shadow: 0 8px 18px rgba(31,58,127,.22); }
+    .add-btn:focus-visible { outline: 2px solid rgba(40,58,121,.35); outline-offset: 2px; }
+
+    /* Modal header */
+    .modal-header-blue {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-600));
+        color: #fff;
+        padding: 12px 16px;
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+        margin: 0; /* full-bleed within title, we'll strip padding from container */
+        box-shadow: 0 6px 16px rgba(31,58,127,.18);
+    }
+    .modal-header-blue .sub { opacity: .9; font-size: .9rem; }
+
+    /* Remove default title padding and clip paper to avoid white edges */
+    .mud-dialog .mud-dialog-title { padding: 0 !important; }
+    .mud-dialog .mud-paper { overflow: hidden; }
+
+    .sidebar-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: var(--shadow);
+    }
+    .guide-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#475569; font-size:.9rem; }
+    .guide-icon { color:#283A79; }
+    .guide-meta { display:grid; grid-template-columns:1fr; gap:6px; margin-top:6px; }
+
+    @@media (max-width: 600px) {
+        .kyc-page { padding: 12px; }
+        .kyc-header { padding: 12px; flex-direction: column; align-items: flex-start; }
+        .actions-bar, .nav-actions { width: 100%; }
+        .nav-actions { flex-direction: column; }
+        .content-grid { grid-template-columns: 1fr; }
+        .actions-bar > * , .nav-actions > * { width: 100%; }
+
+        /* Toolbar stacks and compacts */
+        .table-toolbar { flex-direction: column; align-items: stretch; gap: 6px; }
+        .table-toolbar .command-search .mud-input-root { min-height: 32px; }
+        .add-btn { width: 100%; height: 32px; padding: 0 12px; font-size: .9rem; }
+
+        /* Table compaction */
+        .section-card .mud-table thead th { font-size: 11px; padding: 8px 6px; }
+        .section-card .mud-table td, .section-card .mud-table th { padding: 8px 6px; }
+        .name-cell .name-text { font-size: .95rem; }
+        .chip-perc .mud-chip, .chip-id .mud-chip { height: 20px; padding: 0 6px; font-size: .85rem; }
+        .btn-pill { height: 26px; padding: 0 8px; font-size: .85rem; }
+    }
+</style>
+
+<div class="kyc-page">
+    <!-- Success Message -->
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <MudAlert Severity="Severity.Success" Style="margin-bottom: 20px;">
+            @successMessage
+        </MudAlert>
+    }
+
+    <div class="kyc-container">
+    <!-- Header Section -->
+    <div class="kyc-header">
+        <div>
+            <div class="title">@LangService.T("Shareholders","Accionistas")</div>
+            <div class="subtitle">@LangService.T("All shareholders attached to the current corporate entity","Todos os accionistas associados à entidade")</div>
+        </div>
+        <div class="actions-bar"></div>
+    </div>
+
+    <!-- Step Indicator -->
+    <StepIndicator CurrentStep="1" />
+
+    <div class="content-grid">
+    <div class="section-card">
+    <!-- Toolbar: Command-style search + Add New Shareholder -->
+    <div class="table-toolbar">
+      
+            <MudTextField @bind-Value="searchText" Margin="Margin.Dense" Placeholder="@LangService.T("Search","Pesquisar")" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Dense="true" Immediate="true" DebounceInterval="300" />
+           
+        <MudTooltip Text="@LangService.T("Add new shareholder","Adicionar novo accionista")">
+            <MudButton Class="add-btn" Variant="Variant.Filled" OnClick="OpenAddShareholderModal" StartIcon="@Icons.Material.Filled.PersonAdd" aria-label="Add new shareholder">+ @LangService.T("New Shareholder","Novo Accionista")</MudButton>
+        </MudTooltip>
+    </div>
+
+    <!-- Shareholders Table -->
+    <MudTable Items="@FilteredShareholders" Hover="true" Striped="true" Dense="true" Style="margin-bottom: 0;">
+        <HeaderContent>
+            <MudTh Class="th-blue">@LangService.T("NAME","NOME")</MudTh>
+            <MudTh Class="th-blue">@LangService.T("PERCENTAGE","PERCENTAGEM")</MudTh>
+            <MudTh Class="th-blue">@LangService.T("ID TYPE","TIPO DE ID")</MudTh>
+            <MudTh Class="th-blue" >@LangService.T("ACTION","AÇÃO")</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="NAME">
+                <div class="name-cell">
+                    <MudAvatar Class="avatar" Color="Color.Primary">@GetInitials(context.Name)</MudAvatar>
+                    <div class="name-text">@context.Name</div>
+                </div>
+            </MudTd>
+            <MudTd DataLabel="PERCENTAGE">
+                <MudChip Class="chip-perc" Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">@context.Shareholder_Percent%</MudChip>
+            </MudTd>
+            <MudTd DataLabel="ID TYPE">
+                <MudChip Class="chip-id" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small">@context.Means_of_Identification</MudChip>
+            </MudTd>
+            <MudTd DataLabel="ACTION">
+                <MudButton Class="btn-pill" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => OpenDocumentsModal(context))">@LangService.T("Documents","Documentos")</MudButton>
+                <MudIconButton Class="icon-btn" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditShareholder(context))" />
+               
+                    <MudIconButton Class="icon-btn" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteShareholder(context))" />
+            </MudTd>
+        </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="@(new int[]{5, 10, 25, 50})" />
+                    </PagerContent>
+                    <NoRecordsContent>
+            <div style="text-align:center; padding: 40px 10px;">
+                <MudIcon Icon="@Icons.Material.Filled.BarChart" Style="font-size: 52px; color: #d4d7de; margin-bottom: 12px;" />
+                <div style="font-size: 15px; color: #666; margin: 6px 0;">@LangService.T("No shareholders yet","Sem accionistas ainda")</div>
+                <div style="font-size: 13px; color: #8b8f99;">@LangService.T("Click \"+ New Shareholder\" to add your first shareholder","Clique \"+ Novo Accionista\" para adicionar o primeiro")</div>
+            </div>
+        </NoRecordsContent>
+    </MudTable>
+
+    <!-- Pager below table so empty-state appears above it -->
+   
+
+    <!-- Navigation Buttons directly under the table -->
+    <div class="nav-actions" style="margin-top: 12px;">
+        <MudButton Class="nav-btn nav-btn--prev" Variant="Variant.Outlined" OnClick="@(()=>navigate.NavigateTo("Corporate_Generalinfo"))" StartIcon="@Icons.Material.Filled.ArrowBack">
+            @LangService.T("Previous","Anterior")
+        </MudButton>
+        <MudButton Class="nav-btn nav-btn--next" Variant="Variant.Filled" OnClick="@(()=>navigate.NavigateTo("PepPage"))" EndIcon="@Icons.Material.Filled.ArrowForward">
+            @LangService.T("Next: PEPs","Seguinte: PEPs")
+        </MudButton>
+    </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <aside class="sidebar-card">
+        <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:#283A79;margin-bottom:6px;">@LangService.T("Guidance","Orientação")</MudText>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Percent" /> @LangService.T("Ensure total allocation equals 100%.","Garanta que a distribuição total é 100%.")</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Badge" /> @LangService.T("Attach an ID document for each shareholder.","Anexe um documento de identificação para cada accionista.")</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.AssignmentInd" /> @LangService.T("Match names to legal documents.","Faça corresponder os nomes aos documentos legais.")</div>
+        <MudDivider Class="my-2" />
+        <MudText Typo="Typo.caption" Style="color:#64748b;">Summary</MudText>
+        <div class="guide-meta">
+            <div style="display:flex;justify-content:space-between;">
+                <span style="color:#475569;">Shareholders</span>
+                <strong>@shareholderDtos.Count</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span style="color:#475569;">Total % Allocated</span>
+                <strong style="color:@(TotalPercentage == 100 ? "#16a34a" : TotalPercentage > 100 ? "#dc2626" : "#1F3A7F")">@TotalPercentage%</strong>
+            </div>
+        </div>
+    </aside>
+    </div>
+
+
+    
+    </div>
+</div>
+
+<!-- Documents Modal -->
+<MudDialog @bind-IsVisible="showDocumentsModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Medium, DisableBackdropClick = true }">
+    <TitleContent>
+        <div class="modal-header-blue">
+            <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">@LangService.T("Required Documents for","Documentos Necessários para") @selectedShareholderForDocuments?.Name</MudText>
+            <MudText Typo="Typo.body2" Class="sub">@LangService.T("Upload required documents","Carregue os documentos necessários")</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudAlert Severity="Severity.Info" Style="margin-bottom: 20px;">
+            @LangService.T("Only PDF files are allowed - Resolution: 200dpi, Compression Type: Standard","Apenas ficheiros PDF são permitidos - Resolução: 200dpi, Compressão: Standard")
+        </MudAlert>
+
+        <MudTable Items="@requiredDocuments" Dense="true" Style="margin-bottom: 20px;">
+            <HeaderContent>
+                <MudTh Class="th-blue">@LangService.T("DOCUMENT","DOCUMENTO")</MudTh>
+                <MudTh Class="th-blue">@LangService.T("FILE","FICHEIRO")</MudTh>
+                <MudTh Class="th-blue">@LangService.T("ACTION","AÇÃO")</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="DOCUMENT">@context.DocumentName</MudTd>
+                <MudTd DataLabel="FILE">
+                    <span style="color: #999; font-size: 12px;">@(context.FileName ?? LangService.T("No file chosen","Nenhum ficheiro selecionado"))</span>
+                </MudTd>
+                <MudTd DataLabel="ACTION">
+                    <InputFile id="@($"file_{context.No}")" OnChange="@((InputFileChangeEventArgs e) => OnFileSelected(e, context))" accept=".pdf" style="display: none;" />
+                    <MudButton Class="btn-pill" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(async () => await ClickFileInput(context))">@LangService.T("Choose File","Escolher Ficheiro")</MudButton>
+                    @if (!string.IsNullOrEmpty(context.FileName))
+                    {
+                        <MudButton Class="btn-pill" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => UploadDocument(context))" StartIcon="@Icons.Material.Filled.CloudUpload">@LangService.T("Upload","Carregar")</MudButton>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(context.UploadedUrl))
+                    {
+                        <MudButton Class="btn-pill" Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => ViewUploadedDocument(context))" StartIcon="@Icons.Material.Filled.Visibility">@LangService.T("View","Ver")</MudButton>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDocumentsModal">@LangService.T("Close","Fechar")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<!-- Add/Edit Shareholder Modal -->
+<MudDialog @bind-IsVisible="showShareholderModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Small }">
+    <TitleContent>
+        <div class="modal-header-blue">
+            <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">@(isEditMode ? LangService.T("Edit Shareholder","Editar Accionista") : LangService.T("Add New Shareholder","Adicionar Novo Accionista"))</MudText>
+            <MudText Typo="Typo.body2" Class="sub">@(isEditMode ? LangService.T("Update shareholder information","Atualizar informações do accionista") : LangService.T("Add new shareholder into the system","Adicionar novo accionista ao sistema"))</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="shareholderForm" @bind-IsValid="@isShareholderFormValid">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.Surname" Label="@LangService.T("Surname","Apelido")" Placeholder="@LangService.T("Surname","Apelido")" Variant="Variant.Outlined" Required="true" RequiredError="Surname is required" />
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.FirstName" Label="@LangService.T("First Name","Nome")" Placeholder="@LangService.T("First Name","Nome")" Variant="Variant.Outlined" Required="true" RequiredError="First Name is required" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.OtherNames" Label="@LangService.T("Other Names","Outros Nomes")" Placeholder="@LangService.T("Other Names","Outros Nomes")" Variant="Variant.Outlined" />
+                <MudSelect Margin="Margin.Dense" Value="@currentShareholder.ShareholderType" ValueChanged="@((string value) => OnShareholderTypeChanged(value))" ValueExpression="@(()=> currentShareholder.ShareholderType)" Label="@LangService.T("Shareholder Type","Tipo de Accionista")" Variant="Variant.Outlined" Required="true" RequiredError="Type is required">
+                    <MudSelectItem Value="@("Individual")">Individual</MudSelectItem>
+                    <MudSelectItem Value="@("Company")">Company</MudSelectItem>
+                </MudSelect>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudSelect Margin="Margin.Dense" @bind-Value="currentShareholder.Role" Label="@LangService.T("Role","Função")" Variant="Variant.Outlined" Required="true" RequiredError="Role is required">
+                    <MudSelectItem Value="@("Director")">Director</MudSelectItem>
+                    <MudSelectItem Value="@("Manager")">Manager</MudSelectItem>
+                    <MudSelectItem Value="@("Owner")">Owner</MudSelectItem>
+                </MudSelect>
+                <MudAutocomplete  Margin="Margin.Dense" T="string" @bind-Value="currentShareholder.IdType" Label="@LangService.T("ID Type","Tipo de ID")" Placeholder="@LangService.T("Select ID Type","Selecionar Tipo de ID")" 
+                                SearchFunc="@SearchMeansOfIdentification" 
+                                Disabled="@string.IsNullOrWhiteSpace(currentShareholder?.ShareholderType)"
+                                Required="true" RequiredError="ID Type is required"
+                                Clearable="true" Variant="Variant.Outlined" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.NationalIdNo" Label="@LangService.T("National ID No","Nº de ID Nacional")" Placeholder="@LangService.T("National ID No","Nº de ID Nacional")" Variant="Variant.Outlined" Required="true" RequiredError="National ID is required" />
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.TaxIdentificationNo" Label="@LangService.T("Tax Identification No (NUIT)","Nº de Identificação Fiscal (NUIT)")" Placeholder="@LangService.T("Tax Identification No (NUIT)","Nº de Identificação Fiscal (NUIT)")" Variant="Variant.Outlined" HelperText="Exactly 9 digits" Required="true" RequiredError="NUIT is required" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.PhoneNo" Label="@LangService.T("Phone No","Telefone")" Placeholder="@LangService.T("Phone No","Telefone")" Variant="Variant.Outlined" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudTextField Margin="Margin.Dense" @bind-Value="currentShareholder.Email" Label="Email" Placeholder="Email" Variant="Variant.Outlined" Required="true" RequiredError="Email is required" />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px;">
+                <MudNumericField Margin="Margin.Dense" @bind-Value="currentShareholder.PercentageAllocation" Label="@LangService.T("Percentage Allocation","Percentagem Atribuída")" Placeholder="0" Variant="Variant.Outlined" Min="0" Max="100" Required="true" RequiredError="Percentage is required" />
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseShareholderModal">@LangService.T("Cancel","Cancelar")</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="SaveShareholder" Disabled="!isShareholderFormValid">
+            @(isEditMode ? LangService.T("Update Shareholder","Atualizar Accionista") : "+ " + LangService.T("Add Shareholder","Adicionar Accionista"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+
+    private List<ShareholderDto> shareholderDtos = new();
+    private string searchText = "";
+    private bool showShareholderModal = false;
+    private bool showDocumentsModal = false;
+    private bool isEditMode = false;
+    private bool isShareholderFormValid = false;
+    private Shareholder currentShareholder = new();
+    private MudForm shareholderForm;
+    private string successMessage = "";
+    private List<MeansOfIdentification> meansOfIdentificationList = new();
+    private string currentUserContactNo = "";
+    private ShareholderDto selectedShareholderForDocuments;
+    private List<RequiredDocument> requiredDocuments = new();
+    private List<string> uploadedDocuments = new();
+
+    private IEnumerable<ShareholderDto> FilteredShareholders =>
+        string.IsNullOrWhiteSpace(searchText)
+            ? shareholderDtos
+            : shareholderDtos.Where(s =>
+                (!string.IsNullOrEmpty(s.Name) && s.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(s.Means_of_Identification) && s.Means_of_Identification.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                s.Shareholder_Percent.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+    private decimal TotalPercentage => shareholderDtos.Sum(s => s.Shareholder_Percent);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Layout.OpenLoading();
+            // Get current user's Contact_No
+            await GetCurrentUserContactNo();
+            // Load shareholders from BC
+            await LoadShareholders();
+            // Load means of identification
+            await LoadMeansOfIdentification();
+        }
+        catch (Exception ex)
+        {
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender )
+        {
+            // Ensure spinner is closed after first render
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetCurrentUserContactNo()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(email))
+                {
+                    // Get user from database
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(email);
+                    if (dbUser != null)
+                    {
+                        currentUserContactNo = dbUser.Contact_No;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task ViewUploadedDocument(RequiredDocument document)
+    {
+        if (!string.IsNullOrWhiteSpace(document.UploadedUrl))
+        {
+            await JSRuntime.InvokeVoidAsync("open", document.UploadedUrl, "_blank");
+            return;
+        }
+
+        Snackbar.Add("No uploaded document link found. Please re-upload.", Severity.Warning);
+    }
+
+    private async Task LoadShareholders()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            if (!string.IsNullOrEmpty(currentUserContactNo))
+            {
+                shareholderDtos = await UnitOfWork.ShareholderService.GetShareholdersAsync(currentUserContactNo);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading shareholders: {ex.Message}", Severity.Error);
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task LoadMeansOfIdentification()
+    {
+        Layout.OpenLoading();
+        try
+        {
+            meansOfIdentificationList = await UnitOfWork.MeansOfIdentificationService.GetMeansOfIdentificationAsync();
+        }
+        catch (Exception ex)
+        {
+        }
+        Layout.CloseLoading();
+    }
+
+    private void OnShareholderTypeChanged(string value)
+    {
+        currentShareholder.ShareholderType = value;
+        // Clear previously selected ID Type when changing shareholder type
+        currentShareholder.IdType = null;
+        StateHasChanged();
+    }
+
+    private async Task<IEnumerable<string>> SearchMeansOfIdentification(string value)
+    {
+        IEnumerable<MeansOfIdentification> filtered = meansOfIdentificationList;
+
+        var type = currentShareholder?.ShareholderType;
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            if (type.Equals("Company", StringComparison.OrdinalIgnoreCase))
+            {
+                filtered = filtered.Where(x => string.Equals(x.AccountType, "Corporate", StringComparison.OrdinalIgnoreCase));
+            }
+            else if (type.Equals("Individual", StringComparison.OrdinalIgnoreCase))
+            {
+                filtered = filtered.Where(x => string.Equals(x.AccountType, "individual", StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        if (string.IsNullOrEmpty(value))
+            return filtered.Select(x => x.MeansOfId).ToList();
+
+        return filtered
+            .Where(x => x.MeansOfId.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.MeansOfId)
+            .ToList();
+    }
+
+    private void OpenAddShareholderModal()
+    {
+        isEditMode = false;
+        currentShareholder = new Shareholder();
+        showShareholderModal = true;
+    }
+
+    private void EditShareholder(ShareholderDto shareholder)
+    {
+        isEditMode = true;
+        currentShareholder = new Shareholder
+        {
+            No = shareholder.Shareholder_No.ToString(),
+            Surname = shareholder.Name.Split(' ').FirstOrDefault() ?? "",
+            FirstName = shareholder.Name.Split(' ').Skip(1).FirstOrDefault() ?? "",
+            IdType = shareholder.Means_of_Identification,
+            PercentageAllocation = shareholder.Shareholder_Percent
+        };
+        showShareholderModal = true;
+    }
+
+    private void OpenDocumentsModal(ShareholderDto shareholder)
+    {
+        selectedShareholderForDocuments = shareholder;
+
+        // Initialize with one empty document slot for upload
+        requiredDocuments = new List<RequiredDocument>
+        {
+            new RequiredDocument 
+            { 
+                No = 1, 
+                DocumentName = shareholder.Means_of_Identification,
+                IsUploaded = false
+            }
+        };
+
+        showDocumentsModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDocumentsModal()
+    {
+        showDocumentsModal = false;
+        selectedShareholderForDocuments = null;
+        requiredDocuments = new List<RequiredDocument>();
+        uploadedDocuments = new List<string>();
+        StateHasChanged();
+    }
+
+    private async Task ClickFileInput(RequiredDocument document)
+    {
+        var fileInputId = $"file_{document.No}";
+        await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{fileInputId}').click();");
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e, RequiredDocument document)
+    {
+        try
+        {
+            var file = e.GetMultipleFiles().FirstOrDefault();
+            if (file != null)
+            {
+                // Validate file type
+                if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    Snackbar.Add("Only PDF files are allowed", Severity.Error);
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.Size > 5 * 1024 * 1024)
+                {
+                    Snackbar.Add("File size must not exceed 5MB", Severity.Error);
+                    return;
+                }
+
+                document.FileName = file.Name;
+                document.FileData = await ReadFileAsync(file);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error selecting file: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<byte[]> ReadFileAsync(IBrowserFile file)
+    {
+        using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();
+    }
+
+    private async Task UploadDocument(RequiredDocument document)
+    {
+        Layout.OpenLoading();
+        if (document.FileData == null || document.FileData.Length == 0)
+        {
+            Snackbar.Add("Please select a file first", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            Layout.OpenLoading();
+
+            // Get shareholder number from selected shareholder
+            var shareholderNo = selectedShareholderForDocuments.Shareholder_No;
+
+            var spDocCode = $"SH_{shareholderNo}_DOC022";
+            var url = await SharePointDocuments.UploadKycDocumentAsync(
+                "Shareholders",
+                currentUserContactNo,
+                spDocCode,
+                document.FileData,
+                document.FileName
+            );
+
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                document.UploadedUrl = url;
+                KycUploadContext.CorporateDocumentUrlsByCode[spDocCode] = url;
+            }
+
+            // Mark as uploaded
+            document.IsUploaded = true;
+            document.UploadedFileName = document.FileName;
+            document.FileData = null;
+            document.FileName = null;
+
+            Snackbar.Add($"Document uploaded successfully!", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error uploading document: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task SaveShareholder()
+    {
+        Layout.OpenLoading();
+        await shareholderForm.Validate();
+        if (shareholderForm.IsValid)
+        {
+            try
+            {
+                // Show loading spinner
+
+                var shareholderDto = new ShareholderDto
+                {
+                    Insured_No = currentUserContactNo,
+                    Name = $"{currentShareholder.Surname} {currentShareholder.FirstName}".Trim(),
+                    Shareholder_Percent = currentShareholder.PercentageAllocation,
+                    Means_of_Identification = currentShareholder.IdType
+                };
+
+                if (isEditMode)
+                {
+                    shareholderDto.Shareholder_No = int.Parse(currentShareholder.No);
+                    await UnitOfWork.ShareholderService.UpdateShareholderAsync(shareholderDto);
+                    successMessage = "Shareholder updated successfully!";
+                }
+                else
+                {
+                    await UnitOfWork.ShareholderService.CreateShareholderAsync(shareholderDto);
+                    successMessage = "Shareholder added successfully!";
+                }
+
+                showShareholderModal = false;
+                currentShareholder = new();
+                await LoadShareholders();
+
+                // Hide loading spinner
+
+                StateHasChanged();
+
+                // Clear success message after 3 seconds
+                await Task.Delay(3000);
+                successMessage = "";
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                // Hide loading spinner on error
+
+                Snackbar.Add($"Error saving shareholder: {ex.Message}", Severity.Error);
+            }
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task DeleteShareholder(ShareholderDto shareholder)
+    {
+        Layout.OpenLoading();
+        try
+        {
+            await UnitOfWork.ShareholderService.DeleteShareholderAsync(shareholder.Shareholder_No, shareholder.Insured_No);
+            successMessage = "Shareholder deleted successfully!";
+            await LoadShareholders();
+            StateHasChanged();
+
+            await Task.Delay(3000);
+            successMessage = "";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting shareholder: {ex.Message}", Severity.Error);
+        }
+        Layout.CloseLoading();
+    }
+
+    private void CloseShareholderModal()
+    {
+        showShareholderModal = false;
+        currentShareholder = new();
+    }
+
+    public class Shareholder
+    {
+        public string No { get; set; }
+        public string Surname { get; set; }
+        public string FirstName { get; set; }
+        public string OtherNames { get; set; }
+        public string ShareholderType { get; set; }
+        public string Role { get; set; }
+        public string IdType { get; set; }
+        public string NationalIdNo { get; set; }
+        public string TaxIdentificationNo { get; set; }
+        public string PhoneNo { get; set; }
+        public string Email { get; set; }
+        public decimal PercentageAllocation { get; set; }
+        public string Name => $"{Surname} {FirstName}".Trim();
+    }
+
+    public class RequiredDocument
+    {
+        public int No { get; set; }
+        public string DocumentName { get; set; }
+        public string FileName { get; set; }
+        public byte[] FileData { get; set; }
+        public bool IsUploaded { get; set; } = false;
+        public string UploadedFileName { get; set; }
+        public string UploadedUrl { get; set; }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpperInvariant();
+        var first = parts[0][0];
+        var last = parts[^1][0];
+        return ($"{first}{last}").ToUpperInvariant();
+    }
+}

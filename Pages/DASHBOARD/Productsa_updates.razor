@@ -1,0 +1,401 @@
+@page "/Productsa_updates"
+@attribute [Authorize]
+@using MudBlazor
+@using MOZ_UPGRADE.Models
+@using System.Linq
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+
+<style>
+    .policies-page { padding: 20px; }
+    .policies-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+    .policy-card { background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%); border-radius: 16px; border: 1px solid rgba(229, 229, 231, 0.6); overflow: hidden; transition: transform .25s ease, box-shadow .25s ease; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03); display: flex; flex-direction: column; height: 100%; }
+    .policy-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06); }
+    .policy-card:active { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.10); }
+    .policy-card:focus-within { box-shadow: 0 0 0 3px rgba(46, 80, 144, 0.15), 0 4px 12px rgba(0,0,0,.06); }
+    .policy-card-header { background: linear-gradient(135deg, #2E5090 0%, #1F3A7F 100%); padding: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .policy-number { display: flex; flex-direction: column; gap: 4px; }
+    .policy-value { font-size: 16px; font-weight: 700; color: white; }
+    .policy-badge { font-size: 32px; }
+    .policy-card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .policy-field { display: flex; align-items: center; gap: 8px; padding: 8px; background: linear-gradient(135deg, rgba(46, 80, 144, 0.05) 0%, rgba(31, 58, 127, 0.03) 100%); border-radius: 10px; border: 1px solid rgba(46, 80, 144, 0.08); }
+    .field-icon { font-size: 20px; min-width: 24px; }
+    .field-label { font-size: 9px; font-weight: 700; color: #999; text-transform: uppercase; letter-spacing: 0.4px; }
+    .field-value { font-size: 13px; font-weight: 600; color: #2E5090; }
+    .products-hero { position: relative; overflow: hidden; border-radius: 18px; padding: 20px 24px; margin-bottom: 16px; background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%); border: 1px solid #e5e7eb; }
+    .hero-title { display:flex; align-items:center; gap:8px; font-size: 18px; font-weight: 700; color: #1f2937; }
+    .hero-sub { margin-top: 4px; color: #6b7280; font-size: 13px; max-width: 720px; }
+    .hero-badge { display:inline-flex; align-items:center; gap:6px; background:#fff; color:#2E5090; padding:4px 10px; border:1px solid #eaeefb; border-radius:999px; font-weight:600; font-size:11px; }
+</style>
+
+<div class="policies-page">
+    <div class="products-hero">
+        <div class="hero-badge">🛡️ @LangService.T("Product Updates","Atualizações de Produtos")</div>
+        <div class="hero-title">@LangService.T("Explore Available Plans","Explorar Planos Disponíveis")</div>
+        <div class="hero-sub">
+            @LangService.T(
+                "Filter plans by insurer and product class to quickly find what you need.",
+                "Filtre os planos por seguradora e classe de produto para encontrar rapidamente o que precisa.")
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div style="display:flex; align-items:center; justify-content:center; height:calc(100vh - 220px);">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+
+    <MudPaper Class="pa-3 mb-3" Elevation="0" Style="background:transparent; box-shadow:none;">
+        <MudGrid GutterSize="3">
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.caption" Class="mb-1" Color="Color.Secondary">@LangService.T("Filter by Insurer","Filtrar por Seguradora")</MudText>
+                <MudSelect @bind-Value="filterInsurer" Placeholder='@LangService.T("All insurers","Todas as seguradoras")' AnchorOrigin="Origin.BottomCenter" @onchange="OnFiltersChanged">
+                    <MudSelectItem Value="@string.Empty">@LangService.T("All insurers","Todas as seguradoras")</MudSelectItem>
+                    @foreach (var name in insurerOptions)
+                    {
+                        <MudSelectItem Value="@name">@name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.caption" Class="mb-1" Color="Color.Secondary">@LangService.T("Filter by Product Class","Filtrar por Classe de Produto")</MudText>
+                <MudSelect @bind-Value="filterProductClass" Placeholder='@LangService.T("All classes","Todas as classes")' AnchorOrigin="Origin.BottomCenter" @onchange="OnFiltersChanged">
+                    <MudSelectItem Value="@string.Empty">@LangService.T("All classes","Todas as classes")</MudSelectItem>
+                    @foreach (var name in productClassOptions)
+                    {
+                        <MudSelectItem Value="@name">@name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4" Style="display:flex; align-items:flex-end; justify-content:flex-end; gap:12px;">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Search" OnClick="ApplyFilters">
+                    @LangService.T("Filter","Filtrar")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ClearFilters">
+                    @LangService.T("Clear","Limpar")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid GutterSize="3" Class="mt-1">
+            <MudItem xs="12" md="12" Style="display:flex; align-items:flex-end; justify-content:flex-end;">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @string.Format(LangService.T("Showing {0} of {1} plans","A mostrar {0} de {1} planos"), filteredPlans?.Count ?? 0, plans?.Count ?? 0)
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="1">
+    @if (filteredPlans == null || filteredPlans.Count == 0)
+    {
+        <div style="text-align:center; padding:40px 0;">
+            <MudText Typo="Typo.h6" Color="Color.Secondary">@LangService.T("No product updates found.","Nenhuma atualização de produto encontrada.")</MudText>
+        </div>
+    }
+    else
+    {
+        <div class="policies-cards-grid">
+            @foreach (var plan in filteredPlans)
+            {
+                <div class="policy-card">
+                    <div class="policy-card-header">
+                        <div class="policy-number">
+                            <span class="policy-value">@plan.Short_Name</span>
+                                <span style="font-size:11px; color:#e5e7eb;">@plan.Description</span>
+                        </div>
+                        <div class="policy-badge">🛡️</div>
+                    </div>
+                    <div class="policy-card-body">
+                        <div class="policy-field">
+                            <span class="field-icon">🏢</span>
+                            <div class="field-content">
+                                <span class="field-label">@LangService.T("Insurer","Seguradora")</span>
+                                <span class="field-value Text-Capitalized" style="font-size:x-small">@GetInsurerName(plan.Underwriter_Code, plan.Class)</span>
+                            </div>
+                        </div>
+                        <div class="policy-field">
+                            <span class="field-icon">📦</span>
+                            <div class="field-content">
+                                <span class="field-label">@LangService.T("Product Class","Classe de Produto")</span>
+                                    <span class="field-value" style="font-size:x-small">@GetProductClassName(plan.Underwriter_Code, plan.Class)</span>
+                            </div>
+                        </div>
+                        <div class="policy-field">
+                            <span class="field-icon">📝</span>
+                            <div class="field-content">
+                                <span class="field-label">@LangService.T("Description","Descrição")</span>
+                                    <span class="field-value" style="font-size:x-small">@plan.Description</span>
+                            </div>
+                        </div>
+                        <div class="policy-field">
+                            <span class="field-icon">💰</span>
+                            <div class="field-content">
+                                <span class="field-label">@LangService.T("Premium","Prémio")</span>
+                                <span class="field-value" style="font-size:x-small">@(string.IsNullOrWhiteSpace(plan.Premium_Calculation) ? "0" : plan.Premium_Calculation.Trim())</span>
+                            </div>
+                        </div>
+                        <div style="margin-top:4px; display:flex; justify-content:flex-end;">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="(() => OnGetQuote(plan))">
+                                @LangService.T("Get Quote","Obter Cotação")
+                            </MudButton>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    </MudPaper>
+    }
+</div>
+
+@code {
+    private List<PlanViewModel> plans;
+    private List<PlanViewModel> filteredPlans = new();
+    private bool isLoading = true;
+    private readonly Dictionary<string, (string insurerName, string productClassName)> metaByKey = new();
+    private readonly Dictionary<string, string> insurerByCode = new();
+    private readonly Dictionary<string, string> productClassByCode = new();
+    private string filterInsurer = string.Empty;
+    private string filterProductClass = string.Empty;
+    private List<string> insurerOptions = new();
+    private List<string> productClassOptions = new();
+    private string searchText = string.Empty;
+    private string sortOption = "premium_desc";
+
+    private string SearchText
+    {
+        get => searchText;
+        set
+        {
+            searchText = value ?? string.Empty;
+            ApplyFilters();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        try
+        {
+            // Fetch everything in parallel to reduce overall load time
+            var policiesTask = UnitOfWork.UnderwriterPolicyService.GetUnderwriterPoliciesAsync();
+            var insurersTask = UnitOfWork.UnderwriterPolicyService.GetInsurersAsync();
+            var productClassesTask = UnitOfWork.UnderwriterPolicyService.GetProductClassesAsync();
+            var plansTask = UnitOfWork.PlanService.GetAllPlansAsync();
+
+            await Task.WhenAll(policiesTask, insurersTask, productClassesTask, plansTask);
+
+            var policies = policiesTask.Result;
+            var insurers = insurersTask.Result;
+            var productClasses = productClassesTask.Result;
+
+            BuildMetaLookup(policies);
+            BuildInsurerLookup(insurers);
+            BuildProductClassLookup(productClasses);
+
+            plans = plansTask.Result?.ToList() ?? new List<PlanViewModel>();
+            filteredPlans = new List<PlanViewModel>(plans);
+            BuildFilterOptions();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add(LangService.T("Error loading product updates.","Erro ao carregar atualizações de produtos."), Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuildMetaLookup(IEnumerable<UnderwriterPolicyViewModel> source)
+    {
+        if (source == null) return;
+
+        metaByKey.Clear();
+        foreach (var p in source.Where(p => !string.IsNullOrWhiteSpace(p.Insurer) && !string.IsNullOrWhiteSpace(p.Plans)))
+        {
+            var key = MakeKey(p.Insurer, p.Plans);
+            if (!metaByKey.ContainsKey(key))
+            {
+                metaByKey[key] = (p.InsurerName, p.ProductClassName);
+            }
+        }
+    }
+
+    private void BuildInsurerLookup(IEnumerable<InsurerList> insurers)
+    {
+        insurerByCode.Clear();
+        if (insurers == null)
+            return;
+
+        foreach (var ins in insurers)
+        {
+            if (!string.IsNullOrWhiteSpace(ins.No) && !insurerByCode.ContainsKey(ins.No))
+            {
+                insurerByCode[ins.No] = ins.Name;
+            }
+        }
+    }
+
+    private void BuildProductClassLookup(IEnumerable<ProductClass> productClasses)
+    {
+        productClassByCode.Clear();
+        if (productClasses == null)
+            return;
+
+        foreach (var pc in productClasses)
+        {
+            if (!string.IsNullOrWhiteSpace(pc.ProductClassNo) && !productClassByCode.ContainsKey(pc.ProductClassNo))
+            {
+                productClassByCode[pc.ProductClassNo] = pc.Name;
+            }
+        }
+    }
+
+    private void BuildFilterOptions()
+    {
+        insurerOptions = insurerByCode.Values
+            .Where(name => !string.IsNullOrWhiteSpace(name) && !string.Equals(name, "N/A", StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        productClassOptions = productClassByCode.Values
+            .Where(name => !string.IsNullOrWhiteSpace(name) && !string.Equals(name, "N/A", StringComparison.OrdinalIgnoreCase))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+    }
+
+    private void OnFiltersChanged(ChangeEventArgs _)
+    {
+        ApplyFilters();
+    }
+
+    private void ClearFilters()
+    {
+        filterInsurer = string.Empty;
+        filterProductClass = string.Empty;
+        searchText = string.Empty;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        if (plans == null)
+        {
+            filteredPlans = new List<PlanViewModel>();
+            return;
+        }
+
+        var query = plans.Where(p =>
+        {
+            var insurerName = GetInsurerName(p.Underwriter_Code, p.Class);
+            var className = GetProductClassName(p.Underwriter_Code, p.Class);
+
+            // Skip plans that effectively have no data
+            var hasNoData =
+                (string.IsNullOrWhiteSpace(insurerName) || string.Equals(insurerName, "N/A", StringComparison.OrdinalIgnoreCase)) &&
+                string.IsNullOrWhiteSpace(className) &&
+                string.IsNullOrWhiteSpace(p.Description) &&
+                p.Premium_Rate == 0;
+
+            if (hasNoData)
+                return false;
+
+            var insurerMatch = string.IsNullOrEmpty(filterInsurer) || string.Equals(insurerName, filterInsurer, StringComparison.OrdinalIgnoreCase);
+            var classMatch = string.IsNullOrEmpty(filterProductClass) || string.Equals(className, filterProductClass, StringComparison.OrdinalIgnoreCase);
+
+            return insurerMatch && classMatch;
+        });
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var term = searchText.Trim();
+            query = query.Where(p =>
+            {
+                var insurerName = GetInsurerName(p.Underwriter_Code, p.Class) ?? string.Empty;
+                var className = GetProductClassName(p.Underwriter_Code, p.Class) ?? string.Empty;
+                var shortName = p.Short_Name ?? string.Empty;
+                var desc = p.Description ?? string.Empty;
+
+                return insurerName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || className.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || shortName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                    || desc.Contains(term, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        query = sortOption switch
+        {
+            "premium_asc" => query.OrderBy(p => p.Premium_Rate),
+            "name_asc" => query.OrderBy(p => p.Short_Name),
+            "name_desc" => query.OrderBy(p => p.Short_Name),
+            _ => query.OrderBy(p => p.Premium_Rate)
+        };
+
+        filteredPlans = query.ToList();
+    }
+
+    private string GetInsurerName(string insurerCode, string planClass)
+    {
+        if (!string.IsNullOrWhiteSpace(insurerCode) &&
+            insurerByCode.TryGetValue(insurerCode, out var directName) &&
+            !string.IsNullOrWhiteSpace(directName))
+        {
+            return directName;
+        }
+
+        var key = MakeKey(insurerCode, planClass);
+        if (metaByKey.TryGetValue(key, out var meta) && !string.IsNullOrWhiteSpace(meta.insurerName))
+            return meta.insurerName;
+
+        return "N/A";
+    }
+
+    private string GetProductClassName(string insurerCode, string planClass)
+    {
+        if (!string.IsNullOrWhiteSpace(planClass) &&
+            productClassByCode.TryGetValue(planClass, out var directName) &&
+            !string.IsNullOrWhiteSpace(directName))
+        {
+            return directName;
+        }
+
+        var key = MakeKey(insurerCode, planClass);
+        if (metaByKey.TryGetValue(key, out var meta) && !string.IsNullOrWhiteSpace(meta.productClassName))
+            return meta.productClassName;
+
+        return planClass;
+    }
+
+    private string MakeKey(string insurer, string planClass) => $"{insurer}::{planClass}";
+
+    private void OnGetQuote(PlanViewModel plan)
+    {
+        if (plan == null)
+            return;
+
+        var planNo = string.IsNullOrWhiteSpace(plan.Undewriter_Product_Nos) ? "" : Uri.EscapeDataString(plan.Undewriter_Product_Nos);
+        var underwriter = string.IsNullOrWhiteSpace(plan.Underwriter_Code) ? "" : Uri.EscapeDataString(plan.Underwriter_Code);
+        var planClass = string.IsNullOrWhiteSpace(plan.Class) ? "" : Uri.EscapeDataString(plan.Class);
+        var desc = string.IsNullOrWhiteSpace(plan.Description) ? "" : Uri.EscapeDataString(plan.Description);
+        var schedule = string.IsNullOrWhiteSpace(plan.Schedule_Line) ? "" : Uri.EscapeDataString(plan.Schedule_Line);
+        var premium = plan.Premium_Rate;
+
+        var url = $"/risk-listing/{planNo}/{underwriter}/{planClass}/{desc}/{premium}/{schedule}";
+        NavigationManager.NavigateTo(url);
+    }
+}

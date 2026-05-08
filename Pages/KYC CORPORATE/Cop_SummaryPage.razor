@@ -1,0 +1,711 @@
+@page "/Cop_SummaryPage"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Utils
+@inject IUnitOfWork UnitOfWork
+@inject IEmailService EmailService
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JSRuntime
+@inject MOZ_UPGRADE.Services.KycUploadContext KycUploadContext
+
+<style>
+    * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif; }
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --blue-100: #e8edf9;
+        --surface: #ffffff;
+        --border: rgba(148,163,184,.20);
+    }
+
+    .summary-container { min-height: 100vh; background: var(--surface); padding: 14px; }
+
+    .summary-header {
+        background: linear-gradient(135deg, var(--blue-800), var(--blue-700));
+        color:#fff; padding: 12px 14px; margin-bottom: 12px; border-radius: 12px;
+        box-shadow: 0 20px 40px -24px rgba(15,70,150,.30); backdrop-filter: saturate(140%) blur(6px);
+    }
+
+    .summary-header h1 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: .2px; }
+    .summary-header p { margin: 4px 0 0 0; font-size: .9rem; opacity: .95; color: #eef2ff; }
+
+    .section-card { background: rgba(255,255,255,.92); border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-bottom: 10px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); transition: all 0.3s ease; }
+
+    .section-card:active {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        transform: scale(0.99);
+    }
+
+    .section-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; padding-bottom:6px; border-bottom: 1px solid var(--blue-100); }
+    .edit-btn { margin-left:auto; border-radius:9999px; height:28px; padding:0 12px; font-weight:700; box-shadow:0 4px 10px rgba(31,58,127,.12); }
+
+    .section-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #000;
+        letter-spacing: -0.3px;
+    }
+
+    .section-icon { width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); border-radius: 10px; color: #fff; font-size: 16px; }
+
+    .corporate-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .info-item { background: #f8fafc; padding: 10px; border-radius: 10px; transition: all 0.2s ease; border: 1px solid rgba(148,163,184,.18); }
+
+    .info-item:active {
+        background: #e8e8ed;
+    }
+
+    .info-label {
+        font-size: 10px;
+        color: #86868b;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        margin-bottom: 4px;
+    }
+
+    .info-value {
+        font-size: 13px;
+        color: #000;
+        font-weight: 600;
+        word-break: break-word;
+    }
+
+    .shareholders-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .shareholder-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f5f5f7 100%);
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        transition: all 0.2s ease;
+        border: 1px solid #e5e5ea;
+    }
+
+    .shareholder-card:active {
+        transform: scale(0.98);
+        background: linear-gradient(135deg, #f5f5f7 0%, #ebebf0 100%);
+    }
+
+    .avatar-large {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 8px;
+        font-size: 20px;
+    }
+
+    .shareholder-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #000;
+        margin-bottom: 6px;
+        word-break: break-word;
+    }
+
+    .ownership-badge {
+        display: inline-block;
+        background: #0071e3;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .id-type {
+        font-size: 11px;
+        color: #86868b;
+    }
+
+    .pep-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .pep-card {
+        background: linear-gradient(135deg, #fff5f0 0%, #ffe8e0 100%);
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        transition: all 0.2s ease;
+        border: 1px solid #ffd9cc;
+    }
+
+    .pep-card:active {
+        transform: scale(0.98);
+        background: linear-gradient(135deg, #ffe8e0 0%, #ffd9cc 100%);
+    }
+
+    .pep-avatar {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 8px;
+        font-size: 20px;
+    }
+
+    .pep-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #000;
+        margin-bottom: 6px;
+        word-break: break-word;
+    }
+
+    .pep-office {
+        font-size: 11px;
+        color: #555;
+        margin-bottom: 6px;
+        font-weight: 600;
+    }
+
+    .pep-relationship {
+        font-size: 10px;
+        color: #666;
+        background: rgba(255, 255, 255, 0.8);
+        padding: 4px 8px;
+        border-radius: 10px;
+        display: inline-block;
+    }
+
+    .documents-section {
+        text-align: center;
+        padding: 20px 12px;
+    }
+
+    .documents-icon {
+        font-size: 40px;
+        margin-bottom: 8px;
+        opacity: 0.6;
+    }
+
+    .consent-section {
+        background: #f5f5f7;
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    .consent-item { display:flex; align-items:flex-start; gap:8px; margin-bottom:10px; padding:8px; background:#fff; border-radius:10px; transition: all 0.2s ease; }
+
+    .consent-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .consent-item:active {
+        background: #f5f5f7;
+    }
+
+    .consent-label {
+        font-size: 12px;
+        color: #000;
+        line-height: 1.4;
+        font-weight: 500;
+    }
+
+    .action-bar { background: rgba(255,255,255,.92); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-top: 12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .nav-actions { display:flex; gap:8px; justify-content: space-between; }
+    .nav-btn { border-radius:9999px; padding:8px 14px; font-weight:700; }
+    .nav-btn--prev { background:transparent; border:1px solid var(--blue-600); color:var(--blue-800); box-shadow:0 4px 10px rgba(31,58,127,.12); }
+    .nav-btn--prev:hover { background: var(--blue-100); }
+    .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; box-shadow:0 8px 18px rgba(31,58,127,.25); }
+    .nav-btn--submit { background: linear-gradient(135deg, #059669, #10b981); color:#fff; box-shadow: 0 8px 18px rgba(5,150,105,.25); }
+
+    .content-grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; align-items:start; }
+    .sidebar-card { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius: 12px; padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .sidebar-title { font-weight:700; color: var(--blue-700); margin-bottom:8px; }
+    .guide-item { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:#475569; font-size:.9rem; }
+    .guide-icon { color:#283A79; }
+    .sidebar-row { display:flex; justify-content:space-between; margin-bottom:6px; color:#475569; }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .empty-state-icon {
+        font-size: 32px;
+        margin-bottom: 8px;
+        opacity: 0.6;
+    }
+
+    .th-blue { background-color: var(--blue-800) !important; color:#fff !important; font-weight:700; }
+
+    @@media (max-width: 600px) {
+        .summary-container { padding:12px; }
+        .content-grid { grid-template-columns: 1fr; }
+        .nav-actions { flex-direction: column; }
+        .nav-actions > * { width: 100%; }
+    }
+</style>
+
+<div class="summary-container">
+
+    <div class="summary-header">
+        <h1>📋 KYC Summary</h1>
+        <p>Review all information before final submission</p>
+    </div>
+
+    <StepIndicator CurrentStep="5" />
+
+    <div class="content-grid">
+    <div>
+    <!-- Corporate Information Section -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-icon">
+                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Medium" />
+            </div>
+            <h3>Corporate Information</h3>
+            <MudButton Class="edit-btn" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(()=>navigate.NavigateTo("Corporate_Generalinfo"))">Edit</MudButton>
+        </div>
+
+        @if (company != null)
+        {
+            <div>status :@company.Approval_Status</div>
+            <div class="corporate-grid">
+                <div class="info-item">
+                    <div class="info-label">Company Name</div>
+                    <div class="info-value">@company.Name</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Registration Number</div>
+                    <div class="info-value">@company.No</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">NUIT</div>
+                    <div class="info-value">@(!string.IsNullOrEmpty(company.BVN_No) ? company.BVN_No : company.Tax_ID)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Incorporation Date</div>
+                    <div class="info-value">@company.Date_of_Incorporation</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Contact Email</div>
+                    <div class="info-value">@company.E_Mail</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Contact Phone</div>
+                    <div class="info-value">@company.Phone_No</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Nationality</div>
+                    <div class="info-value">@company.Country_Region_Code</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Sector</div>
+                            <div class="info-value">@company.Sector_Description</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Registered Address</div>
+                    <div class="info-value">@company.Address</div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Shareholders Section -->
+    @if (shareholders != null && shareholders.Count > 0)
+    {
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Medium" />
+                </div>
+                <h3>Shareholders (@shareholders.Count)</h3>
+                <MudButton Class="edit-btn" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(()=>navigate.NavigateTo("ShareHoldersPage"))">Edit</MudButton>
+            </div>
+
+            <MudTable Items="@shareholders" Hover="true" Striped="true" Dense="true" Style="background-color: transparent;">
+                <HeaderContent>
+                    <MudTh Class="th-blue">Name</MudTh>
+                    <MudTh Class="th-blue">Ownership %</MudTh>
+                    <MudTh Class="th-blue">Means of Identification</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @{
+                        var shName = (string)@context.Name ?? "";
+                        var shPercent = (int)@context.Shareholder_Percent;
+                        var shIdType = (string)@context.Means_of_Identification ?? "";
+                    }
+                    <MudTd DataLabel="Name">@shName</MudTd>
+                    <MudTd DataLabel="Ownership %">
+                        <MudChip Size="Size.Small" Color="Color.Primary">@shPercent%</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Means of Identification">@shIdType</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+    }
+
+    <!-- PEP Section -->
+    @if (peps != null && peps.Count > 0)
+    {
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.Security" Size="Size.Medium" />
+                </div>
+                <h3>Politically Exposed Persons (@peps.Count)</h3>
+                <MudButton Class="edit-btn" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(()=>navigate.NavigateTo("PepPage"))">Edit</MudButton>
+            </div>
+
+            <MudTable Items="@peps" Hover="true" Striped="true" Dense="true" Style="background-color: transparent;">
+                <HeaderContent>
+                    <MudTh Class="th-blue">Name</MudTh>
+                    <MudTh Class="th-blue">Office Held</MudTh>
+                    <MudTh Class="th-blue">Relationship</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @{
+                        var pepName = (string)@context.Name ?? "";
+                        var pepOffice = (string)@context.Office_Held ?? "";
+                        var pepRelationship = (string)@context.Relationship ?? "";
+                    }
+                    <MudTd DataLabel="Name">@pepName</MudTd>
+                    <MudTd DataLabel="Office Held">@pepOffice</MudTd>
+                    <MudTd DataLabel="Relationship">@pepRelationship</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+    }
+
+    <!-- Uploaded Documents Section -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-icon">
+                <MudIcon Icon="@Icons.Material.Filled.FilePresent" Size="Size.Medium" />
+            </div>
+            <h3>Uploaded Documents</h3>
+            <MudButton Class="edit-btn" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(()=>navigate.NavigateTo("GeneralDocumemtsPage"))">Edit</MudButton>
+        </div>
+
+        @if (UploadedCorporateDocuments.Count == 0)
+        {
+            <div class="documents-section">
+                <div class="empty-state-icon">📄</div>
+                <p style="color: #999; margin: 0;">No uploaded documents found in this session.</p>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@UploadedCorporateDocuments" Hover="true" Striped="true" Dense="true" Style="background-color: transparent;">
+                <HeaderContent>
+                    <MudTh Class="th-blue">Document</MudTh>
+                    <MudTh Class="th-blue">Code</MudTh>
+                    <MudTh Class="th-blue">Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Document">@context.Name</MudTd>
+                    <MudTd DataLabel="Code">@context.Code</MudTd>
+                    <MudTd DataLabel="Action">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => ViewCorporateDocument(context.Code))">View</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </div>
+
+    <!-- Declaration & Consent Section -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-icon">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Medium" />
+            </div>
+            <h3>Declaration & Consent</h3>
+        </div>
+
+        <div class="consent-section">
+            <div class="consent-item">
+                <MudCheckBox @bind-Checked="@consent1" />
+                <span class="consent-label">I consent to the collection, processing, and storage of my personal data in accordance with applicable data protection laws and regulations.</span>
+            </div>
+            <div class="consent-item">
+                <MudCheckBox @bind-Checked="@consent2" />
+                <span class="consent-label">I confirm that all information provided is true, accurate, and complete to the best of my knowledge.</span>
+            </div>
+            <div class="consent-item">
+                <MudCheckBox @bind-Checked="@consent3" />
+                <span class="consent-label">I understand that providing false information may result in the rejection of this application or termination of services.</span>
+            </div>
+            <div class="consent-item">
+                <MudCheckBox @bind-Checked="@consent4" />
+                <span class="consent-label">I agree to receive marketing communications and updates (optional).</span>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Right Sidebar Guidance -->
+    <aside class="sidebar-card">
+        <div class="sidebar-title">Guidance</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.VerifiedUser" /> Ensure declarations are all checked.</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.PictureAsPdf" /> Verify required documents are uploaded.</div>
+        <div class="guide-item"><MudIcon Class="guide-icon" Icon="@Icons.Material.Filled.Rule" /> Review shareholders and PEPs info.</div>
+        <MudDivider Class="my-2" />
+        <div class="sidebar-title">Summary</div>
+        <div class="sidebar-row"><span>Shareholders</span><strong>@shareholders.Count</strong></div>
+        <div class="sidebar-row"><span>PEPs</span><strong>@peps.Count</strong></div>
+        <div class="sidebar-row"><span>Consents Checked</span><strong>@(AllConsentsChecked ? "✓" : "—")</strong></div>
+    </aside>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-bar">
+        <div class="nav-actions">
+            <MudButton Class="nav-btn nav-btn--prev" Variant="Variant.Outlined" OnClick="@(()=>navigate.NavigateTo("GeneralDocumemtsPage"))" StartIcon="@Icons.Material.Filled.ArrowBack">Back to Edit</MudButton>
+            <MudButton Class="nav-btn nav-btn--submit" Variant="Variant.Filled" OnClick="@SubmitForm" Disabled="@(!AllConsentsChecked)" EndIcon="@Icons.Material.Filled.CheckCircle">Submit KYC Application</MudButton>
+        </div>
+    </div>
+</div>
+
+@code {
+
+
+
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+
+
+
+    private CorporateKyc? company;
+    private List<dynamic> shareholders = new();
+    private List<dynamic> peps = new();
+
+    private bool consent1 = false;
+    private bool consent2 = false;
+    private bool consent3 = false;
+    private bool consent4 = false;
+
+    private bool AllConsentsChecked => consent1 && consent2 && consent3;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+
+
+
+            Layout.OpenLoading();
+
+            var current = await UnitOfWork.Get_LoggedIn_User.UserId();
+
+            Users users = await UnitOfWork.userRepository.GetById(current);
+
+            if (users != null)
+ {
+                // Load company data from BC Contact Card
+
+  await LoadCompanyData(users.Contact_No);
+
+ // Load shareholders and PEPs from BC
+ await LoadShareholdersAndPeps(users.Contact_No);
+
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading summary: {ex.Message}", Severity.Error);
+
+        }
+        Layout.CloseLoading();
+
+    }
+
+    private async Task LoadCompanyData(string contactNo)
+    {
+        Layout.OpenLoading();
+        try
+        {
+            // Load company data from BC Contact Card where No = contactNo
+            var contactService = UnitOfWork.CorporateContactCardService;
+            var contact = await contactService.GetContactCardAsync(contactNo);
+            
+            if (contact != null)
+            {
+                company = contact;
+            }
+            else
+            {
+                company = new CorporateKyc();
+            }
+        }
+        catch (Exception ex)
+        {
+            company = new CorporateKyc();
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task LoadShareholdersAndPeps(string contactNo)
+    {
+        Layout.OpenLoading();
+        try
+        {
+            // Load shareholders
+            var shareholderService = UnitOfWork.ShareholderService;
+            shareholders = (await shareholderService.GetShareholdersAsync(contactNo)).Cast<dynamic>().ToList();
+
+            // Load PEPs
+            var pepService = UnitOfWork.PepService;
+            peps = (await pepService.GetPepsAsync(contactNo)).Cast<dynamic>().ToList();
+        }
+        catch (Exception ex)
+        {
+            // Don't show error to user, just log it
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task SubmitForm()
+    {
+        if (!AllConsentsChecked)
+        {
+            Snackbar.Add("Please accept all required declarations", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            Layout.OpenLoading();
+
+            // Get current user's contact number
+            var current = await UnitOfWork.Get_LoggedIn_User.UserId();
+            Users users = await UnitOfWork.userRepository.GetById(current);
+
+            if (users != null && company != null)
+            {
+                // Validate that company has required data
+                if (string.IsNullOrEmpty(company.Name))
+                {
+                    // Reload company data from BC to ensure we have the Name
+                    var freshContact = await UnitOfWork.CorporateContactCardService.GetContactCardAsync(users.Contact_No);
+                    if (freshContact != null && !string.IsNullOrEmpty(freshContact.Name))
+                    {
+                        company = freshContact;
+                    }
+                    else
+                    {
+                        Snackbar.Add("Error: Company name is required. Please ensure the contact card in BC has a name.", Severity.Error);
+                        return;
+                    }
+                }
+
+                // Update the Approval_Status to Pending Approval
+                company.Approval_Status = "Pending Approval";
+                company.Application_Status = KycStatus.Submitted;
+                company.SubmittedAt = DateTime.Now;
+
+                // Save the updated corporate KYC record
+                await UnitOfWork.CorporateContactCardService.CreateOrUpdateContactCardAsync(company);
+
+                // Notify management by email about the new KYC submission
+                try
+                {
+                    var recipients = new[]
+                    {
+                        "Sheila.chumba@attain-es.com",
+                        "benndora2@gmail.com",
+                        "kipletingbrian285@gmail.com",
+                        "emmanukiptoo98@gmail.com"
+                    };
+
+                    var nuitValue = !string.IsNullOrEmpty(company.BVN_No) ? company.BVN_No : company.Tax_ID;
+                    await EmailService.SendKycSubmissionNotificationAsync(
+                        recipients,
+                        company.Name,
+                        users.Contact_No,
+                        nuitValue,
+                        company.Approval_Status,
+                        company.SubmittedAt ?? DateTime.Now
+                    );
+                }
+                catch
+                {
+                    // Email failure should not block the user flow
+                }
+
+                Snackbar.Add("KYC Application submitted successfully!", Severity.Success);
+
+                navigate.NavigateTo("/Dashboard");
+
+            }
+            else
+            {
+                Snackbar.Add("Error: Could not find user or company data", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting application: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+    }
+
+    private List<(string Code, string Name)> UploadedCorporateDocuments
+    {
+        get
+        {
+            var docs = new List<(string Code, string Name)>();
+            foreach (var kvp in KycUploadContext.CorporateDocumentUrlsByCode)
+            {
+                if (string.IsNullOrWhiteSpace(kvp.Value)) continue;
+                docs.Add((kvp.Key, GetCorporateDocumentDisplayName(kvp.Key)));
+            }
+            return docs.OrderBy(d => d.Code, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+    }
+
+    private string GetCorporateDocumentDisplayName(string code)
+    {
+        return code switch
+        {
+            "DOC022" => "Commercial Registration Certificate",
+            "DOC096" => "Tax Identification Card (NUIT)",
+            "DOC126" => "Minutes",
+            "DOC127" => "Statutes",
+            "DOC085" => "Proof of Current Address",
+            "DOC131" => "Shareholder structure document",
+            "DOC130" => "Audited financials",
+            "DOC048" => "Legal Representative – Identification document",
+            "DOC128" => "Beneficial Owner – NUIT",
+            "DOC023" => "Beneficial Owner – Comparative attachment",
+            _ => code
+        };
+    }
+
+    private async Task ViewCorporateDocument(string documentCode)
+    {
+        if (KycUploadContext.CorporateDocumentUrlsByCode.TryGetValue(documentCode, out var url) && !string.IsNullOrWhiteSpace(url))
+        {
+            await JSRuntime.InvokeVoidAsync("open", url, "_blank");
+            return;
+        }
+
+        Snackbar.Add($"No uploaded document link found for {documentCode}. Please re-upload.", Severity.Warning);
+    }
+}

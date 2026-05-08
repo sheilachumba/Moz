@@ -1,0 +1,272 @@
+@page "/beneficiary-info"
+@attribute [Authorize]
+@using System.Text.Json
+@using Microsoft.AspNetCore.Components.Forms
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@inject IUnitOfWork unitOfWork
+@inject NavigationManager navigationManager
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+<div class="container-fluid" style=" margin: 0 auto; padding: 24px;">
+    <div class="hero">
+        <div class="hero-title">@LangService.T("Complete Beneficiary Details","Preencha os Dados do Beneficiário")</div>
+        <div class="hero-sub">@LangService.T("We use this information to tailor your coverage. Fields marked * are required.","Usamos estas informações para ajustar a sua cobertura. Campos marcados com * são obrigatórios.")</div>
+    </div>
+    <h2 style="font-weight:700; margin-bottom: 8px;">@LangService.T("Beneficiary Information","Informações do Beneficiário")</h2>
+    <p style="color:#64748b; margin-bottom:16px;">@LangService.T("Fill in the beneficiary details for the selected plan, then continue to review.","Preencha os detalhes do beneficiário para o plano selecionado e continue para revisão.")</p>
+  
+    <!-- Stepper -->
+    <div class="step-indicator" style="display:flex; gap:12px; align-items:center; margin-bottom:16px;">
+        <div class="step" style="display:flex; align-items:center; gap:8px; opacity:0.6;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700;">1</div>
+            <div class="step-label" style="font-size:12px; color:#475569;">@LangService.T("Select Plan","Selecionar Plano")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; flex:1;"></div>
+        <div class="step active" style="display:flex; align-items:center; gap:8px;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#2E5090; color:white; font-weight:700;">2</div>
+            <div class="step-label" style="font-size:12px; color:#2E5090; font-weight:600;">@LangService.T("Beneficiary Info","Dados do Beneficiário")</div>
+        </div>
+        <div style="height:2px; background:#e5e7eb; flex:1;"></div>
+        <div class="step" style="display:flex; align-items:center; gap:8px; opacity:0.6;">
+            <div class="step-number" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700;">3</div>
+            <div class="step-label" style="font-size:12px; color:#475569;">@LangService.T("Summary","Resumo")</div>
+        </div>
+    </div>
+
+    <div class="header-card" style="margin-bottom:16px;">
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div class="chip">@LangService.T("Policy","Apólice"): @selectedProduct.Policy_No</div>
+            <div class="chip">@LangService.T("Underwriter","Seguradora"): @selectedProduct.Underwriter_Code</div>
+            <div class="chip">@LangService.T("Class","Classe"): @selectedProduct.Class_Name</div>
+        </div>
+    </div>
+
+   
+    <style>
+        :root { --blue-900:#1F3A7F; --blue-800:#283A79; --blue-700:#2d488f; --blue-600:#3657a6; --blue-100:#e8edf9; --surface:#ffffff; --border: rgba(148,163,184,.20); }
+
+        .container { background: var(--surface); min-height:100vh; }
+        .step-indicator .step-number { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .step-indicator .active .step-number { box-shadow: 0 8px 20px rgba(46,80,144,0.25); }
+
+        .hero { background: linear-gradient(135deg, var(--blue-800), var(--blue-700)); color:#fff; border-radius:12px; padding:12px 14px; margin-bottom:12px; box-shadow: 0 20px 40px -24px rgba(15,70,150,.30); backdrop-filter: saturate(140%) blur(6px); }
+        .hero-title { font-weight:800; letter-spacing:.2px; margin:0 0 4px 0; font-size:1.05rem; }
+        .hero-sub { opacity:.95; font-size:.9rem; }
+
+        .header-card { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); padding:10px; backdrop-filter: saturate(140%) blur(6px); }
+        .header-card .chip { background: #f1f5f9; color:#0f172a; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+
+        .page-grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; align-items:start; }
+
+        .form-card { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+        .row { gap: 12px; }
+        label { font-size: 12px; color: #64748b; font-weight:700; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 6px; display:block; }
+        .form-control, .form-select { width:100%; padding:10px 12px; background:#fff; border:1px solid var(--border); border-radius:10px; font-size:14px; color:#0f172a; transition: box-shadow .2s ease, border-color .2s ease; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .form-control:focus, .form-select:focus { outline:none; border-color: var(--blue-600); box-shadow: 0 0 0 3px rgba(19,97,201,.10); }
+        textarea.form-control { min-height: 100px; resize: vertical; }
+
+        h4 { color:#0f172a; margin: 14px 0 6px; font-size: 15px; font-weight: 800; }
+
+        .info-panel { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; padding:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); display:flex; flex-direction:column; gap:10px; backdrop-filter: saturate(140%) blur(6px); }
+        .info-title { font-weight:800; color:#0f172a; font-size:14px; }
+        .info-text { color:#64748b; font-size:13px; line-height:1.5; }
+        .checklist { display:grid; gap:6px; }
+        .check-item { display:flex; align-items:center; gap:8px; font-size:13px; color:#0f172a; }
+        .badge { background:#eef2ff; color: var(--blue-800); padding:6px 10px; border-radius:999px; font-weight:700; font-size:11px; border:1px solid #e5e7eb; }
+        .cta-box { background: linear-gradient(135deg, rgba(46,80,144,0.06) 0%, rgba(31,58,127,0.04) 100%); border:1px solid rgba(46,80,144,0.12); border-radius:12px; padding:10px; }
+
+        .action-bar { background: rgba(255,255,255,.92); border:1px solid var(--border); border-radius:12px; padding:10px; margin-top:12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+        .nav-actions { display:flex; gap:8px; justify-content: space-between; }
+        .nav-btn { border-radius:9999px; padding:10px 14px; font-weight:700; }
+        .nav-btn--prev { background:transparent; border:1px solid var(--blue-600); color:var(--blue-800); box-shadow:0 4px 10px rgba(31,58,127,.12); }
+        .nav-btn--prev:hover { background: var(--blue-100); }
+        .nav-btn--next { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; box-shadow:0 8px 18px rgba(31,58,127,.25); border:none; }
+
+        @@media (max-width: 768px) { .container { padding:12px; } .page-grid { grid-template-columns:1fr; } .nav-actions { flex-direction:column; } .nav-actions > * { width:100%; } }
+    </style>
+
+ 
+
+    <div class="page-grid">
+    <EditForm Model="selectedProduct" OnValidSubmit="OnValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-card">
+        <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+                <label>@LangService.T("First Name *","Nome *")</label>
+                <InputText class="form-control" @bind-Value="selectedProduct.First_Name" />
+                <ValidationMessage For="@(() => selectedProduct.First_Name)" />
+            </div>
+            <div>
+                <label>@LangService.T("Family Name *","Apelido *")</label>
+                <InputText class="form-control" @bind-Value="selectedProduct.Family_Name" />
+                <ValidationMessage For="@(() => selectedProduct.Family_Name)" />
+            </div>
+            <div>
+                <label>@LangService.T("Relationship to Applicant *","Relação com o Candidato *")</label>
+                <InputText class="form-control" @bind-Value="selectedProduct.Relationship_to_Applicant" />
+                <ValidationMessage For="@(() => selectedProduct.Relationship_to_Applicant)" />
+            </div>
+            <div>
+                <label>@LangService.T("Age *","Idade *")</label>
+                <InputNumber TValue="int" class="form-control" @bind-Value="selectedProduct.Age" />
+                <ValidationMessage For="@(() => selectedProduct.Age)" />
+            </div>
+            <div>
+                <label>@LangService.T("Occupation *","Ocupação *")</label>
+                <InputText class="form-control" @bind-Value="selectedProduct.Occupation" />
+                <ValidationMessage For="@(() => selectedProduct.Occupation)" />
+            </div>
+            <div>
+                <label>@LangService.T("Chronic Status","Doença Crónica")</label>
+                <InputSelect class="form-select" @bind-Value="selectedProduct.Chronic_Status">
+                    <option value="">@LangService.T("Select","Selecionar")</option>
+                    <option value="Yes">@LangService.T("Yes","Sim")</option>
+                    <option value="No">@LangService.T("No","Não")</option>
+                </InputSelect>
+                <ValidationMessage For="@(() => selectedProduct.Chronic_Status)" />
+            </div>
+        </div>
+
+        <h4 style="margin-top:18px;">@LangService.T("Policy Details","Detalhes da Apólice")</h4>
+        <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <!-- Policy_No, Underwriter_Code, Class_Name are hidden from edit but shown in header -->
+            <div>
+                <label>@LangService.T("Policy Term (months) *","Prazo da Apólice (meses) *")</label>
+                <InputNumber TValue="int" class="form-control"
+                             Value="selectedProduct.Policy_Term"
+                             ValueChanged="OnPolicyTermChanged"
+                             ValueExpression="@(() => selectedProduct.Policy_Term)" />
+                <ValidationMessage For="@(() => selectedProduct.Policy_Term)" />
+            </div>
+            <div>
+                <label>@LangService.T("Policy Start Date *","Data de Início da Apólice *")</label>
+                <InputDate TValue="DateTime" class="form-control"
+                           Value="selectedProduct.Policy_Start_Date"
+                           ValueChanged="OnPolicyStartDateChanged"
+                           ValueExpression="@(() => selectedProduct.Policy_Start_Date)" />
+                <ValidationMessage For="@(() => selectedProduct.Policy_Start_Date)" />
+            </div>
+            <div>
+                <label>@LangService.T("Policy End Date *","Data de Fim da Apólice *")</label>
+                <InputDate class="form-control" Disabled  @bind-Value="selectedProduct.Policy_End_Date" />
+                <ValidationMessage For="@(() => selectedProduct.Policy_End_Date)" />
+            </div>
+            <div style="grid-column:1 / -1;">
+                <label>@LangService.T("Description","Descrição")</label>
+                <InputTextArea class="form-control" @bind-Value="selectedProduct.Description" />
+            </div>
+        </div>
+        </div>
+
+        <div class="action-bar">
+            <div class="nav-actions">
+                <button type="button" class="nav-btn nav-btn--prev" @onclick="GoBack">← @LangService.T("Back","Voltar")</button>
+                <button type="submit" class="nav-btn nav-btn--next">@LangService.T("Next: Summary →","Seguinte: Resumo →")</button>
+            </div>
+        </div>
+    </EditForm>
+    <div class="info-panel">
+        <div class="badge">@LangService.T("Quick Tips","Dicas Rápidas")</div>
+        <div class="checklist">
+            <div class="check-item">✅ @LangService.T("Names must match official ID","Os nomes devem corresponder ao documento oficial")</div>
+            <div class="check-item">✅ @LangService.T("Use current occupation","Utilize a ocupação atual")</div>
+            <div class="check-item">✅ @LangService.T("Confirm dates and term","Confirme as datas e o prazo")</div>
+        </div>
+        <div class="info-title">@LangService.T("Why we ask","Por que pedimos")</div>
+        <div class="info-text">@LangService.T("Accurate information helps us set the correct premium and ensures your beneficiary is covered without delays.","Informações precisas ajudam a definir o prémio correto e garantem cobertura sem atrasos.")</div>
+        <div class="cta-box">
+            <div style="font-weight:800; color:var(--text); margin-bottom:6px;">@LangService.T("Your Selection","A Sua Seleção")</div>
+            <div style="display:flex; flex-direction:column; gap:6px; font-size:13px;">
+                <div><strong style="color:var(--muted);">@LangService.T("Policy:","Apólice:")</strong> @selectedProduct.Policy_No</div>
+                <div><strong style="color:var(--muted);">@LangService.T("Underwriter:","Seguradora:")</strong> @selectedProduct.Underwriter_Code</div>
+                <div><strong style="color:var(--muted);">@LangService.T("Class:","Classe:")</strong> @selectedProduct.Class_Name</div>
+            </div>
+        </div>
+        <div class="info-title">@LangService.T("Need help?","Precisa de ajuda?")</div>
+        <div class="info-text">@LangService.T("Contact support at support@standardinsurance.mz","Contacte o suporte em support@standardinsurance.mz")</div>
+    </div>
+    </div>
+</div>
+
+@code {
+    private SelectedProduct selectedProduct = new();
+
+    protected override void OnInitialized()
+    {
+        // Prefill from selected plan (do not prefill Description; leave empty for user input)
+        var plan = unitOfWork.PlanSelectionService.GetPlanData();
+        if (plan != null)
+        {
+            selectedProduct.Policy_No = string.IsNullOrWhiteSpace(selectedProduct.Policy_No) ? plan.PlanNo : selectedProduct.Policy_No;
+            selectedProduct.Underwriter_Code = string.IsNullOrWhiteSpace(selectedProduct.Underwriter_Code) ? plan.UnderwriterCode : selectedProduct.Underwriter_Code;
+            selectedProduct.Class_Name = string.IsNullOrWhiteSpace(selectedProduct.Class_Name) ? plan.PlanClass : selectedProduct.Class_Name;
+        }
+
+        // Reasonable defaults
+        if (selectedProduct.Policy_Start_Date == default)
+            selectedProduct.Policy_Start_Date = DateTime.Today;
+        if (selectedProduct.Policy_End_Date == default)
+            selectedProduct.Policy_End_Date = DateTime.Today;
+        if (selectedProduct.Policy_Term <= 0)
+            selectedProduct.Policy_Term = 1;
+
+        UpdateEndDate();
+    }
+
+    private void OnPolicyTermChanged(int term)
+    {
+        selectedProduct.Policy_Term = term;
+        UpdateEndDate();
+    }
+
+    private void OnPolicyStartDateChanged(DateTime start)
+    {
+        selectedProduct.Policy_Start_Date = start;
+        UpdateEndDate();
+    }
+
+    private void UpdateEndDate()
+    {
+        if (selectedProduct.Policy_Start_Date != default && selectedProduct.Policy_Term > 0)
+        {
+            try
+            {
+                selectedProduct.Policy_End_Date = selectedProduct.Policy_Start_Date.AddMonths(selectedProduct.Policy_Term);
+            }
+            catch
+            {
+                // ignore overflow
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        navigationManager.NavigateTo("javascript:history.back()");
+    }
+
+    private void OnValidSubmit()
+    {
+        // Extra rule: End date must be >= Start date
+        if (selectedProduct.Policy_End_Date < selectedProduct.Policy_Start_Date)
+        {
+            Snackbar.Add(LangService.T("❌ Policy End Date cannot be earlier than Start Date.","❌ A data de fim não pode ser anterior à data de início."), Severity.Error);
+            return;
+        }
+        if (selectedProduct.Policy_Term <= 0)
+        {
+            Snackbar.Add(LangService.T("❌ Policy Term must be a positive number.","❌ O prazo da apólice deve ser um número positivo."), Severity.Error);
+            return;
+        }
+
+        selectedProduct.Selected = true;
+        unitOfWork.PlanSelectionService.SetBeneficiaryData(selectedProduct);
+        Snackbar.Add(LangService.T("✅ Beneficiary details saved.","✅ Dados do beneficiário guardados."), Severity.Success);
+        navigationManager.NavigateTo("/summary");
+    }
+}

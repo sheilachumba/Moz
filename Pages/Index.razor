@@ -1,0 +1,1089 @@
+@page "/"
+@layout HomeLayout
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    /* ==================== DARK MODE OVERRIDES (Index) ==================== */
+    .dark body, .dark html { background: #0f172a; }
+    .dark .landing-logo { color: #e5e7eb; }
+    .dark .landing-btn-call { color: #cbd5e1; }
+    .dark .section-title { color: #e5e7eb; }
+    .dark .section-subtitle { color: #cbd5e1; }
+    .dark .section-description { color: #9ca3af; }
+    .dark .feature-title { color: #e5e7eb; }
+    .dark .feature-description { color: #cbd5e1; }
+    .dark .feature-icon { color: #e5e7eb; background: #0f172a; border-color: #374151; }
+    .dark .insurance-title { color: #e5e7eb; }
+    .dark .insurance-subtitle { color: #cbd5e1; }
+    .dark .insurance-description { color: #9ca3af; }
+    .dark .insurance-benefits li { color: #cbd5e1; }
+    .dark .insurance-benefits li::before { color: #f59e0b; }
+    .dark .insurance-icon { background: #0f172a; border-color: #374151; color: #e5e7eb; }
+
+    body, html {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        overflow-x: hidden;
+        background: #f5f5f7;
+    }
+
+    /* ==================== HEADER & NAVIGATION ==================== */
+    .landing-header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 16px 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .header-top { display:flex; justify-content: space-between; align-items:center; gap:16px; }
+    .header-top-right { display:flex; align-items:center; gap:12px; }
+
+    .landing-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #003366;
+        font-weight: 700;
+        font-size: 18px;
+    }
+
+    .landing-logo img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+    }
+
+    .landing-nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .landing-nav-link {
+        color: #003366;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+
+    .landing-nav-link:hover {
+        color: #FF9900;
+    }
+
+    .landing-header-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .lang-switch {
+        display: flex;
+        gap: 6px;
+        background: rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.08);
+        padding: 4px;
+        border-radius: 9999px;
+        align-items: center;
+    }
+    .lang-btn {
+        appearance: none;
+        background: transparent;
+        border: none;
+        padding: 6px 10px;
+        font-weight: 700;
+        font-size: 11px;
+        color: #003366;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: all .15s ease;
+    }
+    .lang-btn.active { background: #003366; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.08); }
+
+    .landing-btn-call {
+        color: #003366;
+        font-size: 12px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .landing-btn-quote {
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+        color: white;
+        padding: 8px 18px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(255, 153, 0, 0.2);
+    }
+
+    .landing-btn-quote:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255, 153, 0, 0.3);
+    }
+
+    .landing-btn-login {
+        background: transparent;
+        color: #003366;
+        padding: 8px 18px;
+        border: 2px solid #003366;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .theme-btn { border:none; background:transparent; color:#003366; cursor:pointer; padding:6px 10px; border-radius:8px; }
+    .theme-btn:hover { background: rgba(0,0,0,.05); }
+    .header-controls { display: none; align-items:center; gap:12px; }
+
+    .landing-btn-login:hover {
+        background: #003366;
+        color: white;
+    }
+
+    /* ==================== HERO SECTION ==================== */
+    .hero-section {
+        background: linear-gradient(135deg, #003366 0%, #004D99 100%);
+        color: white;
+        padding: 60px 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 40px;
+        min-height: 500px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .hero-content {
+        flex: 1;
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-title {
+        font-size: 48px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        line-height: 1.2;
+    }
+
+    .hero-subtitle {
+        font-size: 18px;
+        margin-bottom: 30px;
+        opacity: 0.95;
+        line-height: 1.6;
+    }
+
+    .hero-cta {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .hero-btn {
+        background: #FF9900;
+        color: white;
+        padding: 14px 32px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .hero-btn:hover {
+        background: #E68A00;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(255, 153, 0, 0.3);
+    }
+
+    .hero-image {
+        flex: 1;
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-image img {
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ==================== FEATURES SECTION ==================== */
+    .features-section {
+        padding: 80px 40px;
+        background: #f8f9fa;
+        text-align: center;
+    }
+
+    .section-title {
+        font-size: 36px;
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+
+    .section-subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 60px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+    }
+
+    .section-description {
+        font-size: 15px;
+        color: #555;
+        margin-bottom: 48px;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: center;
+        line-height: 1.7;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 32px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .feature-card {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        padding: 32px 28px;
+        border-radius: 14px;
+        border: 1px solid #e5e5e7;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #FF9900 0%, #FFB84D 100%);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover {
+        border-color: #FF9900;
+        background: white;
+        transform: translateY(-4px);
+    }
+
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .feature-icon {
+        font-size: 36px;
+        margin-bottom: 16px;
+        color: #284689;
+        width: 72px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #E8EEF7 0%, #F0F4F9 100%);
+        border-radius: 14px;
+        margin-left: auto;
+        margin-right: auto;
+        border: 1px solid #D0D9E8;
+        transition: all 0.3s ease;
+    }
+
+    .feature-card:hover .feature-icon {
+        background: linear-gradient(135deg, #D0D9E8 0%, #E0E8F0 100%);
+        transform: scale(1.1);
+    }
+
+    .feature-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 12px;
+        letter-spacing: -0.3px;
+    }
+
+    .feature-description {
+        font-size: 14px;
+        color: #666;
+        line-height: 1.6;
+    }
+
+    /* ==================== INSURANCE TYPES SECTION ==================== */
+    .insurance-section {
+        padding: 80px 40px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e8ecf1 50%, #f0f4f8 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .insurance-section::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 153, 0, 0.08) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .insurance-section::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -5%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(23, 39, 95, 0.06) 0%, transparent 70%);
+        border-radius: 50%;
+        pointer-events: none;
+    }
+
+    .insurance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 40px;
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+    }
+
+    .insurance-card {
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        border: 2px solid #e5e5e7;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .insurance-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: linear-gradient(90deg, #17275F 0%, #2A4A9F 100%);
+        border-radius: 16px 16px 0 0;
+    }
+
+    .insurance-card::after {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(23, 39, 95, 0.05) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .insurance-card:hover {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        box-shadow: 0 12px 32px rgba(23, 39, 95, 0.12);
+        border-color: #17275F;
+    }
+
+    .insurance-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: #17275F;
+        width: 88px;
+        height: 88px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #E8EEF7 0%, #F0F4F9 100%);
+        border-radius: 16px;
+        border: 2px solid #D0D9E8;
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 2;
+    }
+
+    .insurance-card:hover .insurance-icon {
+        background: linear-gradient(135deg, #D0D9E8 0%, #E0E8F0 100%);
+        box-shadow: 0 8px 20px rgba(23, 39, 95, 0.15);
+    }
+
+    .insurance-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 12px;
+        letter-spacing: -0.3px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .insurance-subtitle {
+        font-size: 14px;
+        color: #17275F;
+        margin-bottom: 16px;
+        font-weight: 600;
+        position: relative;
+        z-index: 2;
+    }
+
+    .insurance-description {
+        font-size: 14px;
+        color: #666;
+        line-height: 1.7;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .insurance-benefits {
+        list-style: none;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 2;
+    }
+
+    .insurance-benefits li {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 10px;
+        padding-left: 24px;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+    .insurance-benefits li::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: #17275F;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    .insurance-card:hover .insurance-benefits li {
+        color: #17275F;
+    }
+
+    .insurance-btn {
+        background: linear-gradient(135deg, #17275F 0%, #2A4A9F 100%);
+        color: white;
+        padding: 12px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.3s ease;
+        display: inline-block;
+        position: relative;
+        z-index: 2;
+        box-shadow: 0 4px 12px rgba(23, 39, 95, 0.2);
+    }
+
+    .insurance-btn:hover {
+        background: linear-gradient(135deg, #2A4A9F 0%, #1F3A7F 100%);
+        box-shadow: 0 8px 20px rgba(23, 39, 95, 0.3);
+    }
+
+    /* ==================== TESTIMONIALS SECTION ==================== */
+    .testimonials-section {
+        padding: 80px 40px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e5e7eb 100%);
+    }
+
+    .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 32px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .testimonial-card {
+        background: white;
+        padding: 32px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #FF9900;
+    }
+
+    .testimonial-text {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
+        line-height: 1.7;
+        font-style: italic;
+    }
+
+    .testimonial-author {
+        font-weight: 600;
+        color: #003366;
+        font-size: 14px;
+    }
+
+    .testimonial-rating {
+        color: #FF9900;
+        margin-bottom: 12px;
+    }
+
+    /* ==================== CTA SECTION ==================== */
+    .cta-section {
+        background: linear-gradient(135deg, #003366 0%, #004D99 100%);
+        color: white;
+        padding: 60px 40px;
+        text-align: center;
+    }
+
+    .cta-title {
+        font-size: 36px;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+
+    .cta-subtitle {
+        font-size: 16px;
+        margin-bottom: 32px;
+        opacity: 0.95;
+    }
+
+    .cta-buttons {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .cta-btn-primary {
+        background: #FF9900;
+        color: white;
+        padding: 14px 32px;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .cta-btn-primary:hover {
+        background: #E68A00;
+        transform: translateY(-3px);
+    }
+
+    .cta-btn-secondary {
+        background: transparent;
+        color: white;
+        padding: 14px 32px;
+        border: 2px solid white;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+    }
+
+    .cta-btn-secondary:hover {
+        background: white;
+        color: #003366;
+    }
+
+    /* ==================== FOOTER ==================== */
+    .landing-footer {
+        background: #1f2937;
+        color: white;
+        padding: 60px 40px 20px;
+    }
+
+    .footer-content {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 40px;
+        max-width: 1200px;
+        margin: 0 auto 40px;
+    }
+
+    .footer-section h4 {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .footer-section ul {
+        list-style: none;
+    }
+
+    .footer-section ul li {
+        margin-bottom: 12px;
+    }
+
+    .footer-section ul li a {
+        color: #d1d5db;
+        text-decoration: none;
+        font-size: 13px;
+        transition: color 0.3s;
+    }
+
+    .footer-section ul li a:hover {
+        color: white;
+    }
+
+    .footer-section p {
+        font-size: 13px;
+        color: #d1d5db;
+        line-height: 1.7;
+    }
+
+    .footer-bottom {
+        border-top: 1px solid #374151;
+        padding-top: 20px;
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+    }
+
+    .footer-designer {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #1f2937;
+    }
+
+    .footer-social {
+        display: flex;
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .footer-social a {
+        color: #d1d5db;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    .footer-social a:hover {
+        color: #f97316;
+    }
+
+    /* ==================== RESPONSIVE ==================== */
+    @@media (max-width: 768px) {
+        .landing-header {
+            padding: 12px 20px;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .landing-nav {
+            gap: 16px;
+            font-size: 12px;
+        }
+
+        .hero-section {
+            flex-direction: column;
+            padding: 40px 20px;
+            min-height: auto;
+        }
+
+        .hero-title {
+            font-size: 32px;
+        }
+
+        .hero-subtitle {
+            font-size: 16px;
+        }
+
+        .section-title {
+            font-size: 28px;
+        }
+
+        .features-section,
+        .insurance-section,
+        .testimonials-section,
+        .cta-section {
+            padding: 40px 20px;
+        }
+        /* Hide Get a Quote button on mobile */
+        .landing-header-actions .landing-btn-quote { display: none; }
+        /* Push Login to the far right */
+        .landing-header-actions { justify-content: space-between; }
+        .landing-header-actions .landing-btn-login { margin-left: auto; }
+    }
+
+    /* Desktop: single-line app bar */
+    @@media (min-width: 769px) {
+        .landing-header { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
+        .header-top { display:flex; align-items:center; gap:16px; flex: 0 0 auto; }
+        .landing-nav { justify-content: flex-start; gap: 24px; flex: 1 1 auto; margin-left: 16px; }
+        .landing-header-actions { display:flex; align-items:center; gap: 12px; flex: 0 0 auto; }
+        /* Move language/theme into actions area and hide top-right on desktop */
+        .header-top-right { display: none; }
+        .header-controls { display: flex; }
+    }
+</style>
+
+<!-- Header Navigation -->
+<div class="landing-header">
+    <div class="header-top">
+        <a href="/landing" class="landing-logo">
+            <img src="/images/logo.png" alt="Standard Insurance" />
+            <span>@T("Standard Insurance","Standard Insurance")</span>
+        </a>
+        <div class="header-top-right">
+            <div class="lang-switch">
+                <button class="lang-btn @(lang == "en" ? "active" : string.Empty)" @onclick='@(() => SetLang("en"))'>EN</button>
+                <button class="lang-btn @(lang == "pt" ? "active" : string.Empty)" @onclick='@(() => SetLang("pt"))'>PT</button>
+            </div>
+            <button class="theme-btn" @onclick="ToggleTheme"><i class="fa-regular fa-moon"></i></button>
+        </div>
+    </div>
+
+    <div class="landing-nav">
+        <a href="#home" class="landing-nav-link">@((lang=="pt") ? "INÍCIO" : "HOME")</a>
+        <a href="#insurance" class="landing-nav-link">@((lang=="pt") ? "PRODUTOS" : "INSURANCE PRODUCTS")</a>
+        <a href="#features" class="landing-nav-link">@((lang=="pt") ? "PORQUÊ NÓS" : "WHY US")</a>
+        <a href="#contact" class="landing-nav-link">@((lang=="pt") ? "CONTACTO" : "CONTACT")</a>
+    </div>
+
+    <div class="landing-header-actions">
+        <div class="landing-btn-call">@((lang=="pt") ? "LIGAR: +258-21-50-1020" : "CALL: +258-21-50-1020")</div>
+        <button class="landing-btn-quote" @onclick="GoToLogin">@((lang=="pt") ? "OBTER COTAÇÃO" : "GET A QUOTE")</button>
+        <div class="header-controls">
+            <div class="lang-switch">
+                <button class="lang-btn @(lang == "en" ? "active" : string.Empty)" @onclick='@(() => SetLang("en"))'>EN</button>
+                <button class="lang-btn @(lang == "pt" ? "active" : string.Empty)" @onclick='@(() => SetLang("pt"))'>PT</button>
+            </div>
+            <button class="theme-btn" @onclick="ToggleTheme"><i class="fa-regular fa-moon"></i></button>
+        </div>
+        <button class="landing-btn-login" @onclick="GoToLogin">@((lang=="pt") ? "ENTRAR" : "LOGIN")</button>
+    </div>
+</div>
+
+<!-- Hero Section -->
+<section class="hero-section" id="home">
+    <div class="hero-content">
+        <h1 class="hero-title">@T("Get your insurance in Mozambique in minutes and save up to 15%","Faça o seu seguro em Moçambique em minutos e poupe até 15%")</h1>
+        <p class="hero-subtitle">@T("We assist you to choose the best insurance cover in Mozambique in line with your lifestyle and needs. Our customized benefits are tailored to help you get the best motor insurance deal in Mozambique at an affordable price. Request a callback today!","Ajudamos você a escolher a melhor cobertura de seguro em Moçambique de acordo com o seu estilo de vida e necessidades. Os nossos benefícios personalizados ajudam a obter o melhor seguro automóvel em Moçambique a um preço acessível. Peça um retorno de chamada hoje!")</p>
+        <div class="hero-cta">
+            <button class="hero-btn" @onclick="GoToLogin">@T("GET A QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+    </div>
+    <div class="">
+        <img src="/images/homeeee.png" style="height:400px" alt="Car Insurance" />
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section" id="features">
+    <h2 class="section-title">@T("Insurance made simple. Claims made faster.","Seguro simplificado. Sinistros mais rápidos.")</h2>
+    <p class="section-subtitle">@T("Side-by-side quotes, plain English advice, and a claims concierge that does the chasing for you.","Cotações lado a lado, aconselhamento claro e um concierge de sinistros que trata de tudo por si.")</p>
+    <p class="section-description">@T("We believe insurance should be straightforward and hassle-free. Our comprehensive suite of services is designed to make your insurance journey smooth, transparent, and worry-free from start to finish.","Acreditamos que o seguro deve ser simples e sem complicações. A nossa gama de serviços foi criada para tornar a sua experiência transparente e tranquila do início ao fim.")</p>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-headset"></i></div>
+            <h3 class="feature-title">@T("Claim Concierge","Concierge de Sinistros")</h3>
+            <p class="feature-description">@T("We handle the paperwork and follow-up so you can focus on what matters most.","Tratamos da papelada e do acompanhamento para que se concentre no que é mais importante.")</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-clock"></i></div>
+            <h3 class="feature-title">@T("24-Hour Quote Pack","Pacote de Cotações em 24h")</h3>
+            <p class="feature-description">@T("Get multiple quotes from top insurers in just 24 hours.","Obtenha várias cotações das principais seguradoras em apenas 24 horas.")</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-heartbeat"></i></div>
+            <h3 class="feature-title">@T("Health Check","Revisão de Cobertura")</h3>
+            <p class="feature-description">@T("We review your current coverage to ensure you're not overpaying.","Revisamos a sua cobertura atual para garantir que não está a pagar demais.")</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+            <h3 class="feature-title">@T("2h Claims Kickoff","Abertura de Sinistro em 2h")</h3>
+            <p class="feature-description">@T("Start your claim process within 2 hours with our WhatsApp support.","Inicie o processo de sinistro em até 2 horas com o nosso suporte via WhatsApp.")</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-comments"></i></div>
+            <h3 class="feature-title">@T("Plain English Advice","Aconselhamento Claro")</h3>
+            <p class="feature-description">@T("No jargon. Just clear, honest guidance about what's covered and what's not.","Sem jargões. Orientação clara e honesta sobre o que está coberto e o que não está.")</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-star"></i></div>
+            <h3 class="feature-title">@T("Personalized Plans","Planos Personalizados")</h3>
+            <p class="feature-description">@T("Coverage tailored to your specific needs and budget.","Cobertura ajustada às suas necessidades e orçamento.")</p>
+        </div>
+    </div>
+</section>
+
+<!-- Insurance Products Section -->
+<section class="insurance-section" id="insurance">
+    <h2 class="section-title">@T("Our Insurance Products","Os Nossos Produtos de Seguro")</h2>
+    <p class="section-description">@T("Comprehensive insurance solutions tailored to protect what matters most. Whether it's your vehicle, health, travels, property, or business, we have the right coverage for your unique needs. Explore our range of products designed with you in mind.","Soluções completas de seguro para proteger o que mais importa. Seja o seu veículo, saúde, viagens, propriedade ou negócio, temos a cobertura certa para si. Explore a nossa gama de produtos pensados para si.")</p>
+
+    <div class="insurance-grid">
+        <!-- Car Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-car"></i></div>
+            <h3 class="insurance-title">@T("Car Insurance","Seguro Automóvel")</h3>
+            <p class="insurance-subtitle">@T("Drive with Confidence, Protect Your Ride","Conduza com Confiança, Proteja o seu Veículo")</p>
+            <p class="insurance-description">@T("Tailored motor insurance for every journey, flexible cover limits, fast claims processing & 24/7 support. From third-party to comprehensive plans, and extras like courtesy car, political violence & terrorism, & roadside assistance.","Seguro automóvel feito à medida, limites de cobertura flexíveis, processamento rápido de sinistros e apoio 24/7. De responsabilidade civil a cobertura completa, com extras como carro de substituição, PV&T e assistência na estrada.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Flexible cover limits","Limites de cobertura flexíveis")</li>
+                <li>@T("Fast claims processing","Processamento rápido de sinistros")</li>
+                <li>@T("24/7 support","Apoio 24/7")</li>
+                <li>@T("Courtesy car included","Carro de substituição incluído")</li>
+                <li>@T("Roadside assistance","Assistência na estrada")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <!-- Health Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-hospital"></i></div>
+            <h3 class="insurance-title">@T("Health Insurance","Seguro de Saúde")</h3>
+            <p class="insurance-subtitle">@T("Safeguard Your Health, Embrace Peace of Mind","Proteja a sua Saúde, Viva com Tranquilidade")</p>
+            <p class="insurance-description">@T("Comprehensive health insurance, cashless hospital access, preventive screenings, chronic condition management, emergency evacuation, wellness support and seamless claims at top Kenyan facilities nationwide.","Seguro de saúde completo, acesso a hospitais sem pagamento no local, rastreios preventivos, gestão de condições crónicas, evacuação de emergência, programas de bem‑estar e sinistros simplificados.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Cashless hospital access","Acesso a hospitais sem pagamento no local")</li>
+                <li>@T("Preventive screenings","Rastreios preventivos")</li>
+                <li>@T("Chronic condition coverage","Cobertura de condições crónicas")</li>
+                <li>@T("Emergency evacuation","Evacuação de emergência")</li>
+                <li>@T("Wellness programs","Programas de bem‑estar")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <!-- Travel Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-plane"></i></div>
+            <h3 class="insurance-title">@T("Travel Insurance","Seguro de Viagem")</h3>
+            <p class="insurance-subtitle">@T("Explore the World with Complete Protection","Explore o Mundo com Proteção Completa")</p>
+            <p class="insurance-description">@T("Complete travel protection including trip cancellation, medical coverage abroad, baggage protection, emergency evacuation, and 24/7 travel assistance for peace of mind on every journey.","Proteção completa em viagem: cancelamento, assistência médica no exterior, proteção de bagagem, evacuação de emergência e assistência 24/7 para cada jornada.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Trip cancellation coverage","Cobertura de cancelamento de viagem")</li>
+                <li>@T("Medical coverage abroad","Cobertura médica no exterior")</li>
+                <li>@T("Baggage protection","Proteção de bagagem")</li>
+                <li>@T("Emergency evacuation","Evacuação de emergência")</li>
+                <li>@T("24/7 travel assistance","Assistência de viagem 24/7")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <!-- Property Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-home"></i></div>
+            <h3 class="insurance-title">@T("Property Insurance","Seguro Patrimonial")</h3>
+            <p class="insurance-subtitle">@T("Protect Your Assets, Secure Your Future","Proteja os Seus Bens, Garanta o Futuro")</p>
+            <p class="insurance-description">@T("Comprehensive property coverage for homeowners and landlords. Protect against theft, fire, natural disasters, and more. Personalized coverage options for rental investments and valuables.","Cobertura abrangente para proprietários e arrendatários. Proteção contra roubo, incêndio, desastres naturais e mais. Opções personalizadas para imóveis de arrendamento e bens de valor.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Fire and theft protection","Proteção contra incêndio e roubo")</li>
+                <li>@T("Natural disaster coverage","Cobertura de desastres naturais")</li>
+                <li>@T("Landlord protection","Proteção para arrendadores")</li>
+                <li>@T("Valuables coverage","Cobertura de bens valiosos")</li>
+                <li>@T("Quick claims settlement","Liquidação rápida de sinistros")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <!-- Business Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-briefcase"></i></div>
+            <h3 class="insurance-title">@T("Business Insurance","Seguro Empresarial")</h3>
+            <p class="insurance-subtitle">@T("Protect Your Business, Ensure Growth","Proteja o Seu Negócio, Assegure o Crescimento")</p>
+            <p class="insurance-description">@T("Comprehensive business coverage including liability, property, and workers compensation. Tailored solutions for SMEs, enterprises, and corporations with flexible terms and competitive rates.","Cobertura empresarial completa incluindo responsabilidade civil, património e acidentes de trabalho. Soluções para PME e grandes empresas com condições flexíveis e taxas competitivas.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Liability protection","Proteção de responsabilidade")</li>
+                <li>@T("Property coverage","Cobertura patrimonial")</li>
+                <li>@T("Workers compensation","Acidentes de trabalho")</li>
+                <li>@T("Professional indemnity","Responsabilidade profissional")</li>
+                <li>@T("Flexible terms","Condições flexíveis")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <!-- Life Insurance -->
+        <div class="insurance-card">
+            <div class="insurance-icon"><i class="fas fa-heart"></i></div>
+            <h3 class="insurance-title">@T("Life Insurance","Seguro de Vida")</h3>
+            <p class="insurance-subtitle">@T("Secure Your Family's Future","Proteja o Futuro da Sua Família")</p>
+            <p class="insurance-description">@T("Life insurance plans designed to protect your family's financial future. Term life, whole life, and investment-linked options with competitive premiums and guaranteed payouts.","Planos de seguro de vida para proteger o futuro financeiro da sua família. Opções temporárias, vitalícias e ligadas a investimento com prémios competitivos e pagamentos garantidos.")</p>
+            <ul class="insurance-benefits">
+                <li>@T("Term life coverage","Cobertura de vida temporária")</li>
+                <li>@T("Whole life options","Opções de vida inteira")</li>
+                <li>@T("Investment-linked plans","Planos ligados a investimento")</li>
+                <li>@T("Competitive premiums","Prémios competitivos")</li>
+                <li>@T("Family protection","Proteção da família")</li>
+            </ul>
+            <button class="insurance-btn" @onclick="GoToLogin">@T("GET QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section" id="contact">
+    <h2 class="cta-title">@T("Ready to Get Started?","Pronto para Começar?")</h2>
+    <p class="cta-subtitle">@T("Get a free insurance quote in Mozambique. It will only take less than 30 seconds.","Obtenha uma cotação gratuita em Moçambique. Leva menos de 30 segundos.")</p>
+    <div class="cta-buttons">
+        <button class="cta-btn-primary" @onclick="GoToLogin">@T("GET STARTED TODAY","COMECE HOJE")</button>
+        <button class="cta-btn-secondary" @onclick="GoToLogin">@T("TALK TO AN ADVISOR","FALE COM UM CONSULTOR")</button>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="landing-footer">
+    <div class="footer-content">
+        <div class="footer-section">
+            <h4>@T("About Us","Sobre Nós")</h4>
+            <p>@T("Established in 2015, Standard Insurance is your trusted insurance partner committed to providing peace of mind to our clients by helping them buy and manage their insurance policies and coverage.","Fundada em 2015, a Standard Insurance é o seu parceiro de confiança, dedicado a garantir tranquilidade ajudando a comprar e gerir as suas apólices e coberturas.")</p>
+            <p style="margin-top: 16px;">@T("CALL: +258-21-50-1020","LIGAR: +258-21-50-1020")</p>
+            <button class="landing-btn-quote" @onclick="GoToLogin" style="margin-top: 16px;">@T("GET A QUOTE","OBTER COTAÇÃO")</button>
+        </div>
+
+        <div class="footer-section">
+            <h4>@T("Insurance Products","Produtos de Seguro")</h4>
+            <ul>
+                <li><a href="#insurance">@T("Car Insurance","Seguro Automóvel")</a></li>
+                <li><a href="#insurance">@T("Health Insurance","Seguro de Saúde")</a></li>
+                <li><a href="#insurance">@T("Travel Insurance","Seguro de Viagem")</a></li>
+                <li><a href="#insurance">@T("Property Insurance","Seguro Patrimonial")</a></li>
+                <li><a href="#insurance">@T("Business Insurance","Seguro Empresarial")</a></li>
+                <li><a href="#insurance">@T("Life Insurance","Seguro de Vida")</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h4>@T("Quick Links","Ligações Rápidas")</h4>
+            <ul>
+                <li><a href="#home">@T("Home","Início")</a></li>
+                <li><a href="#features">@T("Why Us","Porquê Nós")</a></li>
+                <li><a href="#contact">@T("Contact","Contacto")</a></li>
+                <li><a href="/login">@T("Login","Entrar")</a></li>
+                <li><a href="/login">@T("Sign Up","Registar")</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h4>@T("Follow Us","Siga-nos")</h4>
+            <div class="footer-social">
+                <a href="#">@T("Facebook","Facebook")</a>
+                <a href="#">@T("Twitter","Twitter")</a>
+                <a href="#">@T("LinkedIn","LinkedIn")</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <p>&copy; 2025 Standard Insurance Corretores de Seguros, SA. @T("All Rights Reserved.","Todos os Direitos Reservados.") | <a href="#" style="color: #9ca3af; text-decoration: none;">@T("Privacy Policy","Política de Privacidade")</a> | <a href="#" style="color: #9ca3af; text-decoration: none;">@T("Terms of Use","Termos de Utilização")</a></p>
+        
+    </div>
+</footer>
+
+@code {
+    [CascadingParameter] public HomeLayout Layout { get; set; }
+    private string lang = "en";
+    private bool _langLoaded;
+    private string T(string en, string pt) => lang == "pt" ? pt : en;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_langLoaded)
+        {
+            try
+            {
+                var stored = await JS.InvokeAsync<string>("localStorage.getItem", "site_lang");
+                if (!string.IsNullOrWhiteSpace(stored))
+                {
+                    lang = stored;
+                    StateHasChanged();
+                }
+            }
+            catch { }
+            _langLoaded = true;
+        }
+    }
+
+    private async Task SetLang(string code)
+    {
+        lang = (code == "pt") ? "pt" : "en";
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", lang); } catch { }
+    }
+
+    private void GoToLogin()
+    {
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+    private async Task ToggleTheme()
+    {
+        if (Layout != null)
+        {
+            await Layout.ToggleTheme();
+        }
+    }
+}

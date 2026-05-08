@@ -1,0 +1,74 @@
+@using MudBlazor
+@using MOZ_UPGRADE.Models
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+
+<MudDialog MaxWidth="MaxWidth.Small" FullWidth="true">
+    <DialogContent>
+        <div style="font-family: 'Courier New', Courier, monospace; font-size: 13px;">
+            <div style="font-weight:700; margin-bottom:8px;">Receipt Details</div>
+            <div style="display:grid; grid-template-columns: 150px 1fr; gap:6px;">
+                <div>No</div><div>@Receipt?.No</div>
+                <div>Receipt No</div><div>@Receipt?.Receipt_No</div>
+                <div>Posting Date</div><div>@Receipt?.Posting_Date</div>
+                <div>Pay Mode</div><div>@Receipt?.Pay_Mode</div>
+                <div>Cheque No</div><div>@Receipt?.Cheque_No</div>
+                <div>Received From</div><div>@Receipt?.Received_From</div>
+                <div>On Behalf Of</div><div>@Receipt?.On_Behalf_Of</div>
+                <div>Cheque Date</div><div>@Receipt?.Cheque_Date</div>
+                <div>Currency Code</div><div>@Receipt?.Currency_Code</div>
+                <div>Bank Code</div><div>@Receipt?.Bank_Code</div>
+                <div>Cashier</div><div>@Receipt?.Cashier</div>
+                <div>Posted</div><div>@(Receipt?.Posted == true ? "Yes" : "No")</div>
+                <div>Posted Date</div><div>@Receipt?.Posted_Date</div>
+                <div>Posted Time</div><div>@Receipt?.Posted_Time</div>
+                <div>Posted By</div><div>@Receipt?.Posted_By</div>
+                <div>Total Amount</div><div>@Receipt?.Total_Amount.ToString("N2")</div>
+                <div>Amount LCY</div><div>@Receipt?.Amount_LCY.ToString("N2")</div>
+                <div>Cancellation Reason</div><div>@Receipt?.Cancellation_Reason</div>
+                <div>Account No</div><div>@Receipt?.Account_No</div>
+            </div>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudIconButton Color="Color.Secondary" Size="Size.Small" Icon="@Icons.Material.Outlined.Download" OnClick="DownloadPdf" />
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Close">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public PostedReceiptItem Receipt { get; set; }
+
+    void Close() => MudDialog?.Close();
+
+    private string GetFilename() => $"Receipt_{(string.IsNullOrWhiteSpace(Receipt?.Receipt_No) ? Receipt?.No : Receipt?.Receipt_No)}.pdf";
+
+    private async Task DownloadPdf()
+    {
+        if (Receipt == null) return;
+        var rows = new object[]
+        {
+            new { label = "No", value = Receipt.No },
+            new { label = "Receipt No", value = Receipt.Receipt_No },
+            new { label = "Posting Date", value = Receipt.Posting_Date },
+            new { label = "Pay Mode", value = Receipt.Pay_Mode },
+            new { label = "Cheque No", value = Receipt.Cheque_No },
+            new { label = "Received From", value = Receipt.Received_From },
+            new { label = "On Behalf Of", value = Receipt.On_Behalf_Of },
+            new { label = "Cheque Date", value = Receipt.Cheque_Date },
+            new { label = "Currency Code", value = Receipt.Currency_Code },
+            new { label = "Bank Code", value = Receipt.Bank_Code },
+            new { label = "Cashier", value = Receipt.Cashier },
+            new { label = "Posted", value = Receipt.Posted ? "Yes" : "No" },
+            new { label = "Posted Date", value = Receipt.Posted_Date },
+            new { label = "Posted Time", value = Receipt.Posted_Time },
+            new { label = "Posted By", value = Receipt.Posted_By },
+            new { label = "Total Amount", value = Receipt.Total_Amount.ToString("N2") },
+            new { label = "Amount LCY", value = Receipt.Amount_LCY.ToString("N2") },
+            new { label = "Cancellation Reason", value = Receipt.Cancellation_Reason },
+            new { label = "Account No", value = Receipt.Account_No }
+        };
+        await JS.InvokeVoidAsync("downloadReceiptPdfGrid", GetFilename(), "Receipt Details", rows);
+    }
+}

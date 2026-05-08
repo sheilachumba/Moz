@@ -1,0 +1,99 @@
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@using System.Linq.Expressions
+
+<div class="report-table-container">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <h4 class="ma-0">@Title</h4>
+        <div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" 
+                       OnClick="() => ExportToPdf.InvokeAsync()" EndIcon="@Icons.Material.Filled.PictureAsPdf" Class="me-2">
+                @LangService.T("Export to PDF", "Exportar para PDF")
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" 
+                       OnClick="() => ExportToExcel.InvokeAsync()" EndIcon="@Icons.Material.Filled.TableChart">
+                @LangService.T("Export to Excel", "Exportar para Excel")
+            </MudButton>
+        </div>
+    </div>
+
+    <MudTable Items="@Items" Hover="true" Bordered="true" Striped="true" Dense="true" 
+              @bind-SelectedItem="SelectedItem" Filter="new Func<object, bool>(item => FilterFunc(item, searchString))">
+        <ToolBarContent>
+            <MudText Typo="Typo.subtitle2" Class="d-flex align-center">
+                @LangService.T("Search", "Pesquisar"):
+            </MudText>
+            <MudTextField @bind-Value="searchString" Immediate="true" Adornment="Adornment.Start" 
+                         AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Small" 
+                         Class="mt-0" />
+        </ToolBarContent>
+        
+        <HeaderContent>
+            @foreach (var column in Columns)
+            {
+                <MudTh>@column.Header</MudTh>
+            }
+        </HeaderContent>
+        
+        <RowTemplate>
+            @foreach (var column in Columns)
+            {
+                var prop = context.GetType().GetProperty(column.Property);
+                var value = prop?.GetValue(context, null);
+                var formattedValue = FormatValue(value, column.Format);
+                
+                <MudTd DataLabel="@column.Header">@formattedValue</MudTd>
+            }
+        </RowTemplate>
+        
+        <PagerContent>
+            <MudTablePager RowsPerPageString="true" RowsPerPageStringFormat="{0} items per page" />
+        </PagerContent>
+    </MudTable>
+</div>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public IList<ReportColumn> Columns { get; set; } = new List<ReportColumn>();
+    [Parameter] public IEnumerable<object> Items { get; set; } = new List<object>();
+    [Parameter] public EventCallback ExportToPdf { get; set; }
+    [Parameter] public EventCallback ExportToExcel { get; set; }
+    [Parameter] public LanguageService LangService { get; set; } = null!;
+    
+    private string searchString = string.Empty;
+    private object SelectedItem { get; set; }
+    
+    private bool FilterFunc(object item, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+            
+        searchString = searchString.Trim().ToLower();
+        
+        // Check each property of the item
+        foreach (var prop in item.GetType().GetProperties())
+        {
+            var value = prop.GetValue(item)?.ToString()?.ToLower() ?? string.Empty;
+            if (value.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    private string FormatValue(object value, string format)
+    {
+        if (value == null) return string.Empty;
+
+        if (string.IsNullOrEmpty(format)) return value.ToString() ?? string.Empty;
+
+        return string.Format("{0:" + format + "}", value);
+    }
+    
+    protected override void OnInitialized()
+    {
+        // Initialize any required data
+    }
+}

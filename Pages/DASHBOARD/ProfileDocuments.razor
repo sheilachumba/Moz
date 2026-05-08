@@ -1,0 +1,214 @@
+@page "/ProfileDocuments"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using MudBlazor
+@using MOZ_UPGRADE.Utils
+@using System.Net.Http
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@inject IUnitOfWork UnitOfWork
+@inject ISharePointDocumentService SharePointDocuments
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+
+<MudPaper Class="pa-4" Style="max-width: 1100px; margin: 16px auto;">
+    <MudStack Spacing="2">
+        <MudStack Direction="Row" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h5">My Documents</MudText>
+            <MudButton Variant="Variant.Outlined" OnClick='@(() => NavigationManager.NavigateTo("/Profile"))' StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
+        </MudStack>
+
+        @if (_isLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <MudAlert Severity="Severity.Error">@_error</MudAlert>
+        }
+        else if (_documents.Count == 0)
+        {
+            <MudAlert Severity="Severity.Info">No documents found for your account.</MudAlert>
+        }
+        else
+        {
+            <MudTable Items="@_documents" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Category</MudTh>
+                    <MudTh>Document</MudTh>
+                    <MudTh>Last Modified</MudTh>
+                    <MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Category">@context.Category</MudTd>
+                    <MudTd DataLabel="Document">@GetDocumentDisplayName(context.DocumentCode)</MudTd>
+                    <MudTd DataLabel="Last Modified">@(context.LastModifiedDateTime?.ToString("yyyy-MM-dd HH:mm") ?? "")</MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick='@(() => View(context.WebUrl))'>View</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    private bool _isLoading = true;
+    private string _error = string.Empty;
+    private Users? _currentUser;
+    private readonly List<SharePointListedDocument> _documents = new();
+    private readonly Dictionary<string, string> _documentNamesByCode = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _error = string.Empty;
+
+            var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            var principal = authState.User;
+            var email = principal?.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                _error = "Unable to determine current user.";
+                return;
+            }
+
+            _currentUser = await UnitOfWork.userRepository.GetByEmail(email);
+            if (_currentUser == null)
+            {
+                _error = "User profile not found.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_currentUser.Contact_No))
+            {
+                _error = "No Contact Number found for your profile. Please update your Contact Number (for KYC) on Profile first.";
+                return;
+            }
+
+            await LoadDocumentSetupAsync();
+
+            var categories = new List<string>();
+            var type = _currentUser.AccountType.ToString();
+            if (type == "Corporate" || type == "Company")
+            {
+                categories.Add("Corporate");
+                categories.Add("Pep");
+                categories.Add("Shareholders");
+            }
+            else
+            {
+                categories.Add("Individual");
+            }
+
+            foreach (var cat in categories)
+            {
+                var docs = await SharePointDocuments.ListKycDocumentsAsync(cat, _currentUser.Contact_No);
+                if (docs != null)
+                {
+                    _documents.AddRange(docs);
+                }
+            }
+
+            _documents.Sort((a, b) =>
+            {
+                var c = string.Compare(a.Category, b.Category, StringComparison.OrdinalIgnoreCase);
+                if (c != 0) return c;
+                c = string.Compare(a.DocumentCode, b.DocumentCode, StringComparison.OrdinalIgnoreCase);
+                if (c != 0) return c;
+                return string.Compare(a.FileName, b.FileName, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadDocumentSetupAsync()
+    {
+        try
+        {
+            var bc = new BusinessCentralConfig(Configuration);
+            var handler = bc.CreateHttpClientHandler();
+            using var client = new HttpClient(handler);
+            bc.ConfigureHttpClient(client);
+
+            var url = bc.BuildUrl("Documentsetup");
+            using var resp = await client.GetAsync(url);
+            if (!resp.IsSuccessStatusCode)
+            {
+                return;
+            }
+
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("value", out var value) || value.ValueKind != JsonValueKind.Array)
+            {
+                return;
+            }
+
+            foreach (var el in value.EnumerateArray())
+            {
+                var code = el.TryGetProperty("Document_Code", out var codeProp) ? codeProp.GetString() : null;
+                var name = el.TryGetProperty("Document_Name", out var nameProp) ? nameProp.GetString() : null;
+                if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                _documentNamesByCode[code] = name;
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private string GetDocumentDisplayName(string rawDocumentCode)
+    {
+        var code = ExtractDocCode(rawDocumentCode);
+        if (!string.IsNullOrWhiteSpace(code) && _documentNamesByCode.TryGetValue(code, out var name) && !string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+
+        return string.IsNullOrWhiteSpace(rawDocumentCode) ? string.Empty : rawDocumentCode;
+    }
+
+    private static string ExtractDocCode(string rawDocumentCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawDocumentCode)) return string.Empty;
+
+        var matches = Regex.Matches(rawDocumentCode, "DOC\\d+", RegexOptions.IgnoreCase);
+        if (matches.Count > 0)
+        {
+            return matches[matches.Count - 1].Value;
+        }
+
+        return rawDocumentCode;
+    }
+
+    private void View(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            Snackbar.Add("No document link available.", Severity.Warning);
+            return;
+        }
+
+        JSRuntime.InvokeVoidAsync("open", url, "_blank");
+    }
+}

@@ -1,0 +1,115 @@
+@inherits LayoutComponentBase
+
+<PageTitle>Standard Insurance</PageTitle>
+    <main class="@(isDark? "dark" : "light")">
+        <MudThemeProvider @ref="_themeProvider" IsDarkMode="@isDark" />
+        <MudDialogProvider />
+        <MudSnackbarProvider />
+        <MudDialogProvider FullWidth="true"
+                           MaxWidth="MaxWidth.ExtraSmall"
+                           CloseButton="true"
+                           DisableBackdropClick="true"
+                           NoHeader="true"
+                           Position="DialogPosition.Center"
+                           CloseOnEscapeKey="true" />
+        <MudLayout>
+            <MudMainContent Class="pt-0 px-0">
+                <CascadingValue Value="this">
+                    <CascadingValue Value="LangService.CurrentLang">
+                        <div @key="lang">
+                            <body style="background-color:white;font-size:small" >
+                                @Body
+                            </body>
+                        </div>
+                    </CascadingValue>
+                </CascadingValue>
+            </MudMainContent>
+        </MudLayout>
+    </main>
+    @code {
+    [Inject] public MOZ_UPGRADE.Utils.LanguageService LangService { get; set; }
+    [Inject] public IJSRuntime JS { get; set; }
+    private MudThemeProvider _themeProvider;
+    private bool isDark = false;
+    private string lang = "pt";
+    bool open = true;
+    DrawerClipMode clipMode = DrawerClipMode.Never;
+    private bool visible;
+
+    void ToggleDrawer()
+    {
+        open = !open;
+    }
+
+    public void OpenLoading()
+    {
+        visible = true;
+        StateHasChanged();
+    }
+    public void CloseLoading()
+    {
+        visible = false;
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var stored = await JS.InvokeAsync<string>("localStorage.getItem", "site_lang");
+            if (!string.IsNullOrWhiteSpace(stored))
+            {
+                lang = stored;
+                LangService.SetLang(lang);
+            }
+            else
+            {
+                LangService.SetLang(lang); // default pt
+                await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", lang);
+            }
+            var theme = await JS.InvokeAsync<string>("localStorage.getItem", "site_theme");
+            isDark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { }
+        LangService.OnChange += HandleLangChanged;
+    }
+
+    private async Task SetLang(string code)
+    {
+        lang = (code=="pt")?"pt":"en";
+        LangService.SetLang(lang);
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_lang", lang); } catch { }
+        StateHasChanged();
+    }
+
+    private void HandleLangChanged() => InvokeAsync(StateHasChanged);
+
+    public async Task ToggleTheme()
+    {
+        isDark = !isDark;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "site_theme", isDark?"dark":"light"); } catch { }
+        StateHasChanged();
+    }
+}
+
+@implements IDisposable
+
+@code {
+    public void Dispose()
+    {
+        try { LangService.OnChange -= HandleLangChanged; } catch { }
+    }
+}
+
+<MudOverlay @bind-Visible="visible" LightBackground="true" AutoClose="false" ZIndex="9999">
+    <MudCard Elevation="0">
+        <MudCardActions>
+            <MudProgressCircular Color="Color.Warning" Indeterminate="true" />
+            <MudText Typo="Typo.h6" Color="Color.Warning" Style="margin-left:24px">Loading...</MudText>
+        </MudCardActions>
+    </MudCard>
+</MudOverlay>
+
+    
+
+    

@@ -1,0 +1,27 @@
+@using System
+@using System.Collections.Generic
+@using System.ComponentModel.DataAnnotations
+@using System.IO
+@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using MOZ_UPGRADE
+@using MOZ_UPGRADE.Shared
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Utils
+@using MudBlazor
+@using MudBlazor.Utilities
+@inject ISnackbar Snackbar
+@inject NavigationManager navigate
+@inject IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@inject NavigationManager NavigationManager
+@inject IUnitOfWork unitOfWork
+@inject MOZ_UPGRADE.Utils.CustomAuthenticationStateProvider authProvider

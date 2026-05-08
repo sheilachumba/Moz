@@ -1,0 +1,2314 @@
+@page "/login"
+@using System.Text.Json
+@inject IHttpContextAccessor HttpContextAccessor
+@layout HomeLayout
+@inject MOZ_UPGRADE.Utils.CustomAuthenticationStateProvider CustomAuthenticationStateProvider
+@inject MOZ_UPGRADE.Utils.IEmailService EmailService
+@inject NavigationManager NavigationManager
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+
+<style>
+    html, body {
+        overflow-x: hidden;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Dark mode overrides */
+    .dark .login-container { background: #0f172a; }
+    .dark .login-image-side { background: linear-gradient(135deg, #0b1226 0%, #101b3a 100%); }
+    .dark .login-image-title { color: #e5e7eb; }
+    .dark .login-image-subtitle { color: rgba(229, 231, 235, 0.8); }
+    .dark .login-image-feature { color: rgba(229, 231, 235, 0.85); }
+    .dark .login-form-side { background: #0f172a; }
+    .dark .login-header { background: rgba(17, 24, 39, 0.9); border-bottom-color: rgba(255,255,255,0.06); }
+    .dark .login-header-text, .dark .login-header-call { color: #e5e7eb; }
+    .dark .login-header-nav-link { color: #cbd5e1; }
+    .dark .login-header-nav-link:hover { color: #f59e0b; }
+    .dark .login-card, .dark .registration-card { background: #111827; box-shadow: none; }
+    .dark .login-card-title { color: #e5e7eb; }
+    .dark .login-card-subtitle { color: #9ca3af; }
+    .dark :deep(.mud-input-label) { color: #cbd5e1; }
+    .dark :deep(.mud-input-outlined .mud-input-notched-outline) { border-color: #374151 !important; }
+    .dark :deep(.mud-input-outlined .mud-input-slot) { color: #e5e7eb; }
+    .dark :deep(.mud-input-helper-text) { color: #9ca3af; }
+    .dark .login-button-secondary { background: transparent; color: #e5e7eb; border-color: #e5e7eb; }
+    .dark .create-account-left { background: linear-gradient(135deg, #0b1226 0%, #101b3a 100%); }
+    .dark .create-account-right { background: #0f172a; }
+    .dark .password-requirements li { color: #cbd5e1; }
+    .dark .registration-requirements-sidebar { background: rgba(255,255,255,0.06); border-left-color: #f59e0b; }
+
+    .login-container {
+        background: #f5f5f7;
+        min-height: 100vh;
+        display: flex;
+        width:100vw;
+        flex-direction: row;
+        padding-top: 72px;
+    }
+
+    /* Left Side - Image */
+    .login-image-side {
+        flex: 1;
+        background: linear-gradient(135deg, #003366 0%, #1F3A7F 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-image-side::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .login-image-wrapper {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+        max-width: 100%;
+    }
+
+    .login-image-container {
+        position: relative;
+        z-index: 2;
+        max-width: 100%;
+        height: auto;
+    }
+
+    .login-image-container img {
+        width: 100%;
+        height: auto;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        object-fit: contain;
+        max-height: 350px;
+    }
+
+    .login-image-text {
+        text-align: center;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .login-image-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: white;
+        line-height: 1.3;
+    }
+
+    .login-image-subtitle {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.9);
+        line-height: 1.6;
+        max-width: 400px;
+    }
+
+    .login-image-features {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .login-image-feature {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .login-image-feature-icon {
+        width: 24px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #FF9900;
+        flex-shrink: 0;
+    }
+
+    /* Right Side - Form */
+    .login-form-side {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        background: white;
+    }
+
+    .login-header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 16px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        z-index: 100;
+    }
+
+    .login-header-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .login-header-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .login-header-call {
+        color: #003366;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .login-header-nav {
+        display: flex;
+        gap: 24px;
+        align-items: center;
+    }
+
+    .login-header-nav-link {
+        color: #003366;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        transition: color 0.3s;
+    }
+
+    .login-header-nav-link:hover {
+        color: #FF9900;
+    }
+
+    .login-header-logo {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+    }
+
+    .login-header-logo img {
+        width: 32px;
+        height: 32px;
+        object-fit: contain;
+    }
+
+    .login-header-text {
+        color: #003366;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .login-header-text-title {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .login-header-text-subtitle {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+
+    .login-content {
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .login-card {
+        background: white;
+        border-radius: 20px;
+        padding: 32px;
+        width: 100%;
+        box-shadow: none;
+        animation: slideInLeft 0.5s ease-out;
+        backdrop-filter: none;
+    }
+
+    .login-card.hidden {
+        display: none;
+    }
+
+    .registration-card {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        width: 100%;
+        box-shadow: none;
+        animation: slideInRight 0.5s ease-out;
+        backdrop-filter: none;
+       
+    }
+
+    .registration-card.hidden {
+        display: none;
+    }
+
+    .registration-form-wrapper {
+       
+      
+        gap: 40px;
+        width: 100%;
+        align-items: start;
+    }
+
+    .registration-form-content {
+       
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .registration-requirements-sidebar {
+        background: linear-gradient(135deg, #FFF4E6 0%, #FFFBF0 100%);
+        border-left: 4px solid #FF9900;
+        border-radius: 12px;
+        padding: 28px;
+        height: fit-content;
+        position: sticky;
+        top: 100px;
+    }
+
+    .registration-requirements-sidebar h4 {
+        font-size: 12px;
+        font-weight: 700;
+        color: #17275F;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 12px 0;
+    }
+
+    .registration-requirements-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .requirement-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: #666;
+    }
+
+    .requirement-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #e5e5e7;
+        color: #999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        flex-shrink: 0;
+    }
+
+    .requirement-icon.checked {
+        background: #FF9900;
+        color: white;
+    }
+
+    .login-card-header {
+        text-align: center;
+        margin-bottom: 32px;
+        position: relative;
+    }
+
+    .login-card-header::after {
+        content: '';
+        position: absolute;
+        bottom: -16px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #FF9900, transparent);
+        border-radius: 2px;
+    }
+
+    .login-card-icon {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 16px;
+        background: linear-gradient(135deg, #283A79 0%, #283A79 100%);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 24px;
+        box-shadow: 0 12px 32px rgba(255, 153, 0, 0.25);
+        position: relative;
+    }
+
+    .login-card-icon::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+        border-radius: 24px;
+        opacity: 0.2;
+        z-index: -1;
+    }
+
+    .login-card-icon img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+    }
+
+    .login-card-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 8px;
+    }
+
+    .login-card-subtitle {
+        font-size: 15px;
+        color: #666;
+        line-height: 1.5;
+    }
+
+    .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .login-form::before {
+        content: '';
+        display: block;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e5e5e7, transparent);
+        margin-bottom: 8px;
+    }
+
+    .registration-card .login-form {
+        gap: 18px;
+    }
+
+    .login-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .login-form-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #003366;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    /* MudBlazor TextField styling */
+    :deep(.mud-input-outlined) {
+        border-radius: 12px;
+    }
+
+    :deep(.mud-input-outlined .mud-input-notched-outline) {
+        border-color: #e5e5e7 !important;
+    }
+
+    :deep(.mud-input-outlined.mud-focused .mud-input-notched-outline) {
+        border-color: #FF9900 !important;
+    }
+
+    :deep(.mud-input-outlined .mud-input-slot) {
+        padding: 12px 16px;
+    }
+
+    :deep(.mud-input-label) {
+        font-size: 13px;
+        font-weight: 600;
+        color: #17275F;
+    }
+
+    :deep(.mud-input-helper-text) {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+    }
+
+    .login-form-helper {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+    }
+
+    .login-form-options {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+        margin-top: 6px;
+    }
+
+    .login-form-remember {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #333;
+    }
+
+    .login-form-forgot {
+        color: #2563eb;
+        text-decoration: underline;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .login-form-forgot:hover {
+        color: #1d4ed8;
+        text-decoration: underline;
+    }
+
+    .login-button {
+        background: linear-gradient(135deg, #283A79 0%, #283A79 100%);
+        color: white;
+        padding: 13px 22px;
+        border: none;
+        border-radius: 14px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-top: 6px;
+        box-shadow: 0 6px 20px rgba(255, 153, 0, 0.25);
+        letter-spacing: 0.3px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        transition: left 0.3s ease;
+    }
+
+    .login-button:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(255, 153, 0, 0.35);
+    }
+
+    .login-button:hover:not(:disabled)::before {
+        left: 100%;
+    }
+
+    .login-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .login-button-secondary {
+        background: white;
+        color: #17275F;
+        border: 2px solid #17275F;
+        padding: 12px 22px;
+        margin-top: 8px;
+        box-shadow: 0 4px 12px rgba(23, 39, 95, 0.12);
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    .login-button-secondary:hover {
+        background: #f5f5f7;
+        box-shadow: 0 6px 16px rgba(23, 39, 95, 0.16);
+        transform: translateY(-2px);
+    }
+
+    /* Create Account Modal Styles */
+    .create-account-modal {
+        border-radius: 24px !important;
+        background: white !important;
+    }
+
+    .create-account-container {
+        display: flex;
+        flex-direction: column;
+        max-height: 85vh;
+        padding: 0;
+        border-radius: 24px;
+    }
+
+    /* Modal Header */
+    .create-account-header {
+        background: linear-gradient(135deg, #17275F 0%, #1F3A7F 100%);
+        padding: 24px;
+        text-align: center;
+        border-radius: 24px 24px 0 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .create-account-logo {
+        margin-bottom: 12px;
+    }
+
+    .create-account-logo img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        filter: brightness(0) invert(1);
+    }
+
+    .create-account-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: white;
+        margin: 8px 0 4px 0;
+        line-height: 1.2;
+    }
+
+    .create-account-subtitle {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+    }
+
+    /* Modal Content */
+    .create-account-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .create-account-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .create-account-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .create-account-content::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 3px;
+    }
+
+    /* Left Side - Info & Requirements */
+    .create-account-left {
+        flex: 0 0 35%;
+        background: linear-gradient(135deg, #17275F 0%, #1F3A7F 100%);
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        color: white;
+    }
+
+    .create-account-info {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .create-account-info-title {
+        font-size: 16px;
+        font-weight: 700;
+        color: white;
+    }
+
+    .create-account-info-item {
+        display: flex;
+        gap: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .create-account-info-icon {
+        width: 24px;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #FF9900;
+        flex-shrink: 0;
+    }
+
+    /* Right Side - Form */
+    .create-account-right {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+    }
+
+    .create-account-right::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .create-account-right::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .create-account-right::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 3px;
+    }
+
+    .form-group {
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .form-row-three {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .form-group-third {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #17275F;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-helper {
+        font-size: 10px;
+        color: #999;
+        margin-top: 2px;
+    }
+
+    .password-requirements {
+        background: rgba(255, 255, 255, 0.1);
+        border-left: 4px solid #FF9900;
+        padding: 12px;
+        margin: 0;
+        border-radius: 8px;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .create-account-left .password-requirements {
+        background: rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .password-requirements strong {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        font-size: 11px;
+        color: white;
+    }
+
+    .password-requirements ul {
+        margin: 0;
+        padding-left: 16px;
+        list-style-type: disc;
+    }
+
+    .password-requirements li {
+        margin-bottom: 3px;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+    }
+
+    .requirement-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        font-size: 10px;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .requirement-icon.unchecked {
+        background-color: #e0e0e0;
+        color: #999;
+    }
+
+    .requirement-icon.checked {
+        background-color: #FF9900;
+        color: white;
+    }
+
+    /* Modal Footer */
+    .create-account-footer {
+        display: flex;
+        gap: 12px;
+        padding: 16px 24px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        background: #f5f5f7;
+        border-radius: 0 0 24px 24px;
+    }
+
+    .create-account-button {
+        flex: 1;
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+        color: white;
+        padding: 10px 12px;
+        border: none;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        box-shadow: 0 4px 12px rgba(255, 153, 0, 0.2);
+    }
+
+    .create-account-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(255, 153, 0, 0.3);
+    }
+
+    .create-account-button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .create-account-button-cancel {
+        background: white;
+        color: #003366;
+        border: 2px solid #003366;
+        box-shadow: 0 2px 8px rgba(0, 51, 102, 0.1);
+    }
+
+    .create-account-button-cancel:hover {
+        background: #f5f5f7;
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 1024px) {
+        .login-container {
+            flex-direction: column;
+            padding-top: 0;
+        }
+
+        .login-image-side {
+            min-height: 300px;
+            padding: 20px;
+        }
+
+        .login-form-side {
+            padding: 80px 20px 40px;
+        }
+
+        .login-header {
+            position: relative;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .form-row {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .login-container {
+            flex-direction: column;
+        }
+
+        /* Order: show form first, then hero */
+        .login-form-side { order: 1; padding: 24px 16px 30px; }
+        .login-image-side { order: 2; min-height: 220px; padding: 16px; }
+
+        /* Make modal content stack for wider inputs */
+        .create-account-content { flex-direction: column; }
+        .create-account-left, .create-account-right { width: 100%; padding: 16px; }
+        .login-content { max-width: 100%; }
+
+        /* Header layout tweaks */
+        .login-header { flex-wrap: wrap; padding: 12px 16px; }
+        .login-header-left { order: 1; width: 100%; }
+        .login-header-nav { order: 2; width: 100%; justify-content: center; gap: 10px; display: none; }
+        .login-header-right { order: 3; width: 100%; justify-content: flex-end; display: none; }
+        .login-header-call { font-size: 11px; }
+
+        .login-card-title {
+            font-size: 18px;
+        }
+
+        .login-card-icon {
+            width: 56px;
+            height: 56px;
+        }
+        /* Tighter nav link size on small screens */
+        .login-header-nav a { font-size: 11px; }
+
+        /* 2FA modal sizing */
+        .twofa-dialog :deep(.mud-dialog) { margin: 0; width: 100vw; max-width: 100vw; max-height: 90vh; border-radius: 0; }
+        .twofa-dialog :deep(.mud-dialog-content) { padding: 10px; }
+        .twofa-container { max-width: 100%; margin: 0 auto; padding: 10px; }
+        .twofa-header { margin-top: 8px; }
+        .twofa-icon { width: 56px; height: 56px; font-size: 24px; }
+        .twofa-title { font-size: 18px; }
+        .twofa-subtitle { font-size: 12px; }
+        .twofa-input-group { gap: 6px; margin: 14px 0; flex-wrap: wrap; justify-content: center; }
+        .twofa-input { width: 14px; height: 18px; font-size: 20px; }
+        .twofa-button { width: 100%; padding: 10px 16px; }
+    }
+
+    /* Extra-small screens */
+    @@media (max-width: 360px) {
+        .twofa-dialog :deep(.mud-dialog) { margin: 0; width: 100vw; max-width: 100vw; }
+        .twofa-container { max-width: 100%; padding: 8px; }
+        .twofa-icon { width: 48px; height: 48px; font-size: 22px; }
+        .twofa-title { font-size: 16px; }
+        .twofa-subtitle, .twofa-email { font-size: 11px; }
+        .twofa-input-group { gap: 4px; margin: 12px 0; }
+        .twofa-input { width: 10px; height: 18px; font-size: 18px; }
+        .twofa-button { padding: 10px 14px; }
+    }
+
+    /* 2FA Styles */
+    .twofa-container {
+        position: relative;
+        border-radius: 24px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .twofa-close-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: all 0.2s ease;
+        color: #666;
+        padding: 0;
+    }
+
+    .twofa-close-btn:hover {
+        background: #f5f5f7;
+        color: #17275F;
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    .twofa-close-btn:active {
+        transform: scale(0.95);
+    }
+
+    .twofa-header {
+        margin-top: 16px;
+    }
+
+    .twofa-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 16px;
+        background: linear-gradient(135deg, #283A79 0%, #283A79 100%);
+        border-radius: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 32px;
+        box-shadow: 0 8px 24px rgba(255, 153, 0, 0.2);
+    }
+
+    .twofa-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: #003366;
+        margin-bottom: 8px;
+    }
+
+    .twofa-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 8px;
+    }
+
+    .twofa-email {
+        font-size: 13px;
+        color: #999;
+        word-break: break-all;
+    }
+
+    .twofa-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .twofa-input-group {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        margin: 30px 0;
+    }
+
+    .twofa-input {
+        width: 36px;
+        height: 36px;
+        font-size: small;
+        text-align: center;
+        border: 2px solid #283A79;
+        border-radius: 4px;
+        font-weight: bolder;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: #fafafa;
+        color: #003366;
+        caret-color: #FF9900;
+    }
+
+    .twofa-input:focus {
+        outline: none;
+            border-color: #283A79;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(255, 153, 0, 0.15), 0 4px 12px rgba(255, 153, 0, 0.2);
+        transform: scale(1.05);
+    }
+
+    .twofa-input.filled {
+            border-color: #283A79;
+        background: linear-gradient(135deg, #FFF4E6 0%, #FFFBF0 100%);
+        box-shadow: 0 2px 8px rgba(255, 153, 0, 0.1);
+    }
+
+    .twofa-input::placeholder {
+        color: #ccc;
+        font-size: 24px;
+    }
+
+    .twofa-button {
+        background: linear-gradient(135deg, #283A79 0%, #283A79 100%);
+        color: white;
+        padding: 14px 32px;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(255, 153, 0, 0.2);
+        letter-spacing: 0.5px;
+    }
+
+    .twofa-button:hover:not(:disabled) {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(255, 153, 0, 0.35);
+        background: linear-gradient(135deg, #FF9900 0%, #E68A00 100%);
+    }
+
+    .twofa-button:active:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .twofa-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: linear-gradient(135deg, #9ca3af 0%, #d1d5db 100%);
+        box-shadow: none;
+    }
+
+    .twofa-resend {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .twofa-resend-link {
+        color: #FF9900;
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .twofa-resend-link:hover {
+        text-decoration: underline;
+    }
+
+    .twofa-timer {
+        font-size: 12px;
+        color: #999;
+        margin-top: 8px;
+    }
+
+    .twofa-error {
+        background-color: #fee;
+        color: #c33;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+
+    .twofa-success {
+        background-color: #efe;
+        color: #3c3;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+
+    /* Animations */
+    @@keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @@keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
+
+<div class="login-container">
+    <!-- Header Navigation -->
+    <div class="login-header">
+        <div class="login-header-left">
+            <div class="login-header-logo">
+                <img src="/images/logo.png" alt="STANDARD INSURANCE CORRETORES DE SEGUROS, SA" />
+            </div>
+            <div class="login-header-text">
+                <div class="login-header-text-title">Standard Insurance</div>
+                <div class="login-header-text-subtitle">@LangService.T("Client Portal","Portal do Cliente")</div>
+            </div>
+        </div>
+
+        <div class="login-header-nav">
+            <a href="/" class="login-header-nav-link">@LangService.T("HOME","INÍCIO")</a>
+            <a href="/#insurance" class="login-header-nav-link">@LangService.T("PRODUCTS","PRODUTOS")</a>
+            <a href="/#features" class="login-header-nav-link">@LangService.T("WHY US","PORQUÊ NÓS")</a>
+        </div>
+
+        <div class="login-header-right">
+            <div class="login-header-call">@LangService.T("CALL: +258-21-50-1020","LIGUE: +258-21-50-1020")</div>
+        </div>
+    </div>
+
+    <!-- Left Side - Image -->
+    <div class="login-image-side">
+        <div class="login-image-wrapper">
+            <div class="login-image-container">
+                <img src="/images/homeeee.png" alt="Insurance Protection" />
+            </div>
+            <div class="login-image-text">
+                <h2 class="login-image-title">@LangService.T("Protect What Matters Most","Proteja o que mais importa")</h2>
+                <p class="login-image-subtitle">@LangService.T("Get comprehensive insurance coverage tailored to your needs. Fast quotes, expert advice, and seamless claims processing.","Obtenha cobertura de seguro abrangente adaptada às suas necessidades. Cotações rápidas, aconselhamento especializado e processamento de sinistros sem complicações.")</p>
+                <div class="login-image-features">
+                    <div class="login-image-feature">
+                        <div class="login-image-feature-icon">✓</div>
+                        <span>@LangService.T("Instant quotes from top insurers","Cotações instantâneas dos principais seguradores")</span>
+                    </div>
+                    <div class="login-image-feature">
+                        <div class="login-image-feature-icon">✓</div>
+                        <span>@LangService.T("24/7 customer support","Apoio ao cliente 24/7")</span>
+                    </div>
+                    <div class="login-image-feature">
+                        <div class="login-image-feature-icon">✓</div>
+                        <span>@LangService.T("Fast & hassle-free claims","Sinistros rápidos e sem complicações")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side - Form -->
+    <div class="login-form-side">
+        <div class="login-content">
+            <!-- Login Form Card -->
+            <div class="login-card @(showRegistration ? "hidden" : "")">
+                <!-- Card Header -->
+                <div class="login-card-header">
+                    <div class="login-card-icon">
+                        <img src="/images/logo.png" alt="STANDARD INSURANCE CORRETORES DE SEGUROS, SA" />
+                    </div>
+                    <div class="login-card-title">@LangService.T("Welcome Back","Bem-vindo de volta")</div>
+                    <div class="login-card-subtitle">@LangService.T("Login to your account","Inicie sessão na sua conta")</div>
+                </div>
+
+                <!-- Login Form -->
+                <EditForm Model="@users" OnValidSubmit="OnValidSubmit">
+                    <DataAnnotationsValidator />
+
+                    <div class="login-form">
+                        <!-- Email Field -->
+                        <MudTextField @bind-Value="users.username" 
+                                      For="@(()=>users.username)" 
+                                      Label='@LangService.T("Email","Email")'
+                                      Placeholder='@LangService.T("yourname@example.com","seunome@exemplo.com")'
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      FullWidth="true"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Email"
+                                      InputType="InputType.Email">
+                        </MudTextField>
+
+                        <!-- Password Field -->
+                        <MudTextField @bind-Value="users.password" 
+                                      For="@(()=>users.password)"
+                                      Label='@LangService.T("Password","Palavra-passe")'
+                                      Placeholder='@LangService.T("Enter your password","Introduza a palavra-passe")'
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      FullWidth="true"
+                                      InputType="@PasswordInput" 
+                                      Adornment="Adornment.End" 
+                                      AdornmentIcon="@PasswordInputIcon" 
+                                      OnAdornmentClick="ButtonTestclick"
+                                      HelperText='@LangService.T("Password must be at least 8 characters, contain an uppercase letter, a number, and a symbol.","A palavra-passe deve ter pelo menos 8 caracteres, conter uma letra maiúscula, um número e um símbolo.")'>
+                        </MudTextField>
+
+                        <!-- Options -->
+                        <div class="login-form-options">
+                            <label class="login-form-remember">
+                                <MudCheckBox @bind-Value="Basic_CheckBox2" Size="Size.Small" />
+                                @LangService.T("Remember me","Lembrar-me")
+                            </label>
+                            <a class="login-form-forgot" @onclick="OpenForgotPassword">@LangService.T("Forgot your credentials? Click here to reset.","Esqueceu-se das credenciais? Clique aqui para redefinir.")</a>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <!-- Login Button -->
+                                @if (isloading)
+                                {
+                                    <button class="login-button" disabled>
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                        @LangService.T("Please wait...", "Por favor aguarde...")
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="login-button" style="display:inline-block; width:100%; margin-right:10px;">@LangService.T("Login", "Iniciar sessão")</button>
+                                }
+                            </div>
+                            <div class="col-6">
+
+                                <!-- Sign Up Button -->
+                                <button type="button" class="login-button login-button-secondary" style="display:inline-block; width:calc(100% - 10px);" @onclick="@(() => showRegistration = true)">
+                                    @LangService.T("Create account", "Criar conta")
+                                </button>
+                            </div>
+                        </div>
+
+                    
+
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Registration Form Card -->
+            <div class="registration-card @(showRegistration ? "" : "hidden")">
+                <!-- Card Header -->
+                <div class="login-card-header">
+                    <div class="login-card-icon">
+                        <img src="/images/logo.png" alt="STANDARD INSURANCE CORRETORES DE SEGUROS, SA" />
+                    </div>
+                    <div class="login-card-title">@LangService.T("Create Account","Criar Conta")</div>
+                    <div class="login-card-subtitle">@LangService.T("Join Standard Insurance today","Junte-se à Standard Insurance hoje")</div>
+                </div>
+
+                <!-- Registration Form -->
+                <EditForm Model="@user" OnValidSubmit="OnValidCreateAccount">
+                    <DataAnnotationsValidator />
+
+                    <div class="login-form">
+                        <!-- Account Type -->
+                        <MudSelect T="KycType" Value="user.AccountType" ValueChanged="OnAccountTypeChanged" For="@(()=>user.AccountType)" Label='@LangService.T("Account Type","Tipo de Conta")' Variant="Variant.Outlined" FullWidth="true" Margin="Margin.Dense">
+                            <MudSelectItem Value="KycType.Individual">@LangService.T("Individual","Individual")</MudSelectItem>
+                            <MudSelectItem Value="KycType.Corporate">@LangService.T("Corporate","Empresa")</MudSelectItem>
+                 @*            <MudSelectItem Value="KycType.SoleProprietor">@LangService.T("Sole Proprietor","Empresário em Nome Individual")</MudSelectItem>
+                            <MudSelectItem Value="KycType.Association">@LangService.T("Association","Associação")</MudSelectItem> *@
+                        </MudSelect>
+
+                        @if (!IsCorporateOrAssociation)
+                        {
+                            <!-- First Name -->
+                            <MudTextField @bind-Value="user.FirstName" For="@(()=>user.FirstName)" Label='@LangService.T("First Name","Nome")' Placeholder='@LangService.T("First Name","Nome")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+
+                            <!-- Middle Name -->
+                            <MudTextField @bind-Value="user.MiddleName" For="@(()=>user.MiddleName)" Label='@LangService.T("Middle Name","Nome do Meio")' Placeholder='@LangService.T("Middle Name","Nome do Meio")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+
+                            <!-- Last Name -->
+                            <MudTextField @bind-Value="user.LastName" For="@(()=>user.LastName)" Label='@LangService.T("Last Name","Apelido")' Placeholder='@LangService.T("Last Name","Apelido")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                        }
+                        else
+                        {
+                            <!-- Company Name -->
+                            <MudTextField @bind-Value="user.CompanyName" For="@(()=>user.CompanyName)" Label='@LangService.T("Company Name","Nome da Empresa")' Placeholder='@LangService.T("Company Name","Nome da Empresa")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                        }
+
+                        <!-- Email Address -->
+                        <MudTextField @bind-Value="user.Email" For="@(()=>user.Email)" Label='@LangService.T("Email Address","Endereço de Email")' Placeholder='@LangService.T("yourname@example.com","seunome@exemplo.com")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+
+                        <!-- Phone Number -->
+                        <MudTextField @bind-Value="user.PhoneNumber" For="@(()=>user.PhoneNumber)" Label='@LangService.T("Phone Number","Número de Telefone")' Placeholder='@LangService.T("Phone Number","Número de Telefone")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+
+                        <!-- Password -->
+                        <MudTextField Value="user.password_hash"
+                                      For="@(()=>user.password_hash)"
+                                      Label='@LangService.T("Password","Palavra-passe")'
+                                      Placeholder='@LangService.T("Enter a strong password","Introduza uma palavra-passe forte")'
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      FullWidth="true"
+                                      InputType="@PasswordInput"
+                                      Adornment="Adornment.End"
+                                      AdornmentIcon="@PasswordInputIcon"
+                                      OnAdornmentClick="ButtonTestclick"
+                                      ValueChanged="@(async (string val) => { user.password_hash = val; await OnRegistrationPasswordChanged(); })"
+                                      HelperText='@LangService.T("Enter a password to check strength","Introduza uma palavra-passe para verificar a força")'>
+                        </MudTextField>
+
+                        <!-- Confirm Password -->
+                        <MudTextField @bind-Value="confirmPassword" Label='@LangService.T("Confirm Password","Confirmar Palavra-passe")' Placeholder='@LangService.T("Re-enter your password","Digite novamente a palavra-passe")' Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon" OnAdornmentClick="ButtonTestclick"></MudTextField>
+
+                        <!-- Action Buttons (horizontal) -->
+                        <div style="display: flex; flex-direction: row; gap: 10px; margin-top: 16px;">
+                            <button type="button" class="login-button login-button-secondary" style="flex:1" @onclick="@(() => { showRegistration = false; ResetRegistrationForm(); })">
+                                @LangService.T("Back to Login","Voltar ao Login")
+                            </button>
+                            <button type="submit" class="login-button" style="flex:1">
+                                @LangService.T("Create Account","Criar Conta")
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+               
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <MudDialog @bind-IsVisible="@open_Create" Options="new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.ExtraLarge, DisableBackdropClick = true, CloseButton = false }" Class="create-account-modal">
+        <DialogContent>
+            <div class="create-account-container">
+                <!-- Header -->
+                <div class="create-account-header">
+                    <div class="create-account-logo">
+                        <img src="/images/logo.png" alt="STANDARD INSURANCE" />
+                    </div>
+                    <h1 class="create-account-title">@LangService.T("Create Your Account","Crie a Sua Conta")</h1>
+                    <p class="create-account-subtitle">@LangService.T("Join Standard Insurance and get protected today","Junte-se à Standard Insurance e proteja-se hoje")</p>
+                </div>
+
+                <!-- Content -->
+                <div class="create-account-content">
+                    <!-- Left Side - Info & Requirements -->
+                    <div class="create-account-left">
+                        <div class="create-account-info">
+                            <h3 class="create-account-info-title">@LangService.T("Why Create an Account?","Por que criar uma conta?")</h3>
+                            <div class="create-account-info-item">
+                                <div class="create-account-info-icon">✓</div>
+                                <span>@LangService.T("Get instant insurance quotes from top providers","Obtenha cotações instantâneas das principais seguradoras")</span>
+                            </div>
+                            <div class="create-account-info-item">
+                                <div class="create-account-info-icon">✓</div>
+                                <span>@LangService.T("Compare coverage options and save up to 15%","Compare opções de cobertura e poupe até 15%")</span>
+                            </div>
+                            <div class="create-account-info-item">
+                                <div class="create-account-info-icon">✓</div>
+                                <span>@LangService.T("Manage your policies in one secure place","Gerencie as suas apólices num local seguro")</span>
+                            </div>
+                            <div class="create-account-info-item">
+                                <div class="create-account-info-icon">✓</div>
+                                <span>@LangService.T("24/7 customer support and claims assistance","Suporte ao cliente 24/7 e assistência de sinistros")</span>
+                            </div>
+                        </div>
+
+                        <!-- Password Requirements -->
+                        <div class="registration-requirements-sidebar" style="margin-top: 24px;">
+                            <h4>@LangService.T("Password Requirements","Requisitos da Palavra-passe")</h4>
+                            <div class="registration-requirements-list">
+                                <div class="requirement-item">
+                                    <div class="requirement-icon @(passwordRequirements.MinLength ? "checked" : "")">✓</div>
+                                    <span>@LangService.T("At least 8 characters","Pelo menos 8 caracteres")</span>
+                                </div>
+                                <div class="requirement-item">
+                                    <div class="requirement-icon @(passwordRequirements.HasUppercase ? "checked" : "")">✓</div>
+                                    <span>@LangService.T("One uppercase letter","Uma letra maiúscula")</span>
+                                </div>
+                                <div class="requirement-item">
+                                    <div class="requirement-icon @(passwordRequirements.HasLowercase ? "checked" : "")">✓</div>
+                                    <span>@LangService.T("One lowercase letter","Uma letra minúscula")</span>
+                                </div>
+                                <div class="requirement-item">
+                                    <div class="requirement-icon @(passwordRequirements.HasNumber ? "checked" : "")">✓</div>
+                                    <span>@LangService.T("One number","Um número")</span>
+                                </div>
+                                <div class="requirement-item">
+                                    <div class="requirement-icon @(passwordRequirements.HasSymbol ? "checked" : "")">✓</div>
+                                    <span>@LangService.T("One special character","Um carácter especial")</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side - Form -->
+                    <div class="create-account-right">
+                        <!-- Form -->
+                        <EditForm Model="@user" OnValidSubmit="OnValidCreateAccount" id="create-form">
+                            <DataAnnotationsValidator />
+
+                            <!-- Account Type + First Name (same row on mobile too) -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Account Type</label>
+                                    <MudSelect T="KycType" Value="user.AccountType" ValueChanged="OnAccountTypeChanged" For="@(()=>user.AccountType)" Variant="Variant.Outlined" FullWidth="true">
+                                        <MudSelectItem Value="KycType.Individual">Individual</MudSelectItem>
+                                        <MudSelectItem Value="KycType.Corporate">Corporate</MudSelectItem>
+                                        <MudSelectItem Value="KycType.SoleProprietor">Sole Proprietor</MudSelectItem>
+                                        <MudSelectItem Value="KycType.Association">Association</MudSelectItem>
+                                    </MudSelect>
+                                </div>
+                                @if (!IsCorporateOrAssociation)
+                                {
+                                    <div class="form-group">
+                                        <label class="form-label">First Name</label>
+                                        <MudTextField @bind-Value="user.FirstName" For="@(()=>user.FirstName)" Placeholder="First Name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                    </div>
+                                }
+                            </div>
+
+                            <!-- Middle + Last Name Row -->
+                            @if (!IsCorporateOrAssociation)
+                            {
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Middle Name</label>
+                                        <MudTextField @bind-Value="user.MiddleName" For="@(()=>user.MiddleName)"  Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Last Name</label>
+                                        <MudTextField @bind-Value="user.LastName" For="@(()=>user.LastName)" Placeholder="Last Name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="form-row">
+                                    <div class="form-group" style="width:100%">
+                                        <label class="form-label">Company Name</label>
+                                        <MudTextField @bind-Value="user.CompanyName" For="@(()=>user.CompanyName)" Placeholder="Company Name" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                    </div>
+                                </div>
+                            }
+
+                            <!-- Email & Phone Row -->
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label">Email Address</label>
+                                    <MudTextField @bind-Value="user.Email" For="@(()=>user.Email)" Placeholder="yourname@example.com" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Phone Number</label>
+                                    <MudTextField @bind-Value="user.PhoneNumber" For="@(()=>user.PhoneNumber)" Placeholder="Phone Number" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true"></MudTextField>
+                                </div>
+                            </div>
+
+                            <!-- Password -->
+                            <div class="form-group">
+                                <label class="form-label">Password</label>
+                                <input @bind="user.password_hash" @bind:event="oninput" type="password" class="form-control" placeholder="Enter a strong password" style="padding: 9px 12px; font-size: 13px; border-radius: 8px; border: 1px solid #e0e0e0;" />
+                                <div class="form-helper">Enter a password to check strength</div>
+                            </div>
+
+                            <!-- Confirm Password -->
+                            <div class="form-group">
+                                <label class="form-label">Confirm Password</label>
+                                <MudTextField @bind-Value="confirmPassword" Placeholder="Re-enter your password" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon" OnAdornmentClick="ButtonTestclick"></MudTextField>
+                            </div>
+
+                        </EditForm>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="create-account-footer" style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button type="button" class="create-account-button create-account-button-cancel" @onclick="close_Create_nav">
+                        @LangService.T("Cancel","Cancelar")
+                    </button>
+                    <button type="submit" form="create-form" class="create-account-button">
+                        @LangService.T("Create Account","Criar Conta")
+                    </button>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+</div>
+
+@if (showForgotPassword)
+{
+    <!-- Custom Forgot Password Overlay -->
+    <div style="position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div style="background:white; border-radius:24px; max-width:480px; width:100%; box-shadow:0 18px 45px rgba(15,23,42,0.35); overflow:hidden;">
+            <div class="create-account-header">
+                <div class="create-account-logo">
+                    <img src="/images/logo.png" alt="STANDARD INSURANCE" />
+                </div>
+                <h1 class="create-account-title">Reset your password</h1>
+                <p class="create-account-subtitle">Enter the email you use to login and we will send you a reset link.</p>
+            </div>
+
+            <div class="create-account-right" style="padding:24px;">
+                <EditForm Model="@forgotModel" OnValidSubmit="SubmitForgotPassword">
+                    <DataAnnotationsValidator />
+
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <MudTextField @bind-Value="forgotModel.Email" For="@(() => forgotModel.Email)" Variant="Variant.Outlined" Margin="Margin.Dense" FullWidth="true" Placeholder="yourname@example.com"></MudTextField>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(forgotMessage))
+                    {
+                        <div style="margin-top:8px; padding:10px 12px; border-radius:8px; font-size:13px;" class="@(forgotSuccess ? "twofa-success" : "twofa-error")">
+                            @forgotMessage
+                        </div>
+                    }
+
+                    <div style="display:flex; gap:10px; margin-top:18px;">
+                        <button type="button" class="create-account-button create-account-button-cancel" style="flex:1" @onclick="CloseForgotPassword">Cancel</button>
+                        <button type="submit" class="create-account-button" style="flex:1" disabled="@forgotLoading">
+                            @(forgotLoading ? "Sending..." : "Send reset link")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- 2FA Verification Modal -->
+<div class="container-fluid">
+    <MudDialog @bind-IsVisible="@show2FA" Options="new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true, CloseButton = false }" Class="twofa-dialog">
+        <DialogContent>
+            <div class="twofa-container">
+                <button type="button" class="twofa-close-btn" @onclick="@(() => { show2FA = false; twoFAFocused = false; })">
+                    <MudIcon Icon="@Icons.Material.Filled.Close" />
+                </button>
+                <div class="twofa-header">
+                    <div class="twofa-icon">🔐</div>
+                    <h2 class="twofa-title">Verify Your Identity</h2>
+                    <p class="twofa-subtitle">Enter the 6-digit code sent to:</p>
+                    <p class="twofa-email">@twoFAEmail</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(twoFAMessage))
+                {
+                    <div class="@(twoFASuccess ? "twofa-success" : "twofa-error")">
+                        @twoFAMessage
+                    </div>
+                }
+
+                <div class="twofa-form">
+                    <div class="twofa-input-group">
+                        @for (int i = 0; i < 6; i++)
+                        {
+                            int index = i;
+                            <input type="text" 
+                                   @ref="codeInputRefs[index]"
+                                   maxlength="1" 
+                                   class="twofa-input @(twoFACode[index] != ' ' ? "filled" : "")"
+                                   value="@(twoFACode[index] == ' ' ? "" : twoFACode[index].ToString())"
+                                   @onchange="@((ChangeEventArgs e) => HandleCodeChange(e, index))"
+                                   @onkeydown="@((KeyboardEventArgs e) => HandleCodeKeyDown(e, index))"
+                                   @onkeyup="@((KeyboardEventArgs e) => HandleCodeKeyUp(e, index))"
+                                   @onpaste="@((ClipboardEventArgs e) => HandlePaste(e))"
+                                   placeholder="•"
+                                   inputmode="numeric"
+                                   autocomplete="off" />
+                        }
+                    </div>
+
+                    <button type="button" class="twofa-button" @onclick="VerifyTwoFA" disabled="@(twoFAVerifying || !IsCodeComplete())">
+                        @if (twoFAVerifying)
+                        {
+                            <span>⏳ Verifying...</span>
+                        }
+                        else
+                        {
+                            <span>✓ Verify Code</span>
+                        }
+                    </button>
+
+                    <div class="twofa-resend">
+                        Didn't receive the code? 
+                        <span class="twofa-resend-link" @onclick="ResendCode" style="@(twoFAResendDisabled ? "opacity: 0.5; cursor: not-allowed;" : "cursor: pointer;")">
+                            Resend @(twoFAResendDisabled ? $"({twoFAResendTimer}s)" : "")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </DialogContent>
+    </MudDialog>
+</div>
+
+@code {
+
+
+
+    [CascadingParameter]
+    public HomeLayout Layout { get; set; }
+
+    Users user = new Users();
+    string confirmPassword = "";
+    bool showRegistration = false;
+    private bool IsCorporateOrAssociation => user?.AccountType == KycType.Corporate || user?.AccountType == KycType.Association;
+
+    private void OnAccountTypeChanged(KycType newType)
+    {
+        user.AccountType = newType;
+        if (IsCorporateOrAssociation)
+        {
+            user.FirstName = "n/a";
+            user.MiddleName = "n/a";
+            user.LastName = "n/a";
+            if (string.IsNullOrWhiteSpace(user.CompanyName)) user.CompanyName = "";
+        }
+        else
+        {
+            user.CompanyName = "n/a";
+            if (user.FirstName == null) user.FirstName = "";
+            if (user.MiddleName == null) user.MiddleName = "";
+            if (user.LastName == null) user.LastName = "";
+        }
+        StateHasChanged();
+    }
+
+    // Password requirements tracking
+    private PasswordRequirements passwordRequirements = new PasswordRequirements();
+
+    bool open_Create;
+    void Open_Credit_Drawer()
+    {
+        user = new Users();
+        passwordRequirements = new PasswordRequirements();
+        open_Create = true;
+    }
+    void close_Create_nav()
+    {
+        user = new Users();
+        confirmPassword = "";
+        passwordRequirements = new PasswordRequirements();
+        open_Create = false;
+    }
+
+    void ResetRegistrationForm()
+    {
+        user = new Users();
+        confirmPassword = "";
+        passwordRequirements = new PasswordRequirements();
+    }
+
+    // Handle password input changes for registration form
+    private async Task OnRegistrationPasswordChanged()
+    {
+        if (!string.IsNullOrEmpty(user.password_hash))
+        {
+            UpdatePasswordRequirements(user.password_hash);
+        }
+        else
+        {
+            passwordRequirements = new PasswordRequirements();
+        }
+        await Task.CompletedTask;
+    }
+
+    // Method to check password requirements as user types
+    private void OnPasswordChanged(string password)
+    {
+        if (password != null)
+        {
+            UpdatePasswordRequirements(password);
+            StateHasChanged();
+        }
+    }
+
+    // Update password requirements based on input
+    private void UpdatePasswordRequirements(string password)
+    {
+        passwordRequirements.MinLength = password.Length >= 8;
+        passwordRequirements.HasLowercase = System.Text.RegularExpressions.Regex.IsMatch(password, "[a-z]");
+        passwordRequirements.HasUppercase = System.Text.RegularExpressions.Regex.IsMatch(password, "[A-Z]");
+        passwordRequirements.HasNumber = System.Text.RegularExpressions.Regex.IsMatch(password, "[0-9]");
+        passwordRequirements.HasSymbol = System.Text.RegularExpressions.Regex.IsMatch(password, "[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]");
+    }
+
+    // Class to track password requirements
+    private class PasswordRequirements
+    {
+        public bool MinLength { get; set; }
+        public bool HasLowercase { get; set; }
+        public bool HasUppercase { get; set; }
+        public bool HasNumber { get; set; }
+        public bool HasSymbol { get; set; }
+    }
+    bool Basic_CheckBox2 = false;
+    private bool isAuthenticated = false;
+    private string? _returnUrl;
+    protected override async Task OnInitializedAsync()
+    {
+
+        HttpContextAccessor.HttpContext.Session.SetString("developer_kili", "kili");
+        // Capture returnUrl from query if present
+        var uri = new Uri(NavigationManager.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("returnUrl", out var rv))
+        {
+            _returnUrl = rv.FirstOrDefault();
+        }
+
+
+        await UpdateAuthState();
+    }
+
+    protected void GoToCreate()
+    {
+        // CreateAccount
+        navigate.NavigateTo("/CreateAccount");
+    }
+    private bool showForgotPassword = false;
+
+    private ForgotPasswordModel forgotModel = new ForgotPasswordModel();
+    private string forgotMessage = string.Empty;
+    private bool forgotSuccess = false;
+    private bool forgotLoading = false;
+
+    protected void OpenForgotPassword()
+    {
+        forgotModel = new ForgotPasswordModel();
+        forgotMessage = string.Empty;
+        forgotSuccess = false;
+        forgotLoading = false;
+        showForgotPassword = true;
+    }
+
+    protected void CloseForgotPassword()
+    {
+        showForgotPassword = false;
+    }
+
+    bool isShow;
+    InputType PasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void ButtonTestclick()
+    {
+        if (isShow)
+        {
+            isShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+        }
+    }
+
+    private bool isloading = false;
+    loginDetails users = new loginDetails();
+    private async Task OnValidSubmit(EditContext context)
+    {
+        isloading = true;
+
+        // try
+        // {
+        // Step 1: Validate credentials FIRST (quick operation)
+        TokenProvider TokenProvider = new TokenProvider(unitOfWork, HttpContextAccessor);
+        EmailSendStatus userToken = await TokenProvider.LoginUser(users.username, users.password);
+
+        if (userToken.status == true)
+        {
+            // Step 2: Get user data (for 2FA and email verification checks)
+            var user = await unitOfWork.userRepository.GetByEmail(users.username);
+
+            // Step 3: Check if email is verified
+            if (user != null && !user.IsEmailVerified)
+            {
+                isloading = false;
+                StateHasChanged();
+                Snackbar.Add("📧 Please verify your email address before logging in. Check your inbox for the verification link.", Severity.Warning);
+                return;
+            }
+
+            // Step 4: Check if user has 2FA enabled
+            if (user != null && user.IsTwoFAEnabled)
+            {
+                // 2FA is enabled - send verification code
+                twoFAUsername = users.username;
+                twoFAPassword = users.password;
+                twoFAEmail = users.username;
+
+                // Generate 2FA code
+                twoFAStoredCode = unitOfWork.TwoFactorAuthService.GenerateCode();
+                twoFACodeExpiry = unitOfWork.TwoFactorAuthService.GetExpiryTime();
+
+                // Show 2FA modal immediately
+                show2FA = true;
+                twoFACode = new char[] { ' ', ' ', ' ', ' ', ' ', ' ' };
+                twoFAMessage = "";
+
+                isloading = false;
+
+                // Send 2FA code via email (non-blocking, happens in background)
+                Snackbar.Add("📧 Sending verification code to your email...", Severity.Info);
+                _ = Task.Run(async () =>
+                {
+                    bool emailSent = await unitOfWork.EmailService.SendCodeAsync(users.username, twoFAStoredCode, users.username.Split('@')[0]);
+                    if (emailSent)
+                    {
+                        await InvokeAsync(() => 
+                        {
+                            Snackbar.Add("✅ Verification code sent! Check your inbox.", Severity.Success);
+                        });
+                    }
+                    else
+                    {
+                        await InvokeAsync(() => 
+                        {
+                            Snackbar.Add("Failed to send verification code. Please try again.", Severity.Error);
+                        });
+                    }
+                });
+            }
+            else
+            {
+                // 2FA is disabled - login directly
+                isloading = false;
+                Snackbar.Add("Login successful", Severity.Success);
+                NavigateToReturnUrlOrDashboard();
+            }
+        }
+        else
+        {
+            // Invalid credentials
+            isloading = false;
+            Snackbar.Add(userToken.message, Severity.Error);
+        }
+        // }
+        // catch (Exception ex)
+        // {
+        //     Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        // }
+    }
+
+    private async Task OnValidCreateAccount()
+    {
+        // Validate password confirmation
+        if (user.password_hash != confirmPassword)
+        {
+            Snackbar.Add("❌ Passwords do not match", Severity.Error);
+            return;
+        }
+
+        Encryption encryption = new Encryption();
+        try
+        {
+            Layout.OpenLoading();
+
+            user.Email = user.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(user.Email))
+            {
+                Snackbar.Add("❌ Email is required", Severity.Error);
+                return;
+            }
+
+            var existingUser = await unitOfWork.userRepository.GetByEmail(user.Email);
+            if (existingUser != null)
+            {
+                Snackbar.Add("Oops! This Email is already taken. Try a different one and make it yours!", Severity.Error);
+                return;
+            }
+
+            // Set FullName depending on AccountType
+            if (IsCorporateOrAssociation)
+            {
+                user.FullName = user.CompanyName?.Trim();
+            }
+            else
+            {
+                user.FullName = $"{user.FirstName} {user.MiddleName} {user.LastName}".Trim();
+            }
+
+            if (string.IsNullOrWhiteSpace(user.strid))
+            {
+                user.strid = Guid.NewGuid().ToString("N");
+            }
+
+            user.password_hash = encryption.Encryptstring(user.password_hash);
+            user.EmailVerificationTimestamp = DateTime.UtcNow;
+
+            await unitOfWork.userRepository.AddNew(user);
+            unitOfWork.save();
+
+            // Generate verification link with only the user ID
+            string verificationLink = $"{NavigationManager.BaseUri}verify-email/{Uri.EscapeDataString(user.strid)}";
+
+            // Send verification email
+            bool emailSent = await EmailService.SendVerificationEmailAsync(user.Email, user.FullName ?? user.Email, verificationLink);
+
+            if (emailSent)
+            {
+                Snackbar.Add("✅ Account created successfully! We've sent a verification link to your email — please check your inbox to activate your account.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("⚠️ Account created, but we couldn't send the verification email. Please contact support.", Severity.Warning);
+            }
+
+            close_Create_nav();
+            showRegistration = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            Layout.CloseLoading();
+        }
+    }
+
+
+
+    private async Task UpdateAuthState()
+    {
+        HttpContextAccessor.HttpContext.Session.SetString("developer_kili", "kili");
+        var authState = await CustomAuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity.IsAuthenticated;
+
+        StateHasChanged();
+    }
+
+    private async Task SubmitForgotPassword()
+    {
+        forgotLoading = true;
+        forgotMessage = string.Empty;
+        forgotSuccess = false;
+
+        try
+        {
+            var email = forgotModel.Email?.Trim();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                forgotMessage = "Please enter your email address.";
+                forgotSuccess = false;
+                return;
+            }
+
+            var user = await unitOfWork.userRepository.FindUserwithMail(email);
+            if (user == null)
+            {
+                forgotMessage = "The user with that email does not exist in our system.";
+                forgotSuccess = false;
+                return;
+            }
+
+            var encryption = new MOZ_UPGRADE.Utils.Encryption();
+            var encryptedEmail = encryption.Encryptstring(email);
+            var token = System.Net.WebUtility.UrlEncode(encryptedEmail);
+
+            var resetLink = $"{NavigationManager.BaseUri}reset-password/{token}";
+
+            var fullName = string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName;
+            bool sent = await unitOfWork.EmailService.SendPasswordResetEmailAsync(email, fullName, resetLink);
+
+            if (sent)
+            {
+                forgotMessage = "A reset link has been sent to your email.";
+                forgotSuccess = true;
+            }
+            else
+            {
+                forgotMessage = "Failed to send reset email. Please try again later.";
+                forgotSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            forgotMessage = $"Error while processing request: {ex.Message}";
+            forgotSuccess = false;
+        }
+        finally
+        {
+            forgotLoading = false;
+        }
+    }
+
+
+    public class loginDetails
+    {
+        [Required(ErrorMessage = "Required Field")]
+        [EmailAddress(ErrorMessage = "Invalid email")]
+
+        public string username { get; set; }
+        [Required(ErrorMessage = "Required Field")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters long")]
+        public string password { get; set; }
+    }
+
+    public class ForgotPasswordModel
+    {
+        [Required(ErrorMessage = "Required Field")]
+        [EmailAddress(ErrorMessage = "Invalid email")]
+        public string Email { get; set; }
+    }
+
+    // 2FA Variables
+    private bool show2FA = false;
+    private string twoFAEmail = "";
+    private char[] twoFACode = new char[] { ' ', ' ', ' ', ' ', ' ', ' ' };
+    private string twoFAStoredCode = "";
+    private DateTime twoFACodeExpiry;
+    private string twoFAMessage = "";
+    private bool twoFASuccess = false;
+    private bool twoFAVerifying = false;
+    private bool twoFAResendDisabled = false;
+    private int twoFAResendTimer = 60;
+    private string twoFAUsername = "";
+    private string twoFAPassword = "";
+    private ElementReference[] codeInputRefs = new ElementReference[6];
+
+    private bool twoFAFocused = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (show2FA && !twoFAFocused)
+        {
+            // Focus on first input when 2FA modal opens
+            twoFAFocused = true;
+            try
+            {
+                await codeInputRefs[0].FocusAsync();
+            }
+            catch { }
+        }
+        else if (!show2FA)
+        {
+            twoFAFocused = false;
+        }
+    }
+
+    private bool IsCodeComplete()
+    {
+        return twoFACode.All(c => c != ' ');
+    }
+
+    private async Task HandleCodeKeyDown(KeyboardEventArgs e, int index)
+    {
+        if (e.Key == "Backspace" && twoFACode[index] == ' ' && index > 0)
+        {
+            // Move focus to previous input on backspace if current is empty
+            await codeInputRefs[index - 1].FocusAsync();
+        }
+    }
+
+    private void HandleCodeChange(ChangeEventArgs e, int index)
+    {
+        string value = e.Value?.ToString() ?? "";
+        if (value.Length > 0 && char.IsDigit(value[0]))
+        {
+            twoFACode[index] = value[0];
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCodeKeyUp(KeyboardEventArgs e, int index)
+    {
+        // Only allow numbers
+        if (e.Key.Length == 1 && char.IsDigit(e.Key[0]))
+        {
+            twoFACode[index] = e.Key[0];
+            
+            // Auto-focus to next input
+            if (index < 5)
+            {
+                await codeInputRefs[index + 1].FocusAsync();
+            }
+            StateHasChanged();
+        }
+        else if (e.Key == "Backspace")
+        {
+            twoFACode[index] = ' ';
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandlePaste(ClipboardEventArgs e)
+    {
+        // Paste handling will be done via JavaScript interop if needed
+        // For now, users can paste one digit at a time
+        await Task.CompletedTask;
+    }
+
+    private async Task VerifyTwoFA()
+    {
+        twoFAVerifying = true;
+        twoFAMessage = "";
+
+        string enteredCode = new string(twoFACode).Replace(" ", "");
+
+        if (enteredCode.Length != 6)
+        {
+            twoFAMessage = "Please enter all 6 digits";
+            twoFASuccess = false;
+            twoFAVerifying = false;
+            return;
+        }
+
+        try
+        {
+            // Verify the code from memory
+            bool isCodeValid = unitOfWork.TwoFactorAuthService.VerifyCode(twoFAStoredCode, twoFACodeExpiry, enteredCode);
+            
+            if (isCodeValid)
+            {
+                twoFAMessage = "Code verified successfully!";
+                twoFASuccess = true;
+                
+                // Clear the code from memory
+                twoFAStoredCode = "";
+                twoFACodeExpiry = DateTime.MinValue;
+                
+                // Proceed with login
+                show2FA = false;
+                twoFAFocused = false;
+                StateHasChanged();
+                
+                // Perform the actual login
+                await PerformLogin(twoFAUsername, twoFAPassword);
+            }
+            else
+            {
+                twoFAMessage = "Invalid or expired code. Please try again.";
+                twoFASuccess = false;
+                twoFACode = new char[] { ' ', ' ', ' ', ' ', ' ', ' ' };
+                twoFAVerifying = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            twoFAMessage = $"Error verifying code: {ex.Message}";
+            twoFASuccess = false;
+            twoFACode = new char[] { ' ', ' ', ' ', ' ', ' ', ' ' };
+            twoFAVerifying = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResendCode()
+    {
+        if (twoFAResendDisabled) return;
+
+        twoFAResendDisabled = true;
+        twoFAResendTimer = 60;
+
+        try
+        {
+            // Generate new code in memory
+            twoFAStoredCode = unitOfWork.TwoFactorAuthService.GenerateCode();
+            twoFACodeExpiry = unitOfWork.TwoFactorAuthService.GetExpiryTime();
+
+            // Send email
+            bool emailSent = await unitOfWork.EmailService.SendCodeAsync(twoFAEmail, twoFAStoredCode, twoFAEmail.Split('@')[0]);
+
+            if (emailSent)
+            {
+                twoFAMessage = "Code resent successfully!";
+                twoFASuccess = true;
+                twoFACode = new char[] { ' ', ' ', ' ', ' ', ' ', ' ' };
+
+                // Start countdown timer
+                _ = Task.Run(async () =>
+                {
+                    while (twoFAResendTimer > 0)
+                    {
+                        await Task.Delay(1000);
+                        twoFAResendTimer--;
+                        StateHasChanged();
+                    }
+                    twoFAResendDisabled = false;
+                    StateHasChanged();
+                });
+            }
+            else
+            {
+                twoFAMessage = "Failed to resend code. Please try again.";
+                twoFASuccess = false;
+                twoFAResendDisabled = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            twoFAMessage = $"Error resending code: {ex.Message}";
+            twoFASuccess = false;
+            twoFAResendDisabled = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task PerformLogin(string username, string password)
+    {
+        try
+        {
+            isloading = true;
+            StateHasChanged();
+
+            TokenProvider TokenProvider = new TokenProvider(unitOfWork, HttpContextAccessor);
+            EmailSendStatus userToken = await TokenProvider.LoginUser(username, password);
+
+            if (userToken.status == true)
+            {
+                try
+                {
+                    // The token is stored in session by TokenProvider (userToken.message contains the JWT token)
+                   // Snackbar.Add($"📝 Token length: {userToken.message.Length} chars", Severity.Info);
+                    
+                    // Notify the authentication state provider with the token
+                    await CustomAuthenticationStateProvider.MarkUserAsAuthenticated(userToken.message);
+                 //   Snackbar.Add("🔐 Auth state notified", Severity.Info);
+                    
+                    // Wait for session to be persisted and auth state to update
+                    await Task.Delay(500);
+                    await UpdateAuthState();
+                    
+                  //  Snackbar.Add($"✅ Auth state: {(isAuthenticated ? "AUTHENTICATED" : "NOT AUTHENTICATED")}", Severity.Info);
+                    
+                    // Navigate back to the original page if provided, else Dashboard
+                    NavigateToReturnUrlOrDashboard();
+                }
+                catch (Exception authEx)
+                {
+                    Snackbar.Add($"❌ Auth Error: {authEx.Message}", Severity.Error);
+                    if (authEx.InnerException != null)
+                    {
+                        Snackbar.Add($"📋 Details: {authEx.InnerException.Message}", Severity.Error);
+                    }
+                    Snackbar.Add($"📋 Stack: {authEx.StackTrace?.Substring(0, Math.Min(200, authEx.StackTrace.Length))}", Severity.Error);
+                }
+            }
+            else
+            {
+                Snackbar.Add($"❌ Login Failed: {userToken.message}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"❌ Error during login: {ex.Message}", Severity.Error);
+            Snackbar.Add($"📋 Details: {ex.InnerException?.Message}", Severity.Error);
+        }
+        finally
+        {
+            isloading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToReturnUrlOrDashboard()
+    {
+        var target = !string.IsNullOrWhiteSpace(_returnUrl) && IsLocalUrl(_returnUrl!)
+            ? _returnUrl!
+            : "/Dashboard";
+        NavigationManager.NavigateTo(target, true);
+    }
+
+    private bool IsLocalUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return false;
+        if (url.StartsWith("/")) return true;
+        return false;
+    }
+}

@@ -1,0 +1,745 @@
+@page "/plans-details/{insurerCode}/{planClass}"
+@attribute [Authorize]
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using System.Web
+@inject IUnitOfWork unitOfWork
+@inject NavigationManager navigationManager
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<div class="plans-details-container">
+    <!-- Header -->
+    <div class="header-section">
+        <div class="header-top">
+            <button class="btn-back" @onclick="GoBack">← Back</button>
+            <h1 class="header-title">Insurance Plans</h1>
+        </div>
+        <!-- Stepper -->
+        <div class="step-indicator" style="display:flex; gap:10px; align-items:center; margin-top:8px;">
+            <div class="step active" style="display:flex; align-items:center; gap:6px;">
+                <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#2E5090; color:white; font-weight:700; font-size:12px;">1</div>
+                <div class="step-label" style="font-size:11px; color:#2E5090; font-weight:600;">Select Plan</div>
+            </div>
+            <div style="height:2px; background:#e5e7eb; width:40px;"></div>
+            <div class="step" style="display:flex; align-items:center; gap:6px; opacity:0.6;">
+                <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px;">2</div>
+                <div class="step-label" style="font-size:11px; color:#475569;">Beneficiary</div>
+            </div>
+            <div style="height:2px; background:#e5e7eb; width:40px;"></div>
+            <div class="step" style="display:flex; align-items:center; gap:6px; opacity:0.6;">
+                <div class="step-number" style="width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e5e7eb; color:#475569; font-weight:700; font-size:12px;">3</div>
+                <div class="step-label" style="font-size:11px; color:#475569;">Summary</div>
+            </div>
+        </div>
+        
+        <div class="header-info">
+            <div class="info-block">
+                <span class="info-label">Class</span>
+                <span class="info-value">@planClassName</span>
+            </div>
+            <div class="info-block">
+                <span class="info-label">Underwriter</span>
+                <span class="info-value">@underwriterName</span>
+            </div>
+            <div class="info-block">
+                <span class="info-label">Total Plans</span>
+                <span class="info-value">@plans.Count</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div style="text-align: center; padding: 60px 20px;">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+            <p style="margin-top: 20px; color: #999; font-size: 16px;">Loading plans...</p>
+        </div>
+    }  
+    else if (plans.Count == 0)
+    {
+        <div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+            <p style="color: #999; font-size: 16px;">No plans found for this selection</p>
+        </div>
+    } else
+    {
+        <div class="plans-grid">
+            @foreach (var plan in plans)
+            {
+                <div class="plan-card">
+                    <!-- Card Header with Stanbic Blue -->
+                    <div class="card-header">
+                        <div class="card-title-section">
+                            <h2 class="card-title">@plan.Description</h2>
+                            <p class="card-code">@plan.Undewriter_Product_Nos</p>
+                        </div>
+                        <div class="card-badge">📋</div>
+                    </div>
+
+                    <!-- Key Metrics -->
+                    <div class="metrics-grid">
+                        <div class="metric">
+                            <span class="metric-label">Premium Rate</span>
+                            <span class="metric-value">@plan.Premium_Rate.ToString("C2")</span>
+                        </div>
+                      
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="card-divider"></div>
+
+                    <!-- Cover Details -->
+                    @{
+                        var covers = coverDetailsMap.Where(m => m.Description_Type == "Cover" && m.Insurer == plan.Underwriter_Code).ToList();
+                    }
+                  
+                        <div class="details-section">
+                            <h3 class="section-title">🛡️ Cover Details</h3>
+                            <div class="details-list">
+                                @foreach (var cover in covers)
+                                {
+                                    <div class="detail-item">
+                                        <span class="detail-name">@cover.Description</span>
+                                        @if (cover.Value > 0)
+                                        {
+                                            <span class="detail-value">@cover.Value.ToString("C2")</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    
+
+                    <!-- Limit Details -->
+                    @{
+                        var limits = coverDetailsMap.Where(m => m.Description_Type == "Limits" && m.Insurer == plan.Underwriter_Code).ToList();
+                    }
+                  
+                        <div class="details-section">
+                            <h3 class="section-title">📊 Limit Details</h3>
+                            <div class="details-list">
+                                @foreach (var limit in limits)
+                                {
+                                    <div class="detail-item">
+                                        <span class="detail-name">@limit.Description</span>
+                                        @if (limit.Value > 0)
+                                        {
+                                            <span class="detail-value">@limit.Value.ToString("C2")</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    
+
+                    <!-- Geographic Details -->
+                    @{
+                        var geos = coverDetailsMap.Where(m => m.Description_Type == "Geographic" && m.Insurer == plan.Underwriter_Code).ToList();
+                    }
+                   
+                        <div class="details-section">
+                            <h3 class="section-title">🌍 Geographic Details</h3>
+                            <div class="details-list">
+                                @foreach (var geo in geos)
+                                {
+                                    <div class="detail-item">
+                                        <span class="detail-name">@geo.Description</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    
+
+                    <!-- Action Button -->
+                    <div class="card-footer">
+                        <button class="btn-select" @onclick="() => SelectPlan(plan)">Select Plan</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    :root {
+        --stanbic-blue: #2E5090;
+        --stanbic-blue-dark: #1e3a5f;
+        --stanbic-orange: #FF9900;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --bg-light: #f8fafc;
+        --border: #e5e7eb;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 8px 16px rgba(46, 80, 144, 0.12);
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .plans-details-container {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Header Section */
+    .header-section {
+        background: white;
+        color: var(--text-primary);
+        padding: 24px;
+        box-shadow: var(--shadow-md);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .header-top {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .btn-back {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        padding: 8px 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-back:hover {
+        background: var(--bg-light);
+        border-color: var(--stanbic-blue);
+    }
+
+    .header-title {
+        font-size: 26px;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .header-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 24px;
+    }
+
+    .info-block {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .info-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-transform: capitalize;
+        letter-spacing: 0.3px;
+        font-weight: 500;
+    }
+
+    .info-value {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    /* Plans Grid */
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 10px;
+        padding: 16px 12px;
+        max-width: 100%;
+    }
+
+    /* Plan Card */
+    .plan-card {
+        background: white;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(46, 80, 144, 0.08);
+        display: flex;
+        flex-direction: column;
+        transition: transform .25s ease, box-shadow .25s ease;
+        position: relative;
+    }
+
+    .plan-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--stanbic-blue) 0%, var(--stanbic-orange) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .plan-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+        border-color: rgba(46, 80, 144, 0.15);
+    }
+
+    .plan-card:hover::before {
+        opacity: 1;
+    }
+
+    /* Card Header */
+    .card-header {
+        background: linear-gradient(135deg, var(--stanbic-blue) 0%, var(--stanbic-blue-dark) 100%);
+        color: white;
+        padding: 12px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-radius: 14px 14px 0 0;
+    }
+
+    .card-title-section {
+        flex: 1;
+    }
+
+    .card-title {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 0 2px 0;
+        line-height: 1.2;
+        letter-spacing: -0.2px;
+    }
+
+    .card-code {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.85);
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .card-badge {
+        font-size: 24px;
+        opacity: 0.8;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 12px 14px;
+        background: linear-gradient(135deg, rgba(46, 80, 144, 0.03) 0%, rgba(255, 153, 0, 0.02) 100%);
+        border-bottom: 1px solid rgba(46, 80, 144, 0.06);
+    }
+
+    .metric {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 6px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.5);
+        transition: all 0.2s ease;
+    }
+
+    .metric:hover {
+        background: rgba(46, 80, 144, 0.04);
+    }
+
+    .metric-label {
+        font-size: 9px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 600;
+    }
+
+    .metric-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--stanbic-blue);
+    }
+
+    /* Card Divider */
+    .card-divider {
+        height: 1px;
+        background: var(--border);
+    }
+
+    /* Details Section */
+    .details-section {
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(46, 80, 144, 0.06);
+        background: linear-gradient(90deg, rgba(46, 80, 144, 0.01) 0%, transparent 100%);
+        transition: all 0.2s ease;
+    }
+
+    .details-section:hover {
+        background: linear-gradient(90deg, rgba(46, 80, 144, 0.03) 0%, transparent 100%);
+    }
+
+    .details-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .section-title {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--stanbic-blue);
+        margin: 0 0 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .details-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.3);
+        transition: all 0.2s ease;
+    }
+
+    .detail-item:hover {
+        background: rgba(46, 80, 144, 0.05);
+    }
+
+    .detail-name {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .detail-value {
+        font-weight: 700;
+        color: var(--stanbic-orange);
+        background: rgba(255, 153, 0, 0.08);
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    /* Card Footer */
+    .card-footer {
+        padding: 10px 14px;
+    }
+
+    .btn-select {
+        width: 100%;
+        background: linear-gradient(135deg, var(--stanbic-orange) 0%, #ff8800 100%);
+        color: white;
+        border: none;
+        padding: 9px 14px;
+        border-radius: 10px;
+        font-weight: 800;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        letter-spacing: -0.2px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(255, 153, 0, 0.2);
+    }
+
+    .btn-select::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.5s, height 0.5s;
+    }
+
+    .btn-select:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 153, 0, 0.4);
+    }
+
+    .btn-select:hover::before {
+        width: 300px;
+        height: 300px;
+    }
+
+    .btn-select:active {
+        transform: translateY(0);
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .header-section {
+            padding: 24px 16px;
+        }
+
+        .header-title {
+            font-size: 24px;
+        }
+
+        .header-info {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .plans-grid {
+            grid-template-columns: 1fr;
+            padding: 24px 16px;
+            gap: 16px;
+        }
+
+        .metrics-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 16px 20px;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+        }
+
+        .card-title {
+            font-size: 18px;
+        }
+
+        .details-section {
+            padding: 16px 20px;
+        }
+
+        .card-footer {
+            padding: 12px 20px;
+        }
+
+        .btn-select {
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .header-section {
+            padding: 20px 12px;
+        }
+
+        .header-top {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-back {
+            width: 100%;
+            text-align: center;
+        }
+
+        .header-title {
+            font-size: 20px;
+        }
+
+        .plans-grid {
+            grid-template-columns: 1fr;
+            padding: 16px 12px;
+            gap: 12px;
+        }
+
+        .metrics-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+            padding: 12px 16px;
+        }
+
+        .metric-value {
+            font-size: 13px;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+        }
+
+        .card-title {
+            font-size: 16px;
+        }
+
+        .card-badge {
+            font-size: 24px;
+        }
+
+        .details-section {
+            padding: 12px 16px;
+        }
+
+        .section-title {
+            font-size: 13px;
+        }
+
+        .detail-item {
+            font-size: 12px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string insurerCode { get; set; }
+
+    [Parameter]
+    public string planClass { get; set; }
+
+    private List<PlanViewModel> plans = new();
+    private bool isLoading = true;
+
+    private List<CoverDetail> coverDetailsMap = new();
+
+    private HashSet<string> expandedPlans = new();
+    private string decodedInsurerCode = "";
+    private string planClassName = "";
+    private string underwriterName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPlans();
+    }
+
+    private async Task LoadPlans()
+    {
+        try
+        {
+            isLoading = true;
+            
+            // Decode URL parameters
+            decodedInsurerCode = Uri.UnescapeDataString(insurerCode ?? "");
+            var decodedPlanClass = Uri.UnescapeDataString(planClass ?? "");
+
+            // Resolve display names dynamically from UnderwriterPolicyService
+            try
+            {
+                var policies = await unitOfWork.UnderwriterPolicyService.GetUnderwriterPoliciesAsync();
+                var match = policies.FirstOrDefault(p =>
+                    string.Equals(p.Insurer, decodedInsurerCode, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(p.Plans, decodedPlanClass, StringComparison.OrdinalIgnoreCase));
+
+                if (match != null)
+                {
+                    planClassName = match.ProductClassName ?? decodedPlanClass;
+                    underwriterName = match.InsurerName ?? decodedInsurerCode;
+                }
+                else
+                {
+                    planClassName = decodedPlanClass;
+                    underwriterName = decodedInsurerCode;
+                }
+            }
+            catch
+            {
+                // Fallback to raw codes if lookup fails
+                planClassName = decodedPlanClass;
+                underwriterName = decodedInsurerCode;
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Loading plans for Insurer: {decodedInsurerCode}, Class: {decodedPlanClass}");
+            plans = await unitOfWork.PlanService.GetPlansByInsurerAndClassAsync(decodedInsurerCode, decodedPlanClass);
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Loaded {plans.Count} plans");
+            
+            // Load cover details for this insurer
+            await LoadCoverDetails();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Error loading plans: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadCoverDetails()
+    {
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Loading cover details for Insurer: {decodedInsurerCode}");
+            
+            // Load cover details for each plan filtered by its Underwriter_Code
+            foreach (var plan in plans)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PlansDetails] Loading covers for plan {plan.Undewriter_Product_Nos} with Underwriter_Code: {plan.Underwriter_Code}");
+                var planCoverDetails = await unitOfWork.CoverDetailService.GetCoverDetailsByInsurerAsync(plan.Underwriter_Code);
+                coverDetailsMap = planCoverDetails;
+                System.Diagnostics.Debug.WriteLine($"[PlansDetails] Loaded {planCoverDetails.Count} cover details for plan {plan.Undewriter_Product_Nos}");
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Completed loading cover details for all plans");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Error loading cover details: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] Stack trace: {ex.StackTrace}");
+        }
+    }
+
+    private void ToggleCoverDetails(string planNo)
+    {
+        if (expandedPlans.Contains(planNo))
+        {
+            expandedPlans.Remove(planNo);
+        }
+        else
+        {
+            expandedPlans.Add(planNo);
+        }
+        StateHasChanged();
+    }
+
+    private void GoBack()
+    {
+        navigationManager.NavigateTo("/ProductsPage");
+    }
+
+    private void SelectPlan(PlanViewModel plan)
+    {
+        try
+        {
+            var data = new MOZ_UPGRADE.Interfaces.PlanData
+            {
+                Description = plan.Description ?? string.Empty,
+                PremiumRate = plan.Premium_Rate,
+                PlanNo = plan.Undewriter_Product_Nos ?? string.Empty,
+                UnderwriterCode = plan.Underwriter_Code ?? decodedInsurerCode,
+                UnderwriterName = underwriterName,
+                PlanClass = plan.Class_Name ?? planClass
+            };
+
+            unitOfWork.PlanSelectionService.SetPlanData(data);
+
+            navigationManager.NavigateTo("/beneficiary-info");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PlansDetails] SelectPlan error: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,40 @@
+@using MudBlazor
+
+<MudContainer MaxWidth="MaxWidth.Large" style="margin-top: 20px;">
+    <MudTimeline TimelinePosition="TimelinePosition.Bottom" TimelineAlign="TimelineAlign.Start" TimelineOrientation="TimelineOrientation.Horizontal">
+        <MudTimelineItem Variant="@GetVariant(0)" Color="@GetColor(0)">
+            <MudText Typo="Typo.h6">General Info</MudText>
+        </MudTimelineItem>
+
+        <MudTimelineItem Variant="@GetVariant(1)" Color="@GetColor(1)">
+            <MudText Typo="Typo.h6">Shareholders</MudText>
+        </MudTimelineItem>
+
+        <MudTimelineItem Variant="@GetVariant(2)" Color="@GetColor(2)">
+            <MudText Typo="Typo.h6">PEP</MudText>
+        </MudTimelineItem>
+
+        <MudTimelineItem Variant="@GetVariant(3)" Color="@GetColor(3)">
+            <MudText Typo="Typo.h6">Documents</MudText>
+        </MudTimelineItem>
+
+        <MudTimelineItem Variant="@GetVariant(4)" Color="@GetColor(4)">
+            <MudText Typo="Typo.h6">Summary</MudText>
+        </MudTimelineItem>
+    </MudTimeline>
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int CurrentStep { get; set; } = 0;
+
+    private Variant GetVariant(int stepIndex)
+    {
+        return CurrentStep >= stepIndex ? Variant.Filled : Variant.Outlined;
+    }
+
+    private Color GetColor(int stepIndex)
+    {
+        return CurrentStep >= stepIndex ? Color.Success : Color.Default;
+    }
+}

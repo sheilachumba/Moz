@@ -1,0 +1,1007 @@
+@page "/QuoteDetails/{QuoteNo}"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Utils
+@using Microsoft.AspNetCore.Components.Forms
+@inject NavigationManager NavigationManager
+@inject IInsurerQuoteService InsurerQuoteService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject IUnitOfWork unitOfWork
+@inject IEmailService EmailService
+@inject IDialogService DialogService
+@inject ISharePointDocumentService SharePointDocuments
+
+<style>
+    :root {
+        --primary: #2E5090;
+        --primary-dark: #1e3a5f;
+        --bg: #f5f6fa;
+    }
+    
+    @@media print {
+        .no-print {
+            display: none !important;
+        }
+
+        body {
+            background: white;
+        }
+
+        .col-sm-4 {
+            display: none !important;
+        }
+
+        .col-sm-8 {
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
+        }
+
+        .container-fluid {
+            padding: 0 !important;
+        }
+
+        .quotation-container {
+            box-shadow: none !important;
+            padding: 0 !important;
+        }
+    }
+
+    .quotation-container {
+        background: white;
+        padding: 20px 25px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .back-btn, .print-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: 1px solid #d1d5db;
+        cursor: pointer;
+        background: transparent;
+        color: var(--primary);
+    }
+
+    .back-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary-dark);
+        background: rgba(46, 80, 144, 0.05);
+    }
+
+    .print-btn {
+        margin-left: 10px;
+        color: var(--primary);
+    }
+
+    .print-btn:hover {
+        border-color: var(--primary);
+        background: rgba(46, 80, 144, 0.05);
+    }
+
+    .quotation-header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 15px;
+        align-items: start;
+        margin-bottom: 15px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #000;
+    }
+
+    .header-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #000;
+    }
+
+    .company-logo {
+        width: 100px;
+        height: auto;
+    }
+
+    .company-info {
+        text-align: right;
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    .info-section {
+        margin: 10px 0;
+        font-size: 12px;
+    }
+
+    .info-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        padding: 4px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .info-label {
+        font-weight: 700;
+        color: #000;
+    }
+
+    .info-value {
+        color: #000;
+    }
+
+    .risk-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 11px;
+    }
+
+    .risk-table th, .risk-table td {
+        border: 1px solid #000;
+        padding: 5px 6px;
+        vertical-align: top;
+    }
+
+    .risk-table th {
+        background: #f3f4f6;
+        font-weight: 700;
+        font-size: 10px;
+        color: #000;
+    }
+
+    .risk-table .text-right {
+        text-align: right;
+    }
+
+    .risk-table .text-center {
+        text-align: center;
+    }
+
+    .grand-total-row {
+        font-weight: 700;
+        background: #e5e7eb;
+    }
+
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+    }
+
+    .error-container {
+        background: #fee2e2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px;
+    }
+
+    .claim-file-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 9999px;
+        border: 1px solid #2E5090;
+        font-size: 12px;
+        font-weight: 600;
+        color: #2E5090;
+        background: #ffffff;
+        cursor: pointer;
+    }
+
+    .claim-file-button:hover {
+        background: #eff6ff;
+    }
+
+    .claim-file-input {
+        display: none;
+    }
+</style>
+
+<div class="no-print" style="padding: 15px; background: var(--bg);">
+    <button class="back-btn" @onclick="GoBack">← Back to Quotes</button>
+    <button class="print-btn" @onclick="GeneratePDF">🖨️ Print Quotation</button>
+</div>
+
+@if (isLoading)
+{
+    <div class="loading-container">
+        <div style="text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+            <div style="font-size: 18px; color: #666;">Loading quote details...</div>
+        </div>
+    </div>
+}
+else if (quote == null)
+{
+    <div class="error-container">
+        <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px;">❌ Quote Not Found</div>
+        <div>The quote you're looking for could not be found. Please go back and try again.</div>
+    </div>
+}
+else
+{
+    <div style="max-width: 1000px; margin: 0 auto; padding: 0 10px;">
+        <div class="row">
+            <!-- Left Column: Quotation Slip (8) -->
+            <div class="col-sm-8">
+                <div class="quotation-container">
+                    <div class="quotation-header">
+                        <div><div class="header-title">QUOTATION SLIP</div></div>
+                        <div style="text-align:center;">
+                            <img src="/Images/LOGO.png" alt="Logo" class="company-logo" />
+                        </div>
+                        <div class="company-info">
+                            <div><strong>STANDARD INSURANCE CORRETORES DE SEGUROS, SA.</strong></div>
+                            <div>2HC9+QXC, Rua Consiglieri Pedroso, Maputo</div>
+                            <div>Tel: +258 21 355700</div>
+                            <div>Email: linhadocliente@standardbank.co.mz</div>
+                            <div>Date: @DateTime.Now.ToString("dd/MM/yyyy hh:mm tt")</div>
+                        </div>
+                    </div>
+
+                    <!-- Quote Info -->
+                    <div class="info-section">
+                        <div class="info-row"><div class="info-label">QUOTATION NO:</div><div>@quote.QuoteNo</div></div>
+                        <div class="info-row"><div class="info-label">INSURED:</div><div>@(string.IsNullOrWhiteSpace(quote.InsuredName) ? quote.InsuredNo : quote.InsuredName)</div></div>
+                        <div class="info-row"><div class="info-label">INSURER:</div><div>@quote.Underwriter</div></div>
+                        <div class="info-row">
+                            <div class="info-label">PERIOD:</div>
+                            <div>@periodText</div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Table -->
+                    <table class="risk-table">
+                        <thead>
+                            <tr>
+                                <th>Policy Type</th>
+                                <th>Policy Description</th>
+                              
+                                <th class="text-right">Sum Insured</th>
+                                <th class="text-right">Rate %</th>
+                                <th class="text-right">Gross Premium</th>
+                               
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-center">-</td>
+                                <td>@quote.Underwriter</td>
+                             
+                                <td class="text-right">@FormatCurrency(totalSumInsured)</td>
+                                <td class="text-right">@averageRatePercent.ToString("N2")</td>
+                                <td class="text-right">@FormatCurrency(totalNetPremium)</td>
+                            </tr>
+                            <tr></tr>
+                            <tr><td colspan="4" style="text-align: right;">Admin Fees</td><td class="text-right">@FormatCurrency(adminFees)</td></tr>
+                            <tr><td colspan="4" style="text-align: right;">Stamp Duty</td><td class="text-right">@FormatCurrency(stampDuty)</td></tr>
+                            <tr><td colspan="4" style="text-align: right;">Tax</td><td class="text-right">@FormatCurrency(tax)</td></tr>
+                            <tr class="grand-total-row">
+                                <td colspan="4" style="text-align: right;">Grand Total</td>
+                                <td class="text-right">@FormatCurrency(grandTotal)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Additional Information -->
+                    <div style="margin-top: 12px; font-size: 11px;">
+                        <div style="font-weight: 700; margin: 6px 0 2px 0; text-transform: uppercase;">LIMITS: @limitsText</div>
+                        <div style="font-weight: 700; margin: 6px 0 2px 0; text-transform: uppercase;">EXCESS: @excessText</div>
+                        <div style="font-weight: 700; margin: 6px 0 2px 0; text-transform: uppercase;">INTEREST: @interestText</div>
+                    </div>
+
+                    <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #d1d5db;">
+                       
+                        <div style="margin-left: 15px; font-size: 11px;">@quote.RiskDescription</div>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div style="margin-top: 12px; padding: 10px 12px; background: #f9fafb; border: 1px solid #d1d5db; font-size: 11px;">
+                        <div style="font-weight: 700; margin-bottom: 6px;">Payment should be made to:</div>
+                        <div style="margin-left: 15px; font-size: 10px;">
+                            <div>Bank Name:</div>
+                            <div>Branch No:</div>
+                            <div>Account No:</div>
+                        </div>
+                    </div>
+                </div>
+
+                
+            </div>
+
+            <!-- Right Column: Policies for this Quote (4) -->
+            <div class="col-sm-4" style="padding: 10px;">
+                <div style="background: white; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 12px;">
+                    <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--primary);">Policies for this Quote</div>
+
+                    @if (policiesLoading)
+                    {
+                        <div style="text-align:center; color:#666; padding:6px 0;">Loading related policies...</div>
+                    }
+                    else if (!string.IsNullOrEmpty(policiesError))
+                    {
+                        <div style="color:#991b1b; font-size:12px;">@policiesError</div>
+                    }
+                    else if (policies != null && policies.Count > 0)
+                    {
+                        <MudExpansionPanels>
+                            @foreach (var p in policies)
+                            {
+                                <MudExpansionPanel Text="@($"{p.No} - {p.Policy_Description}")" MaxHeight="300">
+                                    <div style="display:grid; grid-template-columns: 100px 1fr; gap:6px; font-size:11px;">
+                                        <div>Policy No</div><div>@p.No</div>
+                                        <div>Status</div><div>@p.Policy_Status</div>
+                                        <div>Underwriter</div><div>@p.Underwriter_Name</div>
+                                        <div>Type</div><div>@p.Policy_Type</div>
+                                        <div>Description</div><div>@p.Policy_Description</div>
+                                        <div>Insured</div><div>@p.Insured_Name (@p.Insured_No)</div>
+                                        <div>Period</div><div>@p.From_Date - @p.To_Date</div>
+                                        <div>Total SI</div><div>@p.Total_Sum_Insured</div>
+                                    </div>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                    else
+                    {
+                        <div style="font-size:12px; color:#666;">No policies for this quote.</div>
+                    }
+                </div>
+
+                <div style="background: white; border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.1); padding: 12px; margin-top:12px;">
+                    <div style="font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--primary);">Debit Notes</div>
+
+                    @if (debitNotesLoading)
+                    {
+                        <div style="text-align:center; color:#666; padding:6px 0;">Loading debit notes...</div>
+                    }
+                    else if (!string.IsNullOrEmpty(debitNotesError))
+                    {
+                        <div style="color:#991b1b; font-size:12px;">@debitNotesError</div>
+                    }
+                    else if (debitNotes != null && debitNotes.Count > 0)
+                    {
+                        <MudExpansionPanels>
+                            @foreach (var d in debitNotes)
+                            {
+                                <MudExpansionPanel Text="@($"{d.Policy_No} - {d.Policy_Description}")" MaxHeight="300">
+                                    <div style="display:grid; grid-template-columns: 110px 1fr; gap:6px; font-size:11px;">
+                                        <div>No</div><div>@d.No</div>
+                                        <div>Status</div><div>@d.Status</div>
+                                        <div>Policy No</div><div>@d.Policy_No</div>
+                                        <div>Insured</div><div>@d.Insured_Name (@d.Insured_No)</div>
+                                        <div>Period</div><div>@d.From_Date - @d.To_Date</div>
+                                        <div>Total SI</div><div>@d.Total_Sum_Insured</div>
+                                        <div>Total Tax</div><div>@d.Total_Tax</div>
+                                        <div>Premium</div><div>@d.Total_Premium_Amount</div>
+                                        <div>Risk</div><div>@d.Risk_Description</div>
+                                    </div>
+                                </MudExpansionPanel>
+                            }
+                        </MudExpansionPanels>
+                    }
+                    else
+                    {
+                        <div style="font-size:12px; color:#666;">No debit notes for this quote.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Claim Modal -->
+<MudDialog @bind-IsVisible="showClaimModal" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true }">
+    <TitleContent>
+        <div style="background:#2E5090;color:#fff;padding:10px 14px;">
+            <MudText Typo="Typo.h6" Style="font-weight:700; color:#fff;">New Claim - Policy @selectedPolicyNo</MudText>
+            <MudText Typo="Typo.body2" Class="sub">Enter claim details below</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudForm @ref="claimForm" @bind-IsValid="claimFormValid">
+            <div style="display:grid; grid-template-columns:1fr; gap:10px;">
+                <MudSelect T="string" @bind-Value="claimLossType" Margin="Margin.Dense" Label="Loss Type" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Loss Type is required">
+                    @if (lossTypes != null)
+                    {
+                        @foreach (var lt in lossTypes)
+                        {
+                            <MudSelectItem Value="@lt.Code">@lt.Description (@lt.Code)</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+                <MudTextField @bind-Value="claimLossTypeDescription" Margin="Margin.Dense" Label="Loss Type Description" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Description is required" />
+                <MudDatePicker @bind-Date="claimDateNotified" Margin="Margin.Dense" Label="Date Notified" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Date Notified is required" />
+                <MudTextField @bind-Value="claimStageDescription" Margin="Margin.Dense" Label="Claim Stage Description" Variant="Variant.Outlined" />
+                <MudDatePicker @bind-Date="claimDateOfOccurrence" Margin="Margin.Dense" Label="Date of Occurrence" Variant="Variant.Outlined" Required="true" Immediate="true" RequiredError="Date of Occurrence is required" />
+            </div>
+            <div style="margin-top:6px; font-size:11px; color:#6b7280;">
+                Fields marked with <strong>*</strong> are required in order to submit a claim.
+            </div>
+
+            <div style="margin-top:6px; font-size:11px; color:#4b5563;">
+                <div style="font-weight:600; margin-bottom:2px;">Requirements summary</div>
+                <ul style="list-style:none; padding-left:0; margin:0;">
+                    <li style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:@(HasLossType ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasLossType ? "✔" : "•")</span>
+                        <span>Loss Type selected</span>
+                    </li>
+                    <li style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:@(HasLossTypeDescription ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasLossTypeDescription ? "✔" : "•")</span>
+                        <span>Loss Type Description entered</span>
+                    </li>
+                    <li style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:@(HasDateNotified ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasDateNotified ? "✔" : "•")</span>
+                        <span>Date Notified set</span>
+                    </li>
+                    <li style="display:flex; align-items:center; gap:6px;">
+                        <span style="color:@(HasDateOfOccurrence ? "#16a34a" : "#dc2626"); font-size:12px;">@(HasDateOfOccurrence ? "✔" : "•")</span>
+                        <span>Date of Occurrence set</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div style="margin-top:10px; padding:8px 10px; border-radius:6px; border:1px dashed #cbd5e1; background:#f8fafc; font-size:12px;">
+                <div style="font-weight:600; margin-bottom:4px;">Attachments (optional)</div>
+                <div style="color:#64748b; margin-bottom:6px;">You can add photos, police reports or invoices to support your claim. Files are not uploaded yet; this is a preview only.</div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <label class="claim-file-button">
+                        <span>Select files</span>
+                        <InputFile OnChange="HandleClaimFilesSelected" multiple class="claim-file-input" />
+                    </label>
+                    <span style="font-size:11px; color:#94a3b8;">Images and PDFs, up to 10 files.</span>
+                </div>
+                @if (claimAttachments != null && claimAttachments.Count > 0)
+                {
+                    <ul style="list-style:none; padding-left:0; margin:0; max-height:120px; overflow-y:auto;">
+                        @foreach (var f in claimAttachments)
+                        {
+                            <li style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding:2px 0;">
+                                <div style="display:flex; flex-direction:column; font-size:11px;">
+                                    <span>@f.Name</span>
+                                    <span style="color:#94a3b8;">@((f.Size / 1024).ToString("N0")) KB · @f.ContentType</span>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Default" OnClick="() => RemoveClaimAttachment(f)" />
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div style="font-size:11px; color:#94a3b8;">
+                        No files attached yet.
+                    </div>
+                }
+            </div>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseClaimModal">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SubmitClaim" Disabled="@(!claimFormValid || claimSubmitting)">@(claimSubmitting ? "Submitting..." : "Submit Claim")</MudButton>
+    </DialogActions>
+    
+</MudDialog>
+
+@code {
+    [Parameter]
+    public string QuoteNo { get; set; }
+
+    private QuoteDetailsModel quote;
+    private bool isLoading = true;
+    private bool policiesLoading = true;
+    private string policiesError;
+    private List<PolicyCardItem> policies = new();
+    private bool debitNotesLoading = true;
+    private string debitNotesError;
+    private List<DebitNoteItem> debitNotes = new();
+    private string periodText = string.Empty;
+    private bool claimFormValid;
+    private decimal totalSumInsured;
+    private decimal totalNetPremium;
+    private decimal adminFees;
+    private decimal stampDuty;
+    private decimal tax;
+    private decimal grandTotal;
+    private decimal averageRatePercent;
+    private string limitsText = string.Empty;
+    private string excessText = string.Empty;
+    private string interestText = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadQuoteDetails();
+        await LoadQuoteFinancials();
+        await LoadPoliciesForQuote();
+        await LoadDebitNotesForQuote();
+    }
+
+    private async Task LoadQuoteDetails()
+    {
+        try
+        {
+            isLoading = true;
+            var quotes = await InsurerQuoteService.GetInsurerQuotesAsync();
+            var quoteData = quotes.FirstOrDefault(q => q.No == QuoteNo);
+
+            if (quoteData != null)
+            {
+                quote = new QuoteDetailsModel
+                {
+                    QuoteNo = quoteData.No,
+                    ContactNo = quoteData.Contact_No,
+                    ContactName = quoteData.Contact_Name,
+                    InsuredNo = quoteData.Insured_No,
+                    InsuredName = quoteData.Insured_Name,
+                    RiskDescription = quoteData.Risk_Description,
+                    Underwriter = quoteData.Underwriter_Name,
+                    Date = FormatDate(quoteData.Document_Date),
+                    Status = quoteData.Status,
+                    SumInsured = FormatCurrency(quoteData.Total_Sum_Insured)
+                };
+
+                // Try to resolve a human-readable insured name from the contact card
+                var contactNo = quote.InsuredNo ?? quote.ContactNo;
+                if (!string.IsNullOrWhiteSpace(contactNo))
+                {
+                    try
+                    {
+                        var card = await unitOfWork.ContactCardService.GetContactCardAsync(contactNo);
+                        if (card != null && !string.IsNullOrWhiteSpace(card.Name))
+                        {
+                            quote.InsuredName = card.Name;
+                        }
+                    }
+                    catch
+                    {
+                        // If lookup fails, fall back to existing values
+                    }
+                }
+            }
+            else
+            {
+                Snackbar.Add("Quote not found", Severity.Error);
+            }
+
+            isLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading quote: {ex.Message}", Severity.Error);
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadQuoteFinancials()
+    {
+        try
+        {
+            var innerJson = await InsurerQuoteService.GetQuoteFinancialDetailsJsonAsync(QuoteNo);
+            if (string.IsNullOrWhiteSpace(innerJson))
+            {
+                return;
+            }
+
+            var inner = System.Text.Json.JsonSerializer.Deserialize<QuoteFinancialInnerResponse>(innerJson);
+            if (inner == null)
+            {
+                return;
+            }
+
+            totalSumInsured = inner.totalSumInsured;
+            totalNetPremium = inner.totalNetPremium;
+            adminFees = inner.adminFees;
+            stampDuty = inner.stampDuty;
+            tax = inner.tax;
+            grandTotal = totalNetPremium + adminFees + stampDuty + tax;
+
+            if (inner.riskLines != null && inner.riskLines.Count > 0)
+            {
+                averageRatePercent = inner.riskLines.Average(r => r.ratePercent);
+            }
+            else
+            {
+                averageRatePercent = 0m;
+            }
+            limitsText = inner.limits ?? string.Empty;
+            excessText = inner.excess ?? string.Empty;
+            interestText = inner.interest ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading quote financial details: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string FormatDate(string dateString)
+    {
+        if (string.IsNullOrEmpty(dateString))
+            return "";
+        
+        if (DateTime.TryParse(dateString, out var date))
+            return date.ToString("dd MMM yyyy");
+        
+        return dateString;
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        return amount.ToString("N2");
+    }
+
+    private string GetStatusColor(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "released" => "#10B981",
+            "open" => "#3B82F6",
+            "pending" => "#F59E0B",
+            _ => "#6B7280"
+        };
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/InsurerQuotes");
+    }
+
+    private async Task GeneratePDF()
+    {
+        try
+        {
+            // Use browser's print functionality with PDF output
+            await JS.InvokeVoidAsync("window.print");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error generating PDF: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task LoadPoliciesForQuote()
+    {
+        try
+        {
+            policiesLoading = true;
+            policiesError = null;
+            policies = new List<PolicyCardItem>();
+
+            // QuoteNo on this page is actually the ProductSelection Entry_No
+            if (!int.TryParse(QuoteNo, out var entryNo))
+            {
+                policiesError = "Invalid quote identifier (Entry_No).";
+                policiesLoading = false;
+                return;
+            }
+
+            // 1) Get Document_No from ProductSelection using Entry_No
+            var documentNo = await InsurerQuoteService.GetDocumentNoForEntryAsync(entryNo);
+            if (string.IsNullOrWhiteSpace(documentNo))
+            {
+                policiesError = "No related document found for this quote.";
+                policiesLoading = false;
+                return;
+            }
+
+            // 2) Load policies where Quotation_No = Document_No
+            policies = await unitOfWork.PolicyCardService.GetPoliciesByQuotationAsync(documentNo);
+
+            if (policies == null || policies.Count == 0)
+            {
+                policiesError = $"No policies found in PolicyCard for Quotation_No '{documentNo}'.";
+            }
+
+            policiesLoading = false;
+        }
+        catch (Exception ex)
+        {
+            policiesError = $"Error loading policies: {ex.Message}";
+            policiesLoading = false;
+        }
+    }
+    private async Task LoadDebitNotesForQuote()
+    {
+        try
+        {
+            debitNotesLoading = true;
+            debitNotesError = null;
+            debitNotes = await unitOfWork.DebitNoteService.GetDebitNotesByQuotationAsync(QuoteNo);
+
+            if (debitNotes != null && debitNotes.Count > 0)
+            {
+                var first = debitNotes[0];
+
+                // PERIOD: use dates from the first related debit note
+                if (!string.IsNullOrWhiteSpace(first.From_Date) && !string.IsNullOrWhiteSpace(first.To_Date))
+                {
+                    periodText = $"{first.From_Date} - {first.To_Date}";
+                }
+                else
+                {
+                    periodText = string.Empty;
+                }
+
+                // INSURED: try to use the insured name from the debit note when available
+                if (quote != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(first.Insured_Name))
+                    {
+                        quote.InsuredName = first.Insured_Name;
+                    }
+                    if (string.IsNullOrWhiteSpace(quote.InsuredNo) && !string.IsNullOrWhiteSpace(first.Insured_No))
+                    {
+                        quote.InsuredNo = first.Insured_No;
+                    }
+                }
+            }
+            else
+            {
+                periodText = string.Empty;
+            }
+
+            debitNotesLoading = false;
+        }
+        catch (Exception ex)
+        {
+            debitNotesError = $"Error loading debit notes: {ex.Message}";
+            debitNotesLoading = false;
+        }
+    }
+
+    // Claim state
+    private bool showClaimModal = false;
+    private string selectedPolicyNo;
+    private PolicyCardItem selectedPolicy;
+    private List<LossTypeItem> lossTypes = new();
+    private string claimLossType;
+    private string claimLossTypeDescription;
+    private DateTime? claimDateNotified;
+    private string claimStageDescription;
+    private DateTime? claimDateOfOccurrence;
+    private bool claimSubmitting = false;
+    private MudForm claimForm;
+    private List<IBrowserFile> claimAttachments = new();
+
+    private bool HasLossType => !string.IsNullOrWhiteSpace(claimLossType);
+    private bool HasLossTypeDescription => !string.IsNullOrWhiteSpace(claimLossTypeDescription);
+    private bool HasDateNotified => claimDateNotified.HasValue;
+    private bool HasDateOfOccurrence => claimDateOfOccurrence.HasValue;
+
+    private async Task OpenClaimModal(PolicyCardItem policy)
+    {
+        try
+        {
+            selectedPolicyNo = policy.No;
+            selectedPolicy = policy;
+            claimDateNotified = DateTime.Today;
+            claimDateOfOccurrence = null;
+            claimLossType = null;
+            claimLossTypeDescription = null;
+            claimStageDescription = null;
+            lossTypes = await unitOfWork.ClaimsService.GetLossTypesAsync();
+            showClaimModal = true;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error opening claim modal: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void CloseClaimModal()
+    {
+        showClaimModal = false;
+    }
+
+    private void HandleClaimFilesSelected(InputFileChangeEventArgs e)
+    {
+        if (e == null)
+            return;
+
+        // Limit total files to 10 for UI purposes
+        var files = e.GetMultipleFiles(10);
+        claimAttachments = files?.ToList() ?? new List<IBrowserFile>();
+    }
+
+    private void RemoveClaimAttachment(IBrowserFile file)
+    {
+        if (file == null || claimAttachments == null)
+            return;
+
+        claimAttachments.Remove(file);
+    }
+
+    private async Task SubmitClaim()
+    {
+        await claimForm.Validate();
+        if (!claimFormValid || !claimForm.IsValid)
+        {
+            Snackbar.Add("Please complete all required claim fields (Loss Type, Loss Type Description, Date Notified, Date of Occurrence) before submitting.", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedPolicyNo))
+        {
+            Snackbar.Add("Missing policy number", Severity.Error);
+            return;
+        }
+
+        try
+        {
+            claimSubmitting = true;
+
+            var paymentInfo = await unitOfWork.DebitNoteService.GetPolicyPaymentAmountsAsync(selectedPolicyNo);
+            var outstanding = paymentInfo.TaxAmount - paymentInfo.LedgerAmount;
+
+            if (!paymentInfo.HasLedger)
+            {
+                await ShowPaymentAlertAndRedirect("Payment required", "You have not made any payments for this policy. Please make a payment before submitting a claim.");
+                return;
+            }
+
+            if (outstanding > 0)
+            {
+                await ShowPaymentAlertAndRedirect("Outstanding balance", $"You still have an outstanding premium balance of {outstanding:N2}. Please finish paying your premium before submitting a claim.");
+                return;
+            }
+
+            var req = new ClaimCreateRequest
+            {
+                Policy_No = selectedPolicyNo,
+                Loss_Type = claimLossType,
+                Loss_Type_Description = claimLossTypeDescription,
+                Date_Notified = (claimDateNotified ?? DateTime.Today).ToString("yyyy-MM-dd"),
+                Claim_Loss_Description = claimStageDescription,
+                Date_of_Occurence = (claimDateOfOccurrence ?? DateTime.Today).ToString("yyyy-MM-dd")
+            };
+
+            var createdClaimNo = await unitOfWork.ClaimsService.CreateClaimAsync(req);
+
+            try
+            {
+                await UploadClaimFilesToSharePointAsync(createdClaimNo);
+            }
+            catch
+            {
+                Snackbar.Add("Claim submitted but document upload to SharePoint failed.", Severity.Warning);
+            }
+
+            // Notify management by email (non-blocking for the user)
+            try
+            {
+                var recipients = new[]
+                {
+                    "Sheilachumba7@gmail.com",
+                    "benndora2@gmail.com",
+                    "kipletingbrian285@gmail.com",
+                    "emmanukiptoo98@gmail.com"
+                };
+
+                var insuredName = selectedPolicy?.Insured_Name;
+                var insuredNo = selectedPolicy?.Insured_No;
+
+                await EmailService.SendClaimSubmissionNotificationAsync(
+                    recipients,
+                    insuredName,
+                    insuredNo,
+                    selectedPolicyNo,
+                    claimLossType,
+                    claimLossTypeDescription,
+                    claimDateOfOccurrence ?? DateTime.Today,
+                    claimDateNotified ?? DateTime.Today
+                );
+            }
+            catch
+            {
+                // Email failure should not block claim submission
+            }
+
+            Snackbar.Add(string.IsNullOrWhiteSpace(createdClaimNo)
+                ? "Claim submitted successfully"
+                : $"Claim submitted successfully. Claim No: {createdClaimNo}", Severity.Success);
+            showClaimModal = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error submitting claim: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            claimSubmitting = false;
+        }
+    }
+
+    private async Task UploadClaimFilesToSharePointAsync(string? createdClaimNo)
+    {
+        var claimFolderKey = string.IsNullOrWhiteSpace(createdClaimNo)
+            ? $"POL_{selectedPolicyNo}_{DateTime.UtcNow:yyyyMMdd_HHmmss}"
+            : createdClaimNo;
+
+        if (claimAttachments == null)
+            return;
+
+        for (var i = 0; i < claimAttachments.Count; i++)
+        {
+            var file = claimAttachments[i];
+            if (file == null) continue;
+
+            var docCode = $"ATT_{i + 1}";
+            var bytes = await ReadBrowserFileAsync(file);
+            await SharePointDocuments.UploadKycDocumentAsync("Claims", claimFolderKey, docCode, bytes, file.Name);
+        }
+    }
+
+    private static async Task<byte[]> ReadBrowserFileAsync(IBrowserFile file)
+    {
+        const long maxFileSize = 10 * 1024 * 1024;
+        await using var stream = file.OpenReadStream(maxFileSize);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        return ms.ToArray();
+    }
+
+    private async Task ShowPaymentAlertAndRedirect(string title, string message)
+    {
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            DisableBackdropClick = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true
+        };
+
+        await DialogService.ShowMessageBox(title, (MarkupString)$"<p>{message}</p>", yesText: "OK", cancelText: null, options: options);
+
+        NavigationManager.NavigateTo("/MyPyments");
+    }
+
+    private class QuoteDetailsModel
+    {
+        public string QuoteNo { get; set; }
+        public string ContactNo { get; set; }
+        public string ContactName { get; set; }
+        public string InsuredNo { get; set; }
+        public string InsuredName { get; set; }
+        public string RiskDescription { get; set; }
+        public string Underwriter { get; set; }
+        public string Date { get; set; }
+        public string Status { get; set; }
+        public string SumInsured { get; set; }
+    }
+
+    private class QuoteFinancialOuterResponse
+    {
+        public string value { get; set; }
+    }
+
+    private class QuoteFinancialInnerResponse
+    {
+        public string quoteNumber { get; set; }
+        public decimal totalSumInsured { get; set; }
+        public decimal totalNetPremium { get; set; }
+        public List<QuoteRiskLineResponse> riskLines { get; set; }
+        public decimal adminFees { get; set; }
+        public decimal stampDuty { get; set; }
+        public decimal tax { get; set; }
+        public string limits { get; set; }
+        public string excess { get; set; }
+        public string interest { get; set; }
+    }
+
+    private class QuoteRiskLineResponse
+    {
+        public decimal sumInsured { get; set; }
+        public decimal ratePercent { get; set; }
+        public decimal grossPremium { get; set; }
+    }
+}

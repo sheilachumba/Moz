@@ -1,0 +1,190 @@
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Utils.IEmailService EmailService
+@inject ISharePointDocumentService SharePointDocuments
+@inherits ComponentBase
+
+<MudDialog>
+    <DialogContent>
+        <div style="min-width:280px; max-width:380px; padding-top:4px;">
+            <div style="font-weight:600; font-size:16px; margin-bottom:4px;">Make Payment</div>
+            <div style="font-size:12px; color:#6b7280; margin-bottom:12px;">Debit Note: @Note?.No • Policy: @Note?.Policy_No</div>
+
+            <MudStack Spacing="1">
+                <MudTextField T="decimal" Label="Amount" @bind-Value="Amount" Variant="Variant.Outlined" Margin="Margin.Dense" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.AttachMoney" />
+
+                <MudSelect T="string" Label="Mode of Payment" @bind-Value="ModeOfPayment" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem Value="@string.Empty">(none)</MudSelectItem>
+                    <MudSelectItem Value="@("Cash")">Cash</MudSelectItem>
+                    <MudSelectItem Value="@("Cheque")">Cheque</MudSelectItem>
+                    <MudSelectItem Value="@("Bank Transfer")">Bank Transfer</MudSelectItem>
+                    <MudSelectItem Value="@("Mpesa")">Mpesa</MudSelectItem>
+                    <MudSelectItem Value="@("Mobile Money")">Mobile Money</MudSelectItem>
+                    <MudSelectItem Value="@("Credit Card")">Credit Card</MudSelectItem>
+                    <MudSelectItem Value="@("Debit Card")">Debit Card</MudSelectItem>
+                    <MudSelectItem Value="@("EFT")">EFT</MudSelectItem>
+                    <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                </MudSelect>
+
+                <MudTextField T="string" Label="Payment Reference No" @bind-Value="PaymentReferenceNo" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudDatePicker Label="Payment Date" @bind-Date="PaymentDate" Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+                <MudDivider Class="my-2" />
+
+                <div style="font-size:12px; font-weight:600; color:#374151;">Attach payment receipt</div>
+                <div style="font-size:11px; color:#6b7280; margin-top:2px;">Upload bank slip / transfer proof / receipt (any format).</div>
+
+                <InputFile OnChange="OnReceiptSelected" />
+                @if (!string.IsNullOrWhiteSpace(SelectedReceiptName))
+                {
+                    <div style="font-size:11px; color:#374151; margin-top:4px;">Selected: @SelectedReceiptName</div>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(Error))
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">@Error</MudAlert>
+                }
+            </MudStack>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Default" Variant="Variant.Text" Disabled="Loading" OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="Loading" OnClick="SubmitAsync">@(Loading ? "Processing..." : "Confirm Payment")</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public DebitNoteItem Note { get; set; }
+
+    protected bool Loading { get; set; }
+    protected string Error { get; set; }
+    protected decimal Amount { get; set; }
+    protected string ModeOfPayment { get; set; } = string.Empty;
+    protected string PaymentReferenceNo { get; set; } = string.Empty;
+    protected DateTime? PaymentDate { get; set; } = DateTime.Today;
+
+    protected IBrowserFile ReceiptFile { get; set; }
+    protected string SelectedReceiptName { get; set; }
+
+    protected void OnReceiptSelected(InputFileChangeEventArgs e)
+    {
+        ReceiptFile = e?.File;
+        SelectedReceiptName = ReceiptFile?.Name;
+    }
+
+    protected async Task SubmitAsync()
+    {
+        Error = string.Empty;
+
+        if (Note == null)
+        {
+            Error = "Invalid debit note.";
+            return;
+        }
+
+        if (Amount <= 0)
+        {
+            Error = "Amount must be greater than zero.";
+            return;
+        }
+
+        if (PaymentDate == null)
+        {
+            Error = "Please select a payment date.";
+            return;
+        }
+
+        try
+        {
+            Loading = true;
+            var result = await unitOfWork.DebitNoteService.CreateDebitNotePaymentAsync(Note, Amount, ModeOfPayment, PaymentReferenceNo, PaymentDate.Value);
+
+            if (!result.Success)
+            {
+                Loading = false;
+                if (!string.IsNullOrWhiteSpace(result.Error))
+                {
+                    // Surface the raw BC error in a Snackbar for easier troubleshooting
+                    Snackbar.Add($"BC error: {result.Error}", Severity.Error);
+                }
+
+                Error = string.IsNullOrWhiteSpace(result.Error)
+                    ? "Payment could not be processed. Please try again."
+                    : $"Payment failed: {result.Error}";
+                return;
+            }
+
+            // Upload receipt to SharePoint (best effort; do not block payment flow)
+            if (ReceiptFile != null)
+            {
+                try
+                {
+                    const long maxBytes = 20L * 1024L * 1024L;
+                    using var stream = ReceiptFile.OpenReadStream(maxBytes);
+                    using var ms = new MemoryStream();
+                    await stream.CopyToAsync(ms);
+
+                    var insuredNo = string.IsNullOrWhiteSpace(Note?.Insured_No) ? "UNKNOWN" : Note.Insured_No;
+                    var debitNoteNo = string.IsNullOrWhiteSpace(Note?.No) ? "UNKNOWN" : Note.No;
+
+                    await SharePointDocuments.UploadKycDocumentAsync(
+                        "PAYMENT_RECEIPTS",
+                        insuredNo,
+                        debitNoteNo,
+                        ms.ToArray(),
+                        ReceiptFile.Name
+                    );
+                }
+                catch (Exception spEx)
+                {
+                    Snackbar.Add($"Receipt upload failed: {spEx.Message}", Severity.Warning);
+                }
+            }
+
+            // Send management notification email (non-blocking for the user)
+            try
+            {
+                var recipients = new[]
+                {
+                    "Sheilachumba7@gmail.com",
+                    "benndora2@gmail.com",
+                    "kipletingbrian285@gmail.com",
+                    "emmanukiptoo98@gmail.com"
+                };
+
+                await EmailService.SendPaymentNotificationAsync(
+                    recipients,
+                    Note?.Insured_Name,
+                    Note?.Insured_No,
+                    Note?.Policy_No,
+                    Note?.No,
+                    Amount,
+                    ModeOfPayment,
+                    PaymentReferenceNo,
+                    PaymentDate.Value
+                );
+            }
+            catch
+            {
+                // Ignore email errors so payment flow is not blocked
+            }
+
+            Loading = false;
+            Snackbar.Add("Payment submitted successfully.", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Loading = false;
+            Error = $"Error submitting payment: {ex.Message}";
+        }
+    }
+
+    protected void Cancel() => MudDialog.Cancel();
+}

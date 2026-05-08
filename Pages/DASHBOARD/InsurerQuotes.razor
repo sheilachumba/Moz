@@ -1,0 +1,925 @@
+@page "/InsurerQuotes"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MudBlazor
+@using System.Text.Json
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+@inject IInsurerQuoteService InsurerQuoteService
+@inject ISnackbar Snackbar
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+
+<style>
+    .insurer-quotes-container {
+        padding: 24px 20px;
+        background: #f3f4f6;
+        min-height: 100vh;
+    }
+
+    .page-header {
+        margin-bottom: 18px;
+    }
+
+    .page-header h1 {
+        font-size: 26px;
+        font-weight: 800;
+        color: #111827;
+        margin: 0 0 6px 0;
+    }
+
+    .page-header p {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 0;
+        font-weight: 500;
+    }
+
+    .filters-section {
+        background: #ffffff;
+        padding: 16px 18px;
+        border-radius: 14px;
+        margin-bottom: 16px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: block;
+    }
+
+    .filter-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 13px;
+        transition: all 0.3s ease;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #2E5090;
+        box-shadow: 0 0 0 3px rgba(46, 80, 144, 0.1);
+    }
+
+    .btn-filter {
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-filter:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(46, 80, 144, 0.3);
+    }
+
+    .btn-submit-quote {
+        background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-submit-quote:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+    }
+
+    .table-container {
+        background: #ffffff;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    ::deep .mud-table {
+        font-size: 13px;
+    }
+
+    ::deep .mud-table-head {
+        background: #0f172a;
+    }
+
+    ::deep .mud-table-head-cell {
+        color: #e5e7eb;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 10px 8px;
+        font-size: 11px;
+    }
+
+    ::deep .mud-table-body-row {
+        transition: background-color 0.15s ease, box-shadow 0.15s ease;
+        cursor: pointer;
+    }
+
+    ::deep .mud-table-body-row:hover {
+        background-color: #f9fafb;
+        box-shadow: inset 3px 0 0 #2E5090;
+    }
+
+    ::deep .mud-table-body-row.selected {
+        background-color: #e0f2fe;
+        box-shadow: inset 3px 0 0 #2E5090;
+        font-weight: 500;
+    }
+
+    ::deep .mud-table-body-cell {
+        padding: 9px 8px;
+        font-size: 12px;
+    }
+
+    .radio-button-styled {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #2E5090;
+        transition: all 0.2s ease;
+    }
+
+    .radio-button-styled:hover {
+        transform: scale(1.1);
+    }
+
+    .radio-button-styled:checked {
+        accent-color: #2E5090;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 16px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-released {
+        background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+        color: #1b5e20;
+    }
+
+    .status-pending {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        color: #e65100;
+    }
+
+    .status-open {
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        color: #0d47a1;
+    }
+
+    .client-selected-row {
+        background: linear-gradient(90deg, #e8f5e9 0%, #c8e6c9 100%) !important;
+        box-shadow: inset 4px 0 0 #2e7d32;
+    }
+
+    .group-separator {
+        border-top: 2px dashed #cfd8dc;
+    }
+
+    .client-badge {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        color: #1b5e20;
+        background: #e8f5e9;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+    .group-label {
+        display: inline-block;
+        margin-left: 10px;
+        padding: 2px 10px;
+        border-radius: 6px;
+        background: #eceff1;
+        color: #546e7a;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+    }
+
+    .action-btn {
+        background: linear-gradient(135deg, #2E5090 0%, #1e3a5f 100%);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+
+    .action-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 4px 12px rgba(46, 80, 144, 0.3);
+    }
+
+    .top-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 12px;
+    }
+
+    .selected-count {
+        font-size: 13px;
+        color: #666;
+        font-weight: 600;
+    }
+
+    .filters-section {
+        margin-bottom: 20px;
+    }
+
+    .filter-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .filter-label {
+        font-size: 12px;
+        color: #666;
+        font-weight: 600;
+    }
+
+    .filter-input {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+</style>
+
+<div class="insurer-quotes-container">
+    <div class="page-header">
+        <h1>@T("Insurer Quotes","Cotações de Seguradoras")</h1>
+        <p>@T("View and manage all insurer quotes from ERP","Veja e gere todas as cotações das seguradoras do ERP")</p>
+    </div>
+
+    <div class="filters-section">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label class="filter-label">Search</label>
+                <input class="filter-input"
+                       placeholder="Search by quote, underwriter, insured, module..."
+                       value="@searchQuery"
+                       @oninput="e => { searchQuery = e.Value?.ToString() ?? string.Empty; ApplyFilters(); }" />
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Underwriter</label>
+                <select class="filter-input" @onchange="e => { selectedUnderwriter = e.Value?.ToString() ?? string.Empty; ApplyFilters(); }">
+                    <option value="">All</option>
+                    @foreach (var uw in quotes.Select(q => q.Underwriter).Where(u => !string.IsNullOrWhiteSpace(u)).Distinct().OrderBy(u => u))
+                    {
+                        <option value="@uw" selected="@(string.Equals(selectedUnderwriter, uw, StringComparison.OrdinalIgnoreCase))">@uw</option>
+                    }
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Module / Class</label>
+                <select class="filter-input" @onchange="e => { selectedModule = e.Value?.ToString() ?? string.Empty; ApplyFilters(); }">
+                    <option value="">All</option>
+                    @foreach (var m in quotes.Select(q => q.RiskType).Where(m => !string.IsNullOrWhiteSpace(m)).Distinct().OrderBy(m => m))
+                    {
+                        <option value="@m" selected="@(string.Equals(selectedModule, m, StringComparison.OrdinalIgnoreCase))">@m</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <button class="btn-filter" type="button" @onclick="ResetFilters">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text='@($"Open Quotes ({filteredQuotes?.Count ?? 0}) ")'>
+
+            <!-- Top Controls -->
+            <div class="top-controls">
+                <div class="selected-count">
+                    @if (selectedQuote != null)
+                    {
+                        <span>@T("Selected:", "Selecionado:") <strong>@selectedQuote.QuoteNo</strong></span>
+                    }
+                    else
+                    {
+                        <span style="color: #999;">@T("No quote selected", "Nenhuma cotação selecionada")</span>
+                    }
+                </div>
+                <button class="btn-submit-quote" @onclick="OpenConfirmationModal" disabled="@(string.IsNullOrEmpty(selectedQuoteNo) || isSubmittingQuote)">
+                    @if (isSubmittingQuote)
+                    {
+                        <span>@T("Submitting...","A submeter...")</span>
+                    }
+                    else
+                    {
+                        <span>✓ @T("Submit Selected Quote", "Submeter Cotação Selecionada")</span>
+                    }
+                </button>
+            </div>
+
+            <!-- MudBlazor Table -->
+            <div class="table-container">
+                <MudTable Items="@filteredQuotes" Hover="true" Striped="true" Dense="true"
+                          @ref="table" Loading="@isLoading" RowClassFunc="@GetRowClass">
+                    <ToolBarContent>
+                    </ToolBarContent>
+                    <HeaderContent>
+                        <MudTh Style="width: 40px;"></MudTh>
+                        <MudTh>@T("Entry No", "Nº de Entrada")</MudTh>
+                     
+                        <MudTh>@T("Underwriter", "Seguradora")</MudTh>
+                        <MudTh>@T("Plan/Area", "Plano/Área")</MudTh>
+                        <MudTh>@T("Module", "Módulo")</MudTh>
+                        <MudTh>@T("Status", "Estado")</MudTh>
+                        <MudTh Style="width: 50px;">@T("Action", "Ação")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="row">
+                        <MudTd Style="width: 40px; text-align: center; cursor: pointer;" @onclick="@(() => SelectQuote(row.QuoteNo))">
+                            <input type="radio" class="radio-button-styled" name="quoteSelection" value="@row.QuoteNo" checked="@(selectedQuoteNo == row.QuoteNo)" />
+                        </MudTd>
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectQuote(row.QuoteNo))"><strong>@row.QuoteNo</strong>@if (row.SelectedByClient) { <span class="client-badge">@T("Client selected","Selecionado pelo cliente")</span> } @if (row.IsFirstOther && !row.SelectedByClient) { <span class="group-label">@T("Other recommendations","Outras recomendações")</span> }</MudTd>
+                      
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectQuote(row.QuoteNo))">@row.Underwriter</MudTd>
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectQuote(row.QuoteNo))">@row.RiskDescription</MudTd>
+                        <MudTd Style="cursor: pointer;" @onclick="@(() => SelectQuote(row.QuoteNo))">@row.RiskType</MudTd>
+                        <MudTd>
+                                <span class="status-badge @GetStatusClass(row.Pay_Status)">@TranslateStatus(row.Pay_Status)</span>
+                        </MudTd>
+                        <MudTd Style="text-align: center;" @onclick:stopPropagation="true">
+                            <button class="action-btn" @onclick="@(() => ViewQuote(row.QuoteNo))" title='@T("View Quote","Ver Cotação")'>
+                                👁️
+                            </button>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="@(new int[]{5, 10, 25, 50})" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+
+        </MudTabPanel>
+        <MudTabPanel Text='@($"Acknowledged Quotes ({ackFilteredQuotes?.Count ?? 0}) ")'>
+            <div class="table-container">
+                <MudTable Items="@ackFilteredQuotes" Hover="true" Striped="true" Dense="true"
+                          Loading="@ackIsLoading">
+                    <HeaderContent>
+                        <MudTh>@T("Entry No", "Nº de Entrada")</MudTh>
+                        <MudTh>@T("Document Type", "Tipo de Documento")</MudTh>
+                        <MudTh>@T("Underwriter", "Seguradora")</MudTh>
+                        <MudTh>@T("Plan/Area", "Plano/Área")</MudTh>
+                        <MudTh>@T("Module", "Módulo")</MudTh>
+                        <MudTh>@T("Insured No", "Nº do Segurado")</MudTh>
+                        <MudTh>@T("Status", "Estado")</MudTh>
+                        <MudTh Style="width: 50px;">@T("Action", "Ação")</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="row">
+                        <MudTd><strong>@row.QuoteNo</strong></MudTd>
+                        <MudTd>@row.DocumentType</MudTd>
+                        <MudTd>@row.Underwriter</MudTd>
+                        <MudTd>@row.RiskDescription</MudTd>
+                        <MudTd>@row.RiskType</MudTd>
+                        <MudTd>@row.InsuredNo</MudTd>
+                        <MudTd>
+                                <span class="status-badge @GetStatusClass(row.Pay_Status)">@TranslateStatus(row.Pay_Status)</span>
+                        </MudTd>
+                        <MudTd Style="text-align: center;">
+                            <button class="action-btn" @onclick="@(() => ViewQuote(row.QuoteNo))" title='@T("View Quote","Ver Cotação")'>👁️</button>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="@(new int[]{5, 10, 25, 50})" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </MudTabPanel>
+       
+    </MudTabs>
+
+
+    <!-- Confirmation Modal -->
+    <MudDialog @bind-IsVisible="@showConfirmationModal" Options="new DialogOptions { FullWidth = true, MaxWidth = MaxWidth.Small, DisableBackdropClick = true }">
+        <TitleContent>
+            <MudText Typo="Typo.h6" style="font-weight: 700;">@T("Confirm Quote Submission","Confirmar Submissão da Cotação")</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (selectedQuote != null)
+            {
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <MudText Typo="Typo.body2" style="color: #666;">@T("Please review the quote details before submitting:","Revise os detalhes antes de submeter:")</MudText>
+                    
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; border-left: 4px solid #2E5090;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Quote No","Nº de Cotação")</div>
+                                <div style="font-weight: 700; color: #2E5090; font-size: 14px;">@selectedQuote.QuoteNo</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Status","Estado")</div>
+                                <div><span class="status-badge @GetStatusClass(selectedQuote.Pay_Status)">@TranslateStatus(selectedQuote.Pay_Status)</span></div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Contact","Contacto")</div>
+                                <div style="font-size: 13px;">@selectedQuote.ContactNo</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Insured","Segurado")</div>
+                                <div style="font-size: 13px;">@selectedQuote.InsuredNo</div>
+                            </div>
+                            <div style="grid-column: 1 / -1;">
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Risk Description","Descrição do Risco")</div>
+                                <div style="font-size: 13px;">@selectedQuote.RiskDescription</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Underwriter","Seguradora")</div>
+                                <div style="font-size: 13px;">@selectedQuote.Underwriter</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Date","Data")</div>
+                                <div style="font-size: 13px;">@selectedQuote.Date</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">@T("Sum Insured","Capital Seguro")</div>
+                                <div style="font-weight: 700; color: #2E5090; font-size: 14px;">@selectedQuote.SumInsured</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <div style="font-size: 11px; color: #999; text-transform: uppercase; font-weight: 700;">@T("Description (optional)","Descrição (opcional)")</div>
+                        <textarea @bind="ackDescription" rows="3" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:13px;" placeholder='@T("Add a note about this submission (optional)","Adicione uma nota sobre esta submissão (opcional)")'></textarea>
+                    </div>
+
+                    <MudText Typo="Typo.body2" style="color: #d32f2f; font-weight: 600;">⚠️ @T("Are you sure you want to submit this quote?","Tem a certeza que deseja submeter esta cotação?")</MudText>
+                </div>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => showConfirmationModal = false)" Variant="Variant.Text" Color="Color.Default">
+                @T("Cancel","Cancelar")
+            </MudButton>
+            <MudButton OnClick="@ConfirmSubmitQuote" Variant="Variant.Filled" Color="Color.Success" Disabled="@isSubmittingQuote">
+                @if (isSubmittingQuote)
+                {
+                    <span>@T("Submitting...","A submeter...")</span>
+                }
+                else
+                {
+                    <span>✓ @T("Confirm & Submit","Confirmar e Submeter")</span>
+                }
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</div>
+
+@code {
+    private string lang = "en";
+    private List<QuoteItem> quotes = new();
+
+    private List<QuoteItem> filteredQuotes = new();
+    private List<QuoteItem> ackQuotes = new();
+    private List<QuoteItem> ackFilteredQuotes = new();
+
+    private bool isLoading = true;
+    private string selectedQuoteNo = "";
+    private QuoteItem selectedQuote = null;
+    private bool ackIsLoading = true;
+    private bool isSubmittingQuote = false;
+    private bool showConfirmationModal = false;
+    private string ackDescription = string.Empty;
+    private MudTable<QuoteItem> table;
+    private string currentContactNo = string.Empty;
+    private string currentFullName = string.Empty;
+    private string searchQuery = string.Empty;
+    private string selectedUnderwriter = string.Empty;
+    private string selectedModule = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLanguage();
+        var (contactNo, fullName) = await GetCurrentUserInfo();
+        currentContactNo = contactNo;
+        currentFullName = fullName;
+        await LoadQuotesFromBC();
+    }
+
+    private async Task LoadLanguage()
+    {
+        try
+        {
+            var stored = await JS.InvokeAsync<string>("localStorage.getItem", "site_lang");
+            if (!string.IsNullOrWhiteSpace(stored)) lang = stored;
+        }
+        catch { lang = "en"; }
+    }
+
+    private async Task LoadQuotesFromBC()
+    {
+        try
+        {
+            isLoading = true;
+
+            ackIsLoading = true;
+            if (string.IsNullOrWhiteSpace(currentContactNo))
+            {
+                quotes = new List<QuoteItem>();
+                filteredQuotes = quotes;
+                isLoading = false;
+                Snackbar.Add("ackonww error", Severity.Normal);
+
+                return;
+            }
+            var bcQuotes = await InsurerQuoteService.GetInsurerQuotesAsync(currentContactNo);
+
+            quotes = bcQuotes.Select(q => new QuoteItem
+            {
+                DocumentType = q.Document_Type,
+                QuoteNo = q.No,
+                ContactType = "CONTACT",
+                ContactNo = q.Contact_No,
+                ContactName = q.Contact_Name,
+                InsuredType = "POLICY",
+                InsuredNo = q.Insured_No,
+                InsuredName = q.Insured_Name,
+                RiskType = q.Class_Name,
+                RiskDescription = q.Risk_Description,
+                UnderwriterLabel = "UNDERWRITER",
+                Underwriter = q.Underwriter_Name,
+                UnderwriterCode = q.Underwriter_Code,
+                Date = FormatDate(q.Document_Date),
+                Pay_Status = q.Status,
+                SumInsured = FormatCurrency(q.Total_Sum_Insured),
+                PolicyNo = q.Policy_No,
+                SelectedByClient = q.Selected_by_Client,
+                ETag = q.ODataEtag
+            }).ToList();
+
+            ApplyFilters();
+            isLoading = false;
+            ackIsLoading = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"{T("Error loading quotes:","Erro ao carregar cotações:")} {ex.Message}", Severity.Error);
+            isLoading = false;
+            ackIsLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        IEnumerable<QuoteItem> query = quotes;
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var term = searchQuery.Trim().ToLowerInvariant();
+            query = query.Where(q =>
+                (!string.IsNullOrWhiteSpace(q.QuoteNo) && q.QuoteNo.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.Underwriter) && q.Underwriter.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.RiskDescription) && q.RiskDescription.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.RiskType) && q.RiskType.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.InsuredNo) && q.InsuredNo.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.InsuredName) && q.InsuredName.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.ContactNo) && q.ContactNo.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(q.ContactName) && q.ContactName.ToLowerInvariant().Contains(term))
+            );
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedUnderwriter))
+        {
+            query = query.Where(q => string.Equals(q.Underwriter, selectedUnderwriter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedModule))
+        {
+            query = query.Where(q => string.Equals(q.RiskType, selectedModule, StringComparison.OrdinalIgnoreCase));
+        }
+
+        filteredQuotes = query
+            .Where(q => q.Pay_Status != null && q.Pay_Status.Equals("Open", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        ackFilteredQuotes = query
+            .Where(q => q.Pay_Status != null && q.Pay_Status.Equals("Released", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (selectedQuote != null && !filteredQuotes.Any(q => q.QuoteNo == selectedQuote.QuoteNo))
+        {
+            selectedQuote = null;
+            selectedQuoteNo = string.Empty;
+        }
+    }
+
+    private void ResetFilters()
+    {
+        searchQuery = string.Empty;
+        selectedUnderwriter = string.Empty;
+        selectedModule = string.Empty;
+        ApplyFilters();
+    }
+
+    private void SelectQuote(string quoteNo)
+    {
+        selectedQuoteNo = quoteNo;
+        selectedQuote = filteredQuotes.FirstOrDefault(q => q.QuoteNo == quoteNo);
+        StateHasChanged();
+    }
+
+    private void OpenConfirmationModal()
+    {
+        if (!string.IsNullOrEmpty(selectedQuoteNo) && selectedQuote != null)
+        {
+            ackDescription = string.Empty;
+            showConfirmationModal = true;
+        }
+    }
+
+    private async Task<(string ContactNo, string FullName)> GetCurrentUserInfo()
+    {
+        string contactNo = string.Empty;
+        string fullName = string.Empty;
+
+        try
+        {
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var email = await unitOfWork.Get_LoggedIn_User.UserEmail();
+            if (!string.IsNullOrEmpty(email))
+            {
+                var dbUser = await UnitOfWork.userRepository.GetByEmail(email);
+                if (dbUser != null)
+                {
+                    contactNo = dbUser.Contact_No ?? string.Empty;
+                    fullName = string.IsNullOrWhiteSpace(dbUser.FirstName+dbUser.LastName)
+                        ? $"{dbUser.FirstName} {dbUser.MiddleName} {dbUser.LastName}".Trim()
+                        : dbUser.FullName;
+                }
+            }
+            else
+            {
+                Snackbar.Add("no email found", Severity.Error);
+            }
+        }
+        catch(Exception ex)
+        {
+            
+            Snackbar.Add($"errro {ex.Message}", Severity.Error);
+        }
+
+        return (contactNo, fullName);
+    }
+
+    private async Task ConfirmSubmitQuote()
+    {
+        if (selectedQuote == null)
+            return;
+
+        var acknowledgementCompleted = false;
+
+        try
+        {
+            isSubmittingQuote = true;
+            if (string.IsNullOrWhiteSpace(currentContactNo))
+            {
+                Snackbar.Add(T("Could not determine your Contact Number. Please ensure your profile is complete.","Não foi possível determinar o seu número de contacto. Certifique-se de que o perfil está completo."), Severity.Error);
+                return;
+            }
+
+            var ok = await InsurerQuoteService.SubmitAcknowledgementAsync(currentContactNo, currentFullName, selectedQuote.QuoteNo, ackDescription ?? "");
+            if (ok)
+            {
+                try
+                {
+                    await InsurerQuoteService.CreatePolicyFromQuoteAsync(selectedQuote.QuoteNo, false);
+
+                    var bcLink = "https://bc-link-to-productselection-list"; 
+                    var customerName = string.IsNullOrWhiteSpace(currentFullName) ? selectedQuote.ContactNo : currentFullName;
+
+                    var recipients = new[]
+                    {
+                        "Sheila.chumba@attain-es.com",
+                        "benndora2@gmail.com",
+                        "kipletingbrian285@gmail.com",
+                        "emmanukiptoo98@gmail.com"
+                    };
+
+                    var emailTasks = recipients.Select(email =>
+                        UnitOfWork.EmailService.SendQuoteSelectedNotificationAsync(
+                            email,
+                            customerName,
+                            selectedQuote.QuoteNo,
+                            selectedQuote.PolicyNo,
+                            selectedQuote.Underwriter,
+                            selectedQuote.RiskDescription,
+                            selectedQuote.RiskType,
+                            selectedQuote.InsuredNo,
+                            bcLink
+                        ));
+
+                    await Task.WhenAll(emailTasks);
+
+                    Snackbar.Add($"✓ {T("Quote", "Cotação")} {selectedQuote.QuoteNo} {T("submitted successfully!", "submetida com sucesso!")}", Severity.Success);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"{T("Error creating policy from quote:","Erro ao criar política a partir da cotação:")} {ex.Message}", Severity.Error);
+                }
+
+                acknowledgementCompleted = true;
+            }
+            else
+            {
+                Snackbar.Add($"❌ {T("Failed to submit quote","Falha ao submeter a cotação")} {selectedQuote.QuoteNo}.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message ?? string.Empty;
+            if (msg.Contains("already exists", StringComparison.OrdinalIgnoreCase) || msg.Contains("EntityWithSameKeyExists", StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add($"ℹ️ {T("You have already submitted acknowledgement for quote","Já submeteu o reconhecimento para a cotação")} {selectedQuote?.QuoteNo}.", Severity.Info);
+                acknowledgementCompleted = true;
+            }
+            else
+            {
+                Snackbar.Add($"{T("Error submitting quote:","Erro ao submeter a cotação:")} {ex.Message}", Severity.Error);
+            }
+        }
+        finally
+        {
+            isSubmittingQuote = false;
+            // Always close and reset modal UI
+            showConfirmationModal = false;
+            selectedQuoteNo = string.Empty;
+            selectedQuote = null;
+            ackDescription = string.Empty;
+
+            // Only reload data when acknowledgement actually completed or already existed
+            if (acknowledgementCompleted)
+            {
+                await LoadQuotesFromBC();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private string FormatDate(string dateString)
+    {
+        if (string.IsNullOrEmpty(dateString))
+            return "";
+        
+        if (DateTime.TryParse(dateString, out var date))
+        {
+            var culture = lang == "pt" ? new System.Globalization.CultureInfo("pt-PT") : new System.Globalization.CultureInfo("en-US");
+            return date.ToString("dd MMM yyyy", culture);
+        }
+        
+        return dateString;
+    }
+
+    private string FormatCurrency(decimal amount)
+    {
+        var culture = lang == "pt" ? new System.Globalization.CultureInfo("pt-PT") : new System.Globalization.CultureInfo("en-US");
+        return amount.ToString("N2", culture);
+    }
+
+    private string GetRowClass(QuoteItem row, int index)
+    {
+        var classes = new List<string>();
+        if (row?.SelectedByClient == true) classes.Add("client-selected-row");
+        if (row?.IsFirstOther == true) classes.Add("group-separator");
+        return string.Join(" ", classes);
+    }
+
+    private void ViewQuote(string quoteNo)
+    {
+        NavigationManager.NavigateTo($"/QuoteDetails/{quoteNo}");
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status?.ToLower() switch
+        {
+            "released" => "status-released",
+            "open" => "status-open",
+            "pending" => "status-pending",
+            _ => "status-pending"
+        };
+    }
+
+    private string TranslateStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return status;
+        if (lang != "pt") return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(status);
+        return status.ToLower() switch
+        {
+            "released" => "Emitido",
+            "open" => "Aberto",
+            "pending" => "Pendente",
+            _ => status
+        };
+    }
+
+    private string TranslateContactType(string type)
+    {
+        if (string.IsNullOrWhiteSpace(type)) return type;
+        if (lang == "pt")
+        {
+            if (type.Equals("CONTACT", StringComparison.OrdinalIgnoreCase)) return "CONTACTO";
+        }
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(type.ToLower());
+    }
+
+    private string TranslateInsuredType(string type)
+    {
+        if (string.IsNullOrWhiteSpace(type)) return type;
+        if (lang == "pt")
+        {
+            if (type.Equals("POLICY", StringComparison.OrdinalIgnoreCase)) return "APÓLICE";
+        }
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(type.ToLower());
+    }
+
+    private string T(string en, string pt) => lang == "pt" ? pt : en;
+
+    private class QuoteItem
+    {
+        public string DocumentType { get; set; }
+        public string QuoteNo { get; set; }
+        public string ContactType { get; set; }
+        public string ContactNo { get; set; }
+        public string ContactName { get; set; }
+        public string InsuredType { get; set; }
+        public string InsuredNo { get; set; }
+        public string InsuredName { get; set; }
+        public string RiskType { get; set; }
+        public string RiskDescription { get; set; }
+        public string UnderwriterLabel { get; set; }
+        public string Underwriter { get; set; }
+        public string UnderwriterCode { get; set; }
+        public string Date { get; set; }
+        public string Pay_Status { get; set; }
+        public string SumInsured { get; set; }
+        public string PolicyNo { get; set; }
+        public string ETag { get; set; }
+        public bool SelectedByClient { get; set; }
+        public bool IsFirstOther { get; set; }
+    }
+}

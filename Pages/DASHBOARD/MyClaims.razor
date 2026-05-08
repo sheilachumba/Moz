@@ -1,0 +1,196 @@
+@page "/MyClaims"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@inject IUnitOfWork UnitOfWork
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+
+<style>
+    :root {
+        --blue-900: #1F3A7F;
+        --blue-800: #283A79;
+        --blue-700: #2d488f;
+        --blue-600: #3657a6;
+        --blue-100: #e8edf9;
+        --surface: #ffffff;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --radius: 12px;
+    }
+
+    .page { width: 100%; min-height: 100vh; padding: 14px; background: var(--surface); }
+    .header { background: linear-gradient(135deg, var(--blue-800), var(--blue-700)); color: #fff; border-radius: var(--radius); padding: 12px 14px; box-shadow: 0 20px 40px -24px rgba(15,70,150,.30); margin-bottom: 12px; backdrop-filter: saturate(140%) blur(6px); }
+    .header .title { margin: 0; font-size: 1.25rem; font-weight: 800; }
+    .header .subtitle { margin-top: 4px; opacity: .95; }
+    .card { background: rgba(255,255,255,.92); border: 1px solid rgba(148,163,184,.20); border-radius: var(--radius); padding: 12px; box-shadow: 0 12px 32px -20px rgba(2,6,23,.18); backdrop-filter: saturate(140%) blur(6px); }
+    .th-blue { background-color: var(--blue-800) !important; color:#fff !important; font-weight:700; }
+    .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; border-radius:9999px; padding:4px 10px; font-size:.75rem; }
+    .badge--open { background:#E3F2FD; color:#1E88E5; }
+    .badge--released { background:#E8F5E9; color:#2E7D32; }
+    .summary { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+    .summary-item { background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:8px 10px; font-size:.85rem; }
+    .modal-header-blue { background: linear-gradient(135deg, var(--blue-800), var(--blue-600)); color:#fff; padding:12px 16px; border-top-left-radius: inherit; border-top-right-radius: inherit; }
+</style>
+
+<div class="page">
+  <div class="header">
+    <div class="title">@LangService.T("My Claims","Minhas Reclamações")</div>
+    <div class="subtitle">@LangService.T("View and track all claims linked to your account","Veja e acompanhe todas as reclamações ligadas à sua conta")</div>
+  </div>
+
+  <div class="card">
+    <div class="summary">
+      <div class="summary-item">@LangService.T("Total","Total"): <strong>@claims.Count</strong></div>
+      <div class="summary-item">@LangService.T("Open","Aberto"): <strong>@claims.Count(c=> (c.Claim_Status??"").Equals("Open", StringComparison.OrdinalIgnoreCase))</strong></div>
+      <div class="summary-item">@LangService.T("Released","Aprovado"): <strong>@claims.Count(c=> (c.Approval_Status??"").Equals("Released", StringComparison.OrdinalIgnoreCase))</strong></div>
+    </div>
+
+    <MudTable Items="@claims" Dense="true" Hover="true" Striped="true">
+      <HeaderContent>
+        <MudTh Class="th-blue">@LangService.T("CLAIM NO","Nº RECLAMAÇÃO")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("POLICY NO","Nº APÓLICE")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("INSURED","SEGURADO")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("LOSS TYPE","TIPO DE SINISTRO")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("DATE NOTIFIED","DATA NOTIF.")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("STATUS","ESTADO")</MudTh>
+        <MudTh Class="th-blue">@LangService.T("ACTION","AÇÃO")</MudTh>
+      </HeaderContent>
+      <RowTemplate>
+        <MudTd DataLabel="CLAIM NO">@context.Claim_No</MudTd>
+        <MudTd DataLabel="POLICY NO">@context.Policy_No</MudTd>
+        <MudTd DataLabel="INSURED">@context.Name_of_Insured</MudTd>
+        <MudTd DataLabel="LOSS TYPE">@context.Loss_Type</MudTd>
+        <MudTd DataLabel="DATE NOTIFIED">@context.Date_Notified</MudTd>
+        <MudTd DataLabel="STATUS">
+          <span class="badge @( (context.Claim_Status??"").Equals("Open", StringComparison.OrdinalIgnoreCase) ? "badge--open" : "badge--released")">@context.Claim_Status</span>
+        </MudTd>
+        <MudTd DataLabel="ACTION">
+          <MudIconButton Icon="@Icons.Material.Filled.Visibility" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenClaimDetails(context))" />
+        </MudTd>
+      </RowTemplate>
+      <PagerContent>
+        <MudTablePager PageSizeOptions="@(new int[]{5,10,25,50})" />
+      </PagerContent>
+      <NoRecordsContent>
+        <div style="text-align:center; padding: 40px 10px; color:#64748b;">
+          @LangService.T("No claims found","Sem reclamações")
+        </div>
+      </NoRecordsContent>
+    </MudTable>
+  </div>
+</div>
+
+<!-- Claim Details Modal -->
+<MudDialog @bind-IsVisible="showDetails" Options="new DialogOptions() { FullWidth = true, MaxWidth = MaxWidth.Medium, DisableBackdropClick = true }">
+  <TitleContent>
+    <div class="modal-header-blue">
+      <MudText Typo="Typo.h6" Style="font-weight:700;color:#fff;">@LangService.T("Claim Details","Detalhes da Reclamação") - @selectedClaim?.Claim_No</MudText>
+      <MudText Typo="Typo.body2" Class="sub">@LangService.T("Comprehensive details for your claim","Detalhes completos da sua reclamação")</MudText>
+    </div>
+  </TitleContent>
+  <DialogContent>
+    @if (selectedClaim != null)
+    {
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="card">
+          <div style="font-weight:700; color:#1f2937; margin-bottom:6px;">@LangService.T("Overview","Resumo")</div>
+          <div><strong>@LangService.T("Policy No","Nº Apólice"):</strong> @selectedClaim.Policy_No</div>
+          <div><strong>@LangService.T("Insured","Segurado"):</strong> @selectedClaim.Name_of_Insured</div>
+          <div><strong>@LangService.T("Class","Classe"):</strong> @selectedClaim.Class (@selectedClaim.Class_Name)</div>
+          <div><strong>@LangService.T("Risk","Risco"):</strong> @selectedClaim.Risk_Description</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; color:#1f2937; margin-bottom:6px;">@LangService.T("Status","Estado")</div>
+          <div><strong>@LangService.T("Approval","Aprovação"):</strong> @selectedClaim.Approval_Status</div>
+          <div><strong>@LangService.T("Claim Status","Estado da Recl."):</strong> @selectedClaim.Claim_Status</div>
+          <div><strong>@LangService.T("Date Notified","Data Notif."):</strong> @selectedClaim.Date_Notified</div>
+          <div><strong>@LangService.T("Date of Occurrence","Data de Ocorrência"):</strong> @selectedClaim.Date_of_Occurence</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; color:#1f2937; margin-bottom:6px;">@LangService.T("Loss Details","Detalhes do Sinistro")</div>
+          <div><strong>@LangService.T("Loss Type","Tipo de Sinistro"):</strong> @selectedClaim.Loss_Type - @selectedClaim.Loss_Type_Description</div>
+          <div><strong>@LangService.T("Estimated","Estimado"):</strong> @selectedClaim.Estimated_Amount.ToString("N2")</div>
+          <div><strong>@LangService.T("Expected","Esperado"):</strong> @selectedClaim.Expected_Amount.ToString("N2")</div>
+          <div><strong>@LangService.T("Offered","Oferecido"):</strong> @selectedClaim.Offered_Amount.ToString("N2")</div>
+          <div><strong>@LangService.T("Settled","Liquidado"):</strong> @selectedClaim.Amount_Settled.ToString("N2")</div>
+        </div>
+        <div class="card">
+          <div style="font-weight:700; color:#1f2937; margin-bottom:6px;">@LangService.T("Insured Info","Info do Segurado")</div>
+          <div><strong>@LangService.T("ID No","BI"):</strong> @selectedClaim.ID_Number</div>
+          <div><strong>@LangService.T("Sex","Sexo"):</strong> @selectedClaim.Sex</div>
+          <div><strong>@LangService.T("Address","Endereço"):</strong> @selectedClaim.Insured_Address</div>
+          <div><strong>@LangService.T("Phone","Telefone"):</strong> @selectedClaim.Insured_Telephone_No</div>
+        </div>
+      </div>
+    }
+  </DialogContent>
+  <DialogActions>
+    <MudButton OnClick="CloseDetails">@LangService.T("Close","Fechar")</MudButton>
+  </DialogActions>
+</MudDialog>
+
+@code {
+  [CascadingParameter]
+  public MainLayout Layout { get; set; }
+
+  private List<ClaimListItem> claims = new();
+  private bool showDetails = false;
+  private ClaimListItem selectedClaim;
+
+  protected override async Task OnInitializedAsync()
+  {
+    try
+    {
+      Layout?.OpenLoading();
+      // Resolve logged-in user's Contact_No
+      var userId = await UnitOfWork.Get_LoggedIn_User.UserId();
+      string contactNo = null;
+      if (!string.IsNullOrWhiteSpace(userId))
+      {
+        var user = await UnitOfWork.userRepository.GetById(userId);
+        contactNo = user?.Contact_No;
+      }
+
+      if (string.IsNullOrWhiteSpace(contactNo))
+      {
+        claims = new List<ClaimListItem>();
+        return;
+      }
+
+      // Fetch ContactCard by Contact_No and get Insured_Number
+      var contactCard = await UnitOfWork.ContactCardService.GetContactCardAsync(contactNo);
+      if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+      {
+        claims = new List<ClaimListItem>();
+        return;
+      }
+
+      // Load claims filtered by InsuredNo (Insured_Number from ContactCard)
+      claims = await UnitOfWork.ClaimsService.GetClaimsAsync(contactCard.Insured_Number);
+    }
+    catch (Exception ex)
+    {
+      Snackbar.Add($"Error loading claims: {ex.Message}", Severity.Error);
+      claims = new();
+    }
+    finally
+    {
+      Layout?.CloseLoading();
+    }
+  }
+
+  private void OpenClaimDetails(ClaimListItem c)
+  {
+    selectedClaim = c;
+    showDetails = true;
+  }
+
+  private void CloseDetails()
+  {
+    showDetails = false;
+    selectedClaim = null;
+  }
+}

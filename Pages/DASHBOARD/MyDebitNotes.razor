@@ -1,0 +1,278 @@
+@page "/MyPyments"
+@attribute [Authorize]
+@layout MainLayout
+@using MOZ_UPGRADE.Interfaces
+@using MOZ_UPGRADE.Models
+@using MudBlazor
+@inject IUnitOfWork unitOfWork
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<div style="min-height: calc(100vh - 72px); padding: 0; margin: 0; background:#f5f5f5;">
+    <div style="max-width: 1400px; margin: 0 auto; padding: 12px 16px 18px 16px; color:#111827;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:8px; padding:8px 4px 10px 4px;">
+            <div>
+                <div style="font-size: 22px; font-weight: 700; letter-spacing:0.03em;">My Payments</div>
+                <div style="font-size:11px; color:#6b7280;">All debit notes and payments linked to your policies</div>
+            </div>
+            <div style="display:flex; gap:8px; font-size:11px; color:#6b7280;">
+                <div style="padding:4px 8px; border-radius:999px; background:#ffffff; border:1px solid #e5e7eb;">
+                    <span style="color:#111827; font-weight:600;">@debitNotes.Count</span> notes
+                </div>
+                <div style="padding:4px 8px; border-radius:999px; background:#ffffff; border:1px solid #e5e7eb;">
+                    Total Premium&nbsp;
+                    <span style="color:#111827; font-weight:600;">
+                        @debitNotes.Sum(x => x.Total_Premium_Amount).ToString("N0")
+                    </span>
+                </div>
+                <div style="padding:4px 8px; border-radius:999px; background:#ffffff; border:1px solid #e5e7eb;">
+                    Open&nbsp;
+                    <span style="color:#111827; font-weight:600;">
+                        @debitNotes.Count(x => string.Equals(x.Pay_Status, "Open", StringComparison.OrdinalIgnoreCase))
+                    </span>
+                    &nbsp;notes
+                </div>
+            </div>
+        </div>
+
+        @if (loading)
+        {
+            <div style="display:flex; align-items:center; justify-content:center; padding: 72px 0; color:#6b7280;">
+                <MudProgressCircular Color="Color.Primary" Size="Size.Medium" Indeterminate="true" Class="mr-2" />
+                <span>Loading debit notes...</span>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(error))
+        {
+            <div style="background:#fee2e2; color:#b91c1c; border:1px solid #fecaca; padding:10px 12px; border-radius:10px; font-size:12px;">
+                @error
+            </div>
+        }
+        else if (debitNotes == null || debitNotes.Count == 0)
+        {
+            <div style="color:#6b7280; font-size:13px; padding-top:32px;">No debit notes found.</div>
+        }
+        else
+        {
+            <MudPaper Class="pa-3" Style="border-radius:14px; box-shadow: 0 18px 30px rgba(15,23,42,0.12); background:#ffffff; border:1px solid #e5e7eb;">
+            <MudStack Spacing="1">
+                <!-- Status tabs: Open / Pending / Paid with badge counts -->
+                <MudTabs ActivePanelIndex="@activeStatusTabIndex" ActivePanelIndexChanged="OnStatusTabChanged" Rounded="true" Border="false" Class="mb-1">
+                    <MudTabPanel Text="Open"
+                                 BadgeData="@GetStatusCountBadge("Open")"
+                                 BadgeColor="@(activeStatusTabIndex == 0 ? Color.Primary : Color.Default)"
+                                 BadgeVariant="@(activeStatusTabIndex == 0 ? Variant.Filled : Variant.Outlined)" />
+                    <MudTabPanel Text="Pending"
+                                 BadgeData="@GetStatusCountBadge("Pending")"
+                                 BadgeColor="@(activeStatusTabIndex == 1 ? Color.Primary : Color.Default)"
+                                 BadgeVariant="@(activeStatusTabIndex == 1 ? Variant.Filled : Variant.Outlined)" />
+                    <MudTabPanel Text="Paid"
+                                 BadgeData="@GetStatusCountBadge("Posted")"
+                                 BadgeColor="@(activeStatusTabIndex == 2 ? Color.Success : Color.Default)"
+                                 BadgeVariant="@(activeStatusTabIndex == 2 ? Variant.Filled : Variant.Outlined)" />
+                </MudTabs>
+
+                <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                    <MudTextField T="string" Value="@searchText" ValueChanged="@(v => OnSearchChanged(v))" Placeholder="Search by policy, insured, policy no or document no" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Search" Style="min-width:240px;" Immediate="true" Margin="Margin.Dense" />
+
+                    <MudSpacer />
+
+                    <MudText Typo="Typo.caption" Class="text-secondary" Style="color:#9ca3af;">@($"Total: {debitNotes.Count} debit notes")</MudText>
+                </div>
+            </MudStack>
+
+            <MudTable Items="pagedDebitNotes" Hover="true" Striped="true" Dense="true" Page="@currentPage" PageChanged="OnPageChanged" RowsPerPage="pageSize" RowsPerPageOptions="@pageSizeOptions">
+                <HeaderContent>
+                   
+                    <MudTh>Policy</MudTh>
+                    <MudTh>Insured</MudTh>
+                    <MudTh>Period</MudTh>
+                    <MudTh align="right">Sum Insured</MudTh>
+                    <MudTh align="right">Total Premium</MudTh>
+                    <MudTh>Payment Status</MudTh>
+                    <MudTh align="right">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate Context="row">
+                   
+                    <MudTd>@row.Policy_Description</MudTd>
+                    <MudTd>@row.Insured_Name </MudTd>
+                    <MudTd>@(string.IsNullOrWhiteSpace(row.From_Date) && string.IsNullOrWhiteSpace(row.To_Date) ? "-" : $"{row.From_Date} - {row.To_Date}")</MudTd>
+                    <MudTd align="right">@row.Total_Sum_Insured.ToString("N2")</MudTd>
+                    <MudTd align="right">@row.Total_Premium_Amount.ToString("N2")</MudTd>
+                    <MudTd>
+                        <MudChip Color="@GetStatusColor(row.Pay_Status)" Variant="Variant.Outlined" Size="Size.Small">@row.Pay_Status</MudChip>
+                    </MudTd>
+                    <MudTd align="right">
+                        <MudButton Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small" OnClick="@(async () => await OpenPaymentDialog(row))">Make Payment</MudButton>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
+    }
+</div>
+</div>
+@code {
+    private bool loading = true;
+    private string error;
+    private List<DebitNoteItem> debitNotes = new();
+    private List<DebitNoteItem> pagedDebitNotes = new();
+    private string searchText;
+    private string statusFilter = "Open";
+    private int activeStatusTabIndex = 0;
+    private int currentPage = 0;
+    private int pageSize = 10;
+    private int[] pageSizeOptions = new[] { 10, 20, 50 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            loading = true;
+            var userId = await unitOfWork.Get_LoggedIn_User.UserId();
+            string contactNo = null;
+            if (!string.IsNullOrWhiteSpace(userId))
+            {
+                var user = await unitOfWork.userRepository.GetById(userId);
+                contactNo = user?.Contact_No;
+            }
+
+            if (string.IsNullOrWhiteSpace(contactNo))
+            {
+                debitNotes = new List<DebitNoteItem>();
+                loading = false;
+                return;
+            }
+
+            // Fetch ContactCard by Contact_No and get Insured_Number
+            var contactCard = await unitOfWork.ContactCardService.GetContactCardAsync(contactNo);
+            if (contactCard == null || string.IsNullOrWhiteSpace(contactCard.Insured_Number))
+            {
+                debitNotes = new List<DebitNoteItem>();
+                loading = false;
+                return;
+            }
+
+            debitNotes = await unitOfWork.DebitNoteService.GetDebitNotesByInsuredNoAsync(contactCard.Insured_Number);
+            ApplyFiltersAndPaging();
+            loading = false;
+        }
+        catch (Exception ex)
+        {
+            error = $"Error loading debit notes: {ex.Message}";
+            loading = false;
+        }
+    }
+
+    private void ApplyFiltersAndPaging()
+    {
+        IEnumerable<DebitNoteItem> query = debitNotes ?? Enumerable.Empty<DebitNoteItem>();
+
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            var term = searchText.Trim().ToLowerInvariant();
+            query = query.Where(x =>
+                (!string.IsNullOrWhiteSpace(x.Policy_No) && x.Policy_No.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.No) && x.No.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Policy_Description) && x.Policy_Description.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Insured_Name) && x.Insured_Name.ToLowerInvariant().Contains(term)) ||
+                (!string.IsNullOrWhiteSpace(x.Insured_No) && x.Insured_No.ToLowerInvariant().Contains(term))
+            );
+        }
+
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            query = query.Where(x => string.Equals(x.Pay_Status, statusFilter, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var total = query.Count();
+
+        // Ensure current page is within bounds
+        var maxPage = total == 0 ? 0 : Math.Max(0, (int)Math.Ceiling(total / (double)pageSize) - 1);
+        if (currentPage > maxPage)
+        {
+            currentPage = maxPage;
+        }
+
+        pagedDebitNotes = query
+            .Skip(currentPage * pageSize)
+            .Take(pageSize)
+            .ToList();
+    }
+
+    private string GetStatusCountBadge(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status) || debitNotes == null)
+            return "0";
+
+        var count = debitNotes.Count(x => string.Equals(x.Pay_Status, status, StringComparison.OrdinalIgnoreCase));
+        return count.ToString();
+    }
+
+    private Color GetStatusColor(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return Color.Default;
+
+        return status.ToLowerInvariant() switch
+        {
+            "open" => Color.Info,
+            "released" => Color.Warning,
+            "posted" => Color.Success,
+            _ => Color.Default
+        };
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        searchText = value;
+        currentPage = 0;
+        ApplyFiltersAndPaging();
+    }
+
+    private void OnStatusTabChanged(int index)
+    {
+        activeStatusTabIndex = index;
+        statusFilter = index switch
+        {
+            0 => "Open",
+            1 => "Pending",
+            2 => "Posted",
+            _ => string.Empty
+        };
+        currentPage = 0;
+        ApplyFiltersAndPaging();
+    }
+
+    private void OnPageChanged(int page)
+    {
+        currentPage = page;
+        ApplyFiltersAndPaging();
+    }
+
+    private async Task OpenPaymentDialog(DebitNoteItem note)
+    {
+        var parameters = new DialogParameters
+        {
+            { nameof(MakePaymentDialog.Note), note }
+        };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.ExtraSmall,
+            FullWidth = true
+        };
+
+        var dialog = DialogService.Show<MakePaymentDialog>("Make Payment", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Cancelled)
+        {
+            Snackbar.Add("Payment submitted.", Severity.Success);
+            // Reload debit notes so the updated status from BC is reflected in the grid
+            await OnInitializedAsync();
+        }
+    }
+}

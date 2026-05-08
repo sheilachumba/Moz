@@ -1,0 +1,833 @@
+@page "/Individual_Generalinfo"
+@attribute [Authorize]
+@inject MOZ_UPGRADE.Utils.LanguageService LangService
+@using MOZ_UPGRADE.Models
+@using MOZ_UPGRADE.Interfaces
+@inject MOZ_UPGRADE.Interfaces.IUnitOfWork UnitOfWork
+@inject NavigationManager navigate
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+
+<style>
+    .kyc-page {
+        background: #ffffff;
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .kyc-header {
+        background: #ffffff;
+        color: #333;
+        padding: 20px 16px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .kyc-header-content {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .kyc-content {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 16px 24px 16px;
+    }
+    
+    .form-section {
+        background: white;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        border-left: 4px solid #667eea;
+    }
+    
+    .form-section-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #283A79;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        letter-spacing: .2px;
+    }
+    .form-section-title::before {
+        content: '';
+        width: 16px;
+        height: 16px;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #283A79 0%, #1F3A7F 100%);
+        box-shadow: 0 4px 12px rgba(40,58,121,.25);
+    }
+    
+    .legal-box {
+        background: #f5f7ff;
+        border-left: 4px solid #283A79;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 14px;
+    }
+    
+    .step-indicator {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: 12px;
+        padding: 14px 12px;
+        margin-bottom: 18px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+        gap: 6px;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        position: relative;
+    }
+
+    .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        width: 100%;
+        height: 2px;
+        background: #e0e0e0;
+        z-index: 0;
+    }
+
+    .step.active:not(:last-child)::after {
+        background: #667eea;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #f3f4f6;
+        border: 2px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: #003366;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
+        font-size: 14px;
+    }
+
+    .step.active .step-number {
+        background: linear-gradient(135deg, #283A79 0%, #1F3A7F 100%);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 6px 16px rgba(40,58,121,.25);
+    }
+
+    .step-label {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    /* Tighten MudBlazor input heights globally on this page */
+    :deep(.mud-input-outlined) { border-radius: 10px; }
+    :deep(.mud-input-outlined .mud-input-slot) { padding: 8px 12px; }
+    :deep(.mud-input-outlined.mud-focused .mud-input-notched-outline) { border-color: #283A79 !important; }
+    :deep(.mud-input-label) { font-size: 12px; font-weight: 600; color: #003366; }
+    :deep(.mud-select) { --mud-input-padding: 8px 12px; }
+
+    /* Themed buttons (keep sizes compact) */
+    :deep(.mud-button-filled-success) {
+        background: linear-gradient(135deg, #283A79 0%, #1F3A7F 100%) !important;
+        box-shadow: 0 6px 18px rgba(40,58,121,.2);
+        font-weight: 700;
+    }
+    :deep(.mud-button-filled-success:hover) {
+        filter: brightness(0.98);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(40,58,121,.28);
+    }
+    :deep(.mud-button-outlined-default) {
+        border-color: #003366 !important;
+        color: #003366 !important;
+        font-weight: 600;
+    }
+
+    /* Mobile adjustments */
+    @@media (max-width: 600px) {
+        .kyc-header { padding: 14px 12px; margin-bottom: 12px; }
+        .kyc-content { padding: 0 12px 16px 12px; }
+        .form-section { padding: 14px; margin-bottom: 12px; }
+        .form-section-title { font-size: 1.05rem; margin-bottom: 10px; }
+        .legal-box { padding: 12px; margin-bottom: 12px; }
+        .step-indicator { padding: 12px 10px; margin-bottom: 12px; }
+        .step-number { width: 28px; height: 28px; font-size: 13px; }
+        .step-label { font-size: 11px; }
+        :deep(.mud-input-outlined .mud-input-slot) { padding: 7px 10px; }
+        :deep(.mud-input-label) { font-size: 11px; }
+    }
+
+    .step.active .step-label {
+        color: #667eea;
+    }
+</style>
+
+<div class="kyc-page">
+    <!-- Header -->
+    <div class="kyc-header">
+        <div class="kyc-header-content">
+            <MudText Typo="Typo.h5" style="font-weight: 700; margin-bottom: 6px;">
+                Individual KYC Application
+            </MudText>
+            <MudText Typo="Typo.body2" style="opacity: 0.95; font-size: 0.95rem;">
+                Complete your Know Your Customer (KYC) information as required by Mozambique Law No. 14/2023
+            </MudText>
+        </div>
+    </div>
+
+    <div class="kyc-content">
+        <!-- Legal Basis Section -->
+        <div class="legal-box">
+            <MudText Typo="Typo.body2" style="font-weight: 800; color: #283A79; margin-bottom: 10px; font-size: 0.95rem;">
+                📋 Legal Basis — Mozambique Law No. 14/2023
+            </MudText>
+            <MudText Typo="Typo.body2" style="line-height:1.55;margin-bottom:8px;font-size:small;color:gray;">
+                The Law establishing the Legal Framework and Measures to Prevent and Combat Money Laundering and Terrorism Financing, Law No. 14/2023, of August 28, 2023, was approved to prevent and combat the use of the financial system and non-financial entities for money laundering, terrorist financing and financing the proliferation of weapons of mass destruction.
+            </MudText>
+            <MudText Typo="Typo.body2" style="line-height:1.55;margin-bottom:8px;font-size:small;color:gray;">
+                Within the scope of Know Your Customer (KYC) measures, it is necessary to implement the duty to identify, verify, and perform due diligence measures as described in the same Law. Standard Insurance requests your cooperation in providing the following information.
+            </MudText>
+            <MudAlert Severity="Severity.Warning" Dense="true" style="background-color: #fff3cd; border-left: 4px solid #ffc107;">
+                <MudText Typo="Typo.caption" style="font-weight: 600;">
+                    * Required fields must be completed. Uploads are required before continuing.
+                </MudText>
+            </MudAlert>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active">
+                <div class="step-number">1</div>
+                <div class="step-label">Personal Information</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-label">Upload Documents</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-label">Review & Submit</div>
+            </div>
+        </div>
+
+        <MudForm @ref="form" @bind-IsValid="@success">
+            <!-- Personal Information Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    👤 @LangService.T("Personal Information","Informação Pessoal")
+                </div>
+
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.BVN_No" Label='@LangService.T("Tax Identification Number (NUIT) *","Número de Identificação Fiscal (NUIT) *")'
+                                  Placeholder="123456789" HelperText='@LangService.T("9-digit tax identification number","Número de identificação fiscal com 9 dígitos")'
+                                  Required="true" RequiredError="NUIT is required" MaxLength="9" Immediate="true" Validation="@ValidateNuit" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="string" @bind-Value="kycData.Title" Label='@LangService.T("Title *","Título *")'
+                                     SearchFunc="@SearchTitles" ToStringFunc="@(s => s)" Required="true" RequiredError="Title is required" Clearable="true" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.First_name" Label='@LangService.T("First Name *","Nome *")'
+                                  Placeholder="e.g., John" Required="true" RequiredError="First name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudTextField  Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Other_Name" Label='@LangService.T("Middle Name *","Nome do Meio *")' 
+                                  Placeholder="e.g., A." Required="true" RequiredError="Middle name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Last_Name" Label='@LangService.T("Last Name *","Apelido *")'
+                                  Placeholder="e.g., Doe" Required="true" RequiredError="Last name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Name" Label='@LangService.T("Full Legal Name *","Nome Completo Legal *")'
+                                  Placeholder="e.g., John A. Doe" HelperText='@LangService.T("As it appears on official documents","Como aparece nos documentos oficiais")'
+                                  Required="true" RequiredError="Full legal name is required" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudDatePicker Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Date="dateOfBirth" Label='@LangService.T("Date of Birth *","Data de Nascimento *")'
+                                   HelperText='@LangService.T("You must be at least 18 years old","Deve ter pelo menos 18 anos")' Required="true" MinDate="@earliestDob" MaxDate="@minAdultDob" Validation="@ValidateDob" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="string" @bind-Value="kycData.Sex" Label="Gender *"
+                                     SearchFunc="@SearchGenders" ToStringFunc="@(s => s)" Required="true" RequiredError="Gender is required" Clearable="true" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="CountryRegion" @bind-Value="selectedNationality" Label='@LangService.T("Nationality *","Nacionalidade *")'
+                                     SearchFunc="@SearchCountries" ToStringFunc="@(e => e == null ? null : e.Name)"
+                                     Disabled="@isLoadingCountries" Required="true" RequiredError="Nationality is required"
+                                     Clearable="true" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="string" @bind-Value="kycData.Marital_Status" Label='@LangService.T("Marital Status","Estado Civil")'
+                                     SearchFunc="@SearchMaritalStatuses" ToStringFunc="@(s => s)" Clearable="true" Dense="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="CountryRegion" @bind-Value="selectedResidenceCountry" Label='@LangService.T("Country of Residence *","País de Residência *")'
+                                     SearchFunc="@SearchCountries" ToStringFunc="@(e => e == null ? null : e.Name)"
+                                     Disabled="@isLoadingCountries" Required="true" RequiredError="Country is required"
+                                     Clearable="true" Dense="true" />
+                </MudItem>
+            </MudGrid>
+            </div>
+
+            <!-- Identification Document Section -->
+            <div class="form-section" style="margin-top:12px;">
+                <div class="form-section-title">
+                    🆔 Identification Document
+                </div>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="MeansOfIdentification" @bind-Value="SelectedMeansOfId" Label=" Document Type *"
+                                         SearchFunc="@SearchMeansOfIdentification" ToStringFunc="@(e => e == null ? null : e.MeansOfId)"
+                                         Disabled="@isLoadingMeansOfId" Required="true" RequiredError="Document type is required"
+                                         Clearable="true" Dense="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.ID_Number" Label=" Document Number *"
+                                      Placeholder="e.g., 12345678" Required="true" RequiredError="Document number is required" />
+                    </MudItem>
+                    @if (RequiresIdExpiry)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudDatePicker Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Date="idExpiryDate" Label="ID Expiry Date" Required="@RequiresIdExpiry" MinDate="@minIdExpiryDate" Validation="@ValidateIdExpiry" />
+                        </MudItem>
+                    }
+                </MudGrid>
+            </div>
+
+            <!-- Contact Information Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    📞 @LangService.T("Contact Information","Informação de Contacto")
+                </div>
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Mobile_Phone_No" Label='@LangService.T("Phone Number *","Número de Telefone *")'
+                                      Placeholder="+25884*******" Required="true" RequiredError="Phone number is required" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.E_Mail" Label='@LangService.T("Email Address *","Endereço de Email *")'
+                                      Placeholder="e.g., name@example.com" Required="true" RequiredError="Email is required" />
+                    </MudItem>
+                </MudGrid>
+            </div>
+
+            <!-- Residential Address Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    🏠 @LangService.T("Residential Address","Morada Residencial")
+                </div>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Address" Label='@LangService.T("Street Address *","Morada *")'
+                                      Placeholder="e.g., Av. Julius Nyerere 123, Maputo" Lines="3" Required="true" RequiredError="Street address is required" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="string" @bind-Value="kycData.State" Label='@LangService.T("Province/State *","Província/Estado *")'
+                                         SearchFunc="@SearchProvinces" ToStringFunc="@(s => s)" Required="true" RequiredError="Province is required" Clearable="true" Dense="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="PostalCode" @bind-Value="selectedPostalCode" Label='@LangService.T("City/Postal Code *","Cidade/Código Postal *")'
+                                         SearchFunc="@SearchPostalCodes" ToStringFunc="@(e => e == null ? null : $"{e.City} ({e.Code})")"
+                                         Disabled="@isLoadingPostalCodes" Required="true" RequiredError="City/Postal code is required"
+                                         Clearable="true" Dense="true" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="CountryRegion" @bind-Value="selectedResidenceCountry" Label='@LangService.T("Country *","País *")' 
+                                         SearchFunc="@SearchCountries" ToStringFunc="@(e => e == null ? null : e.Name)"
+                                         Disabled="@isLoadingCountries" Required="true" RequiredError="Country is required"
+                                         Clearable="true" Dense="true" />
+                    </MudItem>
+                </MudGrid>
+                <MudGrid>
+                    <MudItem xs="12" sm="6" md="6" lg="4">
+                        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" @bind-Value="kycData.Occupation" Label='@LangService.T("Occupation *","Ocupação *")' 
+                                      Placeholder="e.g., Engineer" Required="true" RequiredError="Occupation is required" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6" md="6" lg="4">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="SourceOfIncome" @bind-Value="selectedSourceOfIncome" Label='@LangService.T("Source of Income *","Fonte de Rendimento *")'
+                                         SearchFunc="@SearchSourcesOfIncome" ToStringFunc="@(e => e == null ? null : $"{e.Code} ")"
+                                         Disabled="@isLoadingSourcesOfIncome" Required="true" RequiredError="Source of income is required"
+                                         Clearable="true" Dense="true" />
+                    </MudItem>
+                </MudGrid>
+            </div>
+
+            <!-- Risk Assessment & Compliance Section -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    ⚠️ @LangService.T("Risk Assessment & Compliance","Avaliação de Risco & Conformidade")
+                </div>
+                <MudText Typo="Typo.caption" style="color: #666; margin-bottom: 15px;">
+                    Required for AMI/CFT compliance under Mozambique Law No. 14/2023
+                </MudText>
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudAutocomplete Variant="Variant.Outlined" Margin="Margin.Dense" T="string" @bind-Value="kycData.PEP_Status" Label='@LangService.T("Are you a Politically Exposed Person (PEP)? *","É uma Pessoa Politicamente Exposta (PEP)? *")'
+                                         SearchFunc="@SearchYesNo" ToStringFunc="@(s => s)" Required="true" RequiredError="PEP status is required" Clearable="true" Dense="true" />
+                        <MudText Typo="Typo.caption" style="color: #666; margin-top: 8px;">
+                            PEP includes government officials, their relatives, and close associates
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; margin-bottom: 16px;">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Medium" OnClick="@(()=>navigate.NavigateTo("/"))">
+                    @LangService.T("Cancel","Cancelar")
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Medium" OnClick="@(()=>SubmitForm())">
+                    @LangService.T("Next: Upload Documents →","Seguinte: Carregar Documentos →")
+                </MudButton>
+            </div>
+        </MudForm>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    MainLayout Layout { get; set; }
+    private MudForm form;
+    private bool success;
+    private List<CountryRegion> countries = new List<CountryRegion>();
+    private List<Religion> religions = new List<Religion>();
+    private List<MeansOfIdentification> meansOfIdentification = new List<MeansOfIdentification>();
+    private List<PostalCode> postalCodes = new List<PostalCode>();
+    private List<SourceOfIncome> sourcesOfIncome = new List<SourceOfIncome>();
+    private bool isLoadingCountries = true;
+    private bool isLoadingReligions = true;
+    private bool isLoadingMeansOfId = true;
+    private bool isLoadingPostalCodes = true;
+    private bool isLoadingSourcesOfIncome = true;
+
+    // Selected items for autocomplete
+    private CountryRegion selectedNationality;
+    private CountryRegion selectedCountryOfResidence;
+    private CountryRegion selectedResidenceCountry;
+    private Religion selectedReligion;
+    private MeansOfIdentification selectedMeansOfId;
+    private PostalCode selectedPostalCode;
+    private SourceOfIncome selectedSourceOfIncome;
+
+    // KYC model directly bound to form
+    private IndividualKyc kycData = new IndividualKyc();
+    private DateTime? dateOfBirth;
+    private DateTime? idExpiryDate;
+    private readonly DateTime earliestDob = new DateTime(1900, 1, 1);
+    private readonly DateTime minAdultDob = DateTime.Today.AddYears(-18);
+    private readonly DateTime minIdExpiryDate = DateTime.Today;
+    private bool RequiresIdExpiry => selectedMeansOfId?.ExpirationDateRequired == true;
+    private MeansOfIdentification SelectedMeansOfId
+    {
+        get => selectedMeansOfId;
+        set
+        {
+            selectedMeansOfId = value;
+            OnMeansOfIdChanged(value);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            Layout.OpenLoading();
+            isLoadingCountries = true;
+            isLoadingReligions = true;
+            isLoadingMeansOfId = true;
+            isLoadingPostalCodes = true;
+            isLoadingSourcesOfIncome = true;
+
+            // Load all data in parallel through UnitOfWork
+            var countriesTask = UnitOfWork.CountryRegionService.GetCountriesAsync();
+            var religionsTask = UnitOfWork.ReligionService.GetReligionsAsync();
+            var meansOfIdTask = UnitOfWork.MeansOfIdentificationService.GetMeansOfIdentificationAsync();
+            var postalCodesTask = UnitOfWork.PostalCodeService.GetPostalCodesAsync();
+            var sourcesOfIncomeTask = UnitOfWork.SourceOfIncomeService.GetSourcesOfIncomeAsync();
+
+            await Task.WhenAll(countriesTask, religionsTask, meansOfIdTask, postalCodesTask, sourcesOfIncomeTask);
+
+            countries = await countriesTask;
+            religions = await religionsTask;
+            meansOfIdentification = await meansOfIdTask;
+            postalCodes = await postalCodesTask;
+            sourcesOfIncome = await sourcesOfIncomeTask;
+
+            // Load existing KYC record from BC if user has Contact_No
+            await LoadExistingKYCRecord();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading form data: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoadingCountries = false;
+            isLoadingReligions = false;
+            isLoadingMeansOfId = false;
+            isLoadingPostalCodes = false;
+            isLoadingSourcesOfIncome = false;
+        }
+        Layout.CloseLoading();
+    }
+
+    private async Task LoadExistingKYCRecord()
+    {
+        try
+        {
+            // Get current user
+            var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user?.Identity?.IsAuthenticated == true)
+            {
+                var userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(userEmail))
+                {
+                    // Get user from database
+                    var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.Contact_No))
+                    {
+                        // Load KYC record from BC using Contact_No
+                        var kycRecord = await UnitOfWork.ContactCardService.GetContactCardAsync(dbUser.Contact_No);
+                        if (kycRecord != null)
+                        {
+                            // Populate form with loaded data
+                            kycData = kycRecord;
+
+                            // Normalize Title to match UI select values (e.g., "Mr.", "MR" -> "Mr")
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Title))
+                            {
+                                kycData.Title = NormalizeTitle(kycRecord.Title);
+                            }
+
+                            // Parse dates
+                            if (!string.IsNullOrEmpty(kycRecord.Date_of_Birth) && DateTime.TryParse(kycRecord.Date_of_Birth, out var dob))
+                            {
+                                dateOfBirth = dob;
+                            }
+                            if (!string.IsNullOrEmpty(kycRecord.ID_Expiry_Date) && DateTime.TryParse(kycRecord.ID_Expiry_Date, out var expiry))
+                            {
+                                idExpiryDate = expiry;
+                            }
+
+                            // Restore Means Of Identification selection
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Means_of_Identification))
+                            {
+                                selectedMeansOfId = meansOfIdentification.FirstOrDefault(m =>
+                                    string.Equals(m.MeansOfId, kycRecord.Means_of_Identification, StringComparison.OrdinalIgnoreCase));
+                            }
+
+                            // Restore Nationality
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Nationality))
+                            {
+                                selectedNationality = countries.FirstOrDefault(c =>
+                                    string.Equals(c.Code, kycRecord.Nationality, StringComparison.OrdinalIgnoreCase));
+                            }
+
+                            // Restore Residence Country
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Country_Region_Code))
+                            {
+                                selectedResidenceCountry = countries.FirstOrDefault(c =>
+                                    string.Equals(c.Code, kycRecord.Country_Region_Code, StringComparison.OrdinalIgnoreCase));
+                            }
+
+                            // Restore City/Postal Code
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Post_Code))
+                            {
+                                selectedPostalCode = postalCodes.FirstOrDefault(p =>
+                                    string.Equals(p.Code, kycRecord.Post_Code, StringComparison.OrdinalIgnoreCase))
+                                    ?? (!string.IsNullOrWhiteSpace(kycRecord.City)
+                                        ? postalCodes.FirstOrDefault(p => string.Equals(p.City, kycRecord.City, StringComparison.OrdinalIgnoreCase))
+                                        : null);
+                            }
+
+                            // Restore Source of Income
+                            if (!string.IsNullOrWhiteSpace(kycRecord.Source_of_Funds))
+                            {
+                                selectedSourceOfIncome = sourcesOfIncome.FirstOrDefault(s =>
+                                    string.Equals(s.Code, kycRecord.Source_of_Funds, StringComparison.OrdinalIgnoreCase));
+                            }
+
+                            Snackbar.Add("KYC record loaded successfully", Severity.Info);
+                        }
+                        else
+                        {
+                            // No BC KYC found even though Contact_No exists – prefill from application user
+                            PrefillFromAppUser(dbUser);
+                        }
+                    }
+                    else if (dbUser != null)
+                    {
+                        // First time: no Contact_No in our DB – prefill from application user
+                        PrefillFromAppUser(dbUser);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't fail if loading existing record fails - user can create new one
+        }
+    }
+
+    // Validators
+    private IEnumerable<string> ValidateNuit(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) yield return LangService.T("NUIT is required","NUIT é obrigatório");
+        else if (value.Length != 9 || !value.All(char.IsDigit)) yield return LangService.T("NUIT must be exactly 9 digits","O NUIT deve ter exatamente 9 dígitos");
+    }
+
+    private IEnumerable<string> ValidateDob(DateTime? value)
+    {
+        if (value == null) yield return LangService.T("Date of Birth is required","A data de nascimento é obrigatória");
+        else if (value > minAdultDob) yield return LangService.T("You must be at least 18 years old","Deve ter pelo menos 18 anos");
+    }
+
+    private IEnumerable<string> ValidateIdExpiry(DateTime? value)
+    {
+        if (!RequiresIdExpiry)
+            yield break;
+        if (value == null)
+            yield return LangService.T("ID Expiry Date is required","A data de validade do documento é obrigatória");
+        else if (value.Value.Date <= DateTime.Today)
+            yield return LangService.T("ID Expiry Date must be a future date","A data de validade do documento deve ser uma data futura");
+    }
+
+    private void OnMeansOfIdChanged(MeansOfIdentification value)
+    {
+        selectedMeansOfId = value;
+        if (!RequiresIdExpiry)
+        {
+            idExpiryDate = null;
+        }
+        StateHasChanged();
+    }
+
+    private void PrefillFromAppUser(Users dbUser)
+    {
+        if (dbUser == null) return;
+        // Basic identity fields
+        kycData.First_name = dbUser.FirstName;
+        kycData.Other_Name = dbUser.MiddleName;
+        kycData.Last_Name = dbUser.LastName;
+        // Contact info
+        kycData.Mobile_Phone_No = dbUser.PhoneNumber;
+        kycData.E_Mail = dbUser.Email;
+        // Full Legal Name composed from parts
+        var first = dbUser.FirstName?.Trim();
+        var middle = dbUser.MiddleName?.Trim();
+        var last = dbUser.LastName?.Trim();
+        kycData.Name = string.Join(" ", new[] { first, middle, last }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    }
+
+    private static string NormalizeTitle(string title)
+    {
+        var t = (title ?? string.Empty).Trim().Trim('.');
+        if (t.Equals("Mr", StringComparison.OrdinalIgnoreCase) || t.Equals("Mister", StringComparison.OrdinalIgnoreCase)) return "Mr";
+        if (t.Equals("Mrs", StringComparison.OrdinalIgnoreCase) || t.Equals("Missus", StringComparison.OrdinalIgnoreCase)) return "Mrs";
+        if (t.Equals("Ms", StringComparison.OrdinalIgnoreCase)) return "Ms";
+        if (t.Equals("Dr", StringComparison.OrdinalIgnoreCase) || t.Equals("Doctor", StringComparison.OrdinalIgnoreCase)) return "Dr";
+        if (t.Equals("Prof", StringComparison.OrdinalIgnoreCase) || t.Equals("Professor", StringComparison.OrdinalIgnoreCase)) return "Prof";
+        return t; // fallback as-is without trailing dot
+    }
+
+    // Autocomplete search helpers for simple string lists
+    private Task<IEnumerable<string>> SearchTitles(string value)
+    {
+        var items = new[] { "Mr", "Mrs", "Ms", "Dr", "Prof" };
+        if (string.IsNullOrWhiteSpace(value)) return Task.FromResult(items.AsEnumerable());
+        var filtered = items.Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchGenders(string value)
+    {
+        var items = new[] { "Male", "Female", "Other" };
+        if (string.IsNullOrWhiteSpace(value)) return Task.FromResult(items.AsEnumerable());
+        var filtered = items.Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchMaritalStatuses(string value)
+    {
+        var items = new[] { "Single", "Married", "Divorced", "Widowed" };
+        if (string.IsNullOrWhiteSpace(value)) return Task.FromResult(items.AsEnumerable());
+        var filtered = items.Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchProvinces(string value)
+    {
+        var items = new[] { "Cabo Delgado", "Gaza", "Inhambane", "Manica", "Maputo City", "Maputo", "Nampula", "Niassa", "Sofala", "Tete", "Zambezia" };
+        if (string.IsNullOrWhiteSpace(value)) return Task.FromResult(items.AsEnumerable());
+        var filtered = items.Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(filtered);
+    }
+
+    private Task<IEnumerable<string>> SearchYesNo(string value)
+    {
+        var items = new[] { "Yes", "No" };
+        if (string.IsNullOrWhiteSpace(value)) return Task.FromResult(items.AsEnumerable());
+        var filtered = items.Where(x => x.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(filtered);
+    }
+
+    private async Task SubmitForm()
+    {
+        await form.Validate();
+        // Extra server-side validations
+        var nuitErrors = ValidateNuit(kycData.BVN_No) ?? Enumerable.Empty<string>();
+        var dobErrors = ValidateDob(dateOfBirth) ?? Enumerable.Empty<string>();
+        var idExpErrors = ValidateIdExpiry(idExpiryDate) ?? Enumerable.Empty<string>();
+
+        var allErrors = nuitErrors.Concat(dobErrors).Concat(idExpErrors).ToList();
+        if (allErrors.Any())
+        {
+            foreach (var err in allErrors) Snackbar.Add(err, Severity.Error);
+            return;
+        }
+
+        if (form.IsValid)
+        {
+            Layout.OpenLoading();
+            try
+            {
+                // Map selected items to KYC model
+                kycData.Contact_Type = "Individual";
+                // Normalize Title before submit to keep consistency with UI values
+                if (!string.IsNullOrWhiteSpace(kycData.Title))
+                    kycData.Title = NormalizeTitle(kycData.Title);
+                kycData.Nationality = selectedNationality?.Code;
+                // State is already bound from the hardcoded dropdown
+                kycData.Means_of_Identification = selectedMeansOfId?.MeansOfId;
+                kycData.Date_of_Birth = dateOfBirth?.ToString("yyyy-MM-dd");
+                kycData.ID_Expiry_Date = idExpiryDate?.ToString("yyyy-MM-dd");
+                kycData.Approval_Status = KycStatus.Open.ToString();
+                kycData.Customer_Category = "Non-Staff";
+                kycData.High_Risk_Low_Risk = kycData.PEP_Status == "Yes" ? "High Risk" : "Low Risk";
+                kycData.Source_of_Funds = selectedSourceOfIncome?.Code;
+                kycData.Country_Region_Code = selectedResidenceCountry?.Code;
+                kycData.Post_Code = selectedPostalCode?.Code;
+                kycData.City = selectedPostalCode?.City;
+                kycData.Stage = "KYC";
+                kycData.Type = "Person";
+
+                // Submit to ERP
+                var contactNo = await UnitOfWork.ContactCardService.CreateOrUpdateContactCardAsync(kycData);
+
+                // Get current user and update their Contact_No
+                try
+                {
+                    var authState = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+                    var user = authState.User;
+
+                    if (user?.Identity?.IsAuthenticated == true)
+                    {
+                        var userEmail = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                        if (!string.IsNullOrEmpty(userEmail))
+                        {
+                            // Get user by email and update Contact_No
+                            var dbUser = await UnitOfWork.userRepository.GetByEmail(userEmail);
+                            if (dbUser != null)
+                            {
+                                dbUser.Contact_No = contactNo;
+                                await UnitOfWork.userRepository.Update(dbUser);
+                                UnitOfWork.save();
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail - contact was already created in BC
+                }
+
+                Snackbar.Add($"Form submitted successfully! Contact No: {contactNo}", Severity.Success);
+
+                // Navigate to next step
+                await Task.Delay(1500);
+                navigate.NavigateTo("/Individual_documents");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error submitting form: {ex.Message}", Severity.Error);
+            }
+            Layout.CloseLoading();
+        }
+    }
+
+    // Search functions for autocomplete
+    private async Task<IEnumerable<CountryRegion>> SearchCountries(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return countries;
+        return await Task.FromResult(countries.Where(x => x.Code.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+                                                          x.Name.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private async Task<IEnumerable<Religion>> SearchReligions(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return religions;
+        return await Task.FromResult(religions.Where(x => x.Code.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+                                                          (x.Description != null && x.Description.Contains(value, StringComparison.OrdinalIgnoreCase))));
+    }
+
+    private async Task<IEnumerable<MeansOfIdentification>> SearchMeansOfIdentification(string value)
+    {
+        var filtered = meansOfIdentification
+            .Where(x =>
+                string.Equals(x.AccountType, "Individual", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.AccountType, "Person", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Fallback: if BC didn't set Account_Type, show all instead of empty
+        if (filtered.Count == 0)
+            filtered = meansOfIdentification.ToList();
+
+        if (string.IsNullOrEmpty(value))
+            return filtered;
+        return await Task.FromResult(filtered.Where(x => x.MeansOfId.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+                                                         (x.Description != null && x.Description.Contains(value, StringComparison.OrdinalIgnoreCase))));
+    }
+
+    private async Task<IEnumerable<PostalCode>> SearchPostalCodes(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return postalCodes;
+        return await Task.FromResult(postalCodes.Where(x => x.Code.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+                                                            x.City.Contains(value, StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private async Task<IEnumerable<SourceOfIncome>> SearchSourcesOfIncome(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return sourcesOfIncome;
+        return await Task.FromResult(sourcesOfIncome.Where(x => x.Code.Contains(value, StringComparison.OrdinalIgnoreCase) || 
+                                                                 (x.Description != null && x.Description.Contains(value, StringComparison.OrdinalIgnoreCase))));
+    }
+}
